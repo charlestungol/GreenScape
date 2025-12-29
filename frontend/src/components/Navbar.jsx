@@ -57,7 +57,9 @@ export default function Navbar({ content }) {
       console.log("Logout error:", error);
     }
 
-    localStorage.clear();
+    localStorage.removeItem("token");
+    localStorage.removeItem("first_name");
+    localStorage.removeItem("role");
     navigate("/");
   };
 
