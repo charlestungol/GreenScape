@@ -2,7 +2,11 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.base_user import BaseUserManager
 
+#Sign Up/Sign in
 class CustomManager(BaseUserManager):
+
+    use_in_migrations = True
+
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError('Email is a required field')
@@ -42,3 +46,6 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return f"{self.email} ({self.role})"
+    
+    class Meta:
+        db_table = "users_customuser"

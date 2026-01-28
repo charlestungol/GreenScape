@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'users',
+    'core',
     'knox'
 ]
 
@@ -84,7 +85,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'auth.wsgi.application'
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication',),
+    'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication', ),
 }
 
 
@@ -93,8 +94,14 @@ REST_FRAMEWORK = {
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'mssql',
+        'NAME': 'GreenScape',
+        'HOST' : 'localhost',
+        'OPTIONS' : {
+            'driver' : 'ODBC Driver 17 for SQL Server',
+            'trusted_connection' : 'yes',
+            'TrustServerCertificate': 'yes',
+        },
     }
 }
 
