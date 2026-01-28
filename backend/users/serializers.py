@@ -1,17 +1,27 @@
 from rest_framework import serializers
-from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import get_user_model, authenticate, password_validation
+from django.core import exceptions
+from allauth.account.models import EmailAddress
+from core.serializers import AddressSerializer
+from core.models import Address, Customer
+from django.db import transaction
 
 User = get_user_model()
 
+def normalize_email(value: str) -> str:
+    return (value or "").strip().lower()
 
 class ClientLoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        email = data["email"]
+        email = normalize_email(data["email"])
         password = data["password"]
 
+        if not email or not password:
+            raise serializers.ValidationError("Email and password are required.")
+        
         user = authenticate(
             request=self.context.get("request"),
             email=email,
@@ -21,6 +31,11 @@ class ClientLoginSerializer(serializers.Serializer):
         if not user:
             raise serializers.ValidationError("Invalid credentials")
 
+        is_verified = EmailAddress.objects.filter(user=user, email=user.email, verified=True).exists()
+        if not is_verified:
+            raise serializers.ValidationError("Email not verified. Please check your inbox.")
+        if not getattr(user, "is_active", True):
+            raise serializers.ValidationError("Account is inactive. Contact support")
         if user.role != "client":
             raise serializers.ValidationError("Not a client account")
 
@@ -30,16 +45,61 @@ class ClientLoginSerializer(serializers.Serializer):
 
 
 class ClientRegisterSerializer(serializers.ModelSerializer):
+    address = AddressSerializer(required=True)
+
     class Meta:
         model = User
-        fields = ["id", "email", "password", "first_name", "last_name"]
+        fields = ["id", "email", "password", "first_name", "last_name", "address"]
         extra_kwargs = {"password": {"write_only": True}}
 
+    def validate_email(self, value):
+        return normalize_email(value)
+    
+    def validate_password(self, value):
+        try:
+            password_validation.validate_password(value)
+        except exceptions.ValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
+        return value
+
+    @transaction.atomic
     def create(self, validated_data):
+        address_data = validated_data.pop("address")
+        phone_number = validated_data.pop('phone')
+        email = validated_data.pop("email")
+
+        # Create new user
         user = User.objects.create_user(
+            email =  email,
+            is_active = False,
             **validated_data,
             role="client"
         )
+
+        # Create Customer
+        customer = Customer.objects.create(
+            UserId = user.id,
+            FirstName = user.first_name,
+            LastName = user.last_name,
+            Email = user.email,
+            PhoneNumber = phone_number,
+            AddressId = None,
+        )
+
+        # Create Address
+        address = Address.objects.create(
+            CustomerId = customer.CustomerId,
+            Street = address_data["street"],
+            City = address_data["cirty"],
+            Province = address_data["province"],
+            PostalCode = address_data["postal_code"],
+        )
+
+        customer.addressid = address.addressid
+        customer.save(update_fields=["AddressId"])
+
+
+
         return user
 
 

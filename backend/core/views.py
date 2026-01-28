@@ -9,7 +9,7 @@ from .models import *
 from .serializers import *
 
 # Security
-from .permissions import IsAuthenticatedOrReadOnly
+from .permissions import *
 
 
 # -----------------------------------------------------------------------------
@@ -18,41 +18,63 @@ from .permissions import IsAuthenticatedOrReadOnly
 class AddressViewSet(viewsets.ModelViewSet):
     queryset = Address.objects.all()
     serializer_class = AddressSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsOwnerOrAdmin]
 
 
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.select_related("addressid").all()
     serializer_class = CustomerSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsOwnerOrAdmin]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not (user and user.is_authenticated):
+            return Customer.objects.none()
+        # If its a staff return all customer
+        if user.is_staff:
+            return Customer.objects.select_related("addressid").all()
+        # If its a customer, return customers data.
+        if hasattr(Customer, "user_id"):
+            return Customer.objects.select_related("addressid").filter(user_id = user.id)
+        # If customer return his data using email
+        return Customer.objects.select_related("addressid").filter(email=user.email)
 
 
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related("addressid").all()
     serializer_class = EmployeeSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [isAdmin]
 
 
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        # Allows authenticated user to view services
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticatedOrReadOnly()]
+        # Allow admin to add new services
+        return [isAdmin()]
 
 
 class CustomerServiceViewSet(viewsets.ModelViewSet):
     queryset = Customerservice.objects.select_related("customerid", "serviceid").all()
     serializer_class = CustomerServiceSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsOwnerOrAdmin]
 
     def get_queryset(self):
-        qs = super().get_queryset()
-        customer_id = self.request.query_params.get("customerid")
-        service_id = self.request.query_params.get("serviceid")
-        if customer_id:
-            qs = qs.filter(customerid_id=customer_id)
-        if service_id:
-            qs = qs.filter(serviceid_id=service_id)
-        return qs
+        user = self.request.user
+        if not (user and user.is_authenticated):
+            return Customerservice.objects.none()
+        if user.is_staff:
+            return self.queryset
+        
+        # Filters customers data
+        if hasattr(Customer, "user_id"):
+            return self.queryset.filter(customerid_user_id=user.id)
+        # Uses users email instead to get customer data.
+        return self.queryset.filter(customer_email=user.email)
 
 
  
@@ -65,9 +87,13 @@ class CustomerServiceViewSet(viewsets.ModelViewSet):
 class ServiceImageViewSet(viewsets.ModelViewSet):
     queryset = Serviceimage.objects.select_related("serviceid").all()
     serializer_class = ServiceImageSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
     parser_classes = [MultiPartParser, FormParser]  # for upload
 
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticatedOrReadOnly()]
+        return [isAdmin()]
+    
     def get_queryset(self):
         qs = super().get_queryset()
         service_id = self.request.query_params.get("serviceid")

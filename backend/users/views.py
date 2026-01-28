@@ -1,8 +1,9 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, views, status
 from rest_framework.response import Response 
 from .serializers import *
 from .models import *
-from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import get_user_model
+from allauth.account.models import EmailAddress
 from knox.models import AuthToken
 
 User = get_user_model()
@@ -12,7 +13,7 @@ class ClientLoginViewSet(viewsets.ViewSet):
     serializer_class = ClientLoginSerializer
 
     def create(self, request):
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.serializer_class(data=request.data, context = {"request" : request})
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data["user"]
@@ -38,10 +39,18 @@ class ClientRegisterViewSet(viewsets.ModelViewSet):
 
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            return Response(ClientRegisterSerializer(user).data, status=201)
-        return Response(serializer.errors, status=400)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        EmailAddress.objects.add_email(
+            request,
+            user,
+            user.email,
+            confirm=True
+        )
+
+        return Response (
+            {"detail": "Registration recieved. Please check your email to confirm your account."}, status = 201
+        )
     
 
 class EmployeeLoginViewSet(viewsets.ViewSet):
@@ -109,3 +118,19 @@ class ChangePasswordViewSet(viewsets.ViewSet):
 
         return Response({"message": "Password changed successfully."}, status=200)
 
+
+class ResendVerificationView(views.APIView):
+    permission_classes = [permissions.AllowAny]  # <- correct attribute name
+
+    def post(self, request):
+        email = (request.data.get("email") or "").strip().lower()
+        user = User.objects.filter(email__iexact=email).first()
+
+        if user:
+            EmailAddress.objects.add_email(
+                request, user, user.email, confirm=True
+            )
+        return Response(
+            {"detail": "If an account exists, a verification email has been sent."},
+            status=status.HTTP_200_OK
+        )

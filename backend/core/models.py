@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 class Address(models.Model):
     addressid = models.AutoField(db_column='AddressId', primary_key=True)  # Field name made lowercase.
@@ -14,6 +15,14 @@ class Address(models.Model):
 
 class Customer(models.Model):
     customerid = models.AutoField(db_column='CustomerId', primary_key=True)  # Field name made lowercase.
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank = True,
+        db_column="UserId"
+    )
+
     addressid = models.ForeignKey(Address, models.DO_NOTHING, db_column='AddressId')  # Field name made lowercase.
     firstname = models.CharField(db_column='FirstName', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
     lastname = models.CharField(db_column='LastName', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.

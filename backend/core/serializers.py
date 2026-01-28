@@ -4,7 +4,7 @@ from .models import *
 # Address
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
-        models = Address
+        model = Address
         fields =  ["addressid", "street", "city", "province", "postalcode"]
 
 # Customer
@@ -14,18 +14,17 @@ class CustomerSerializer(serializers.ModelSerializer):
     # Add an address to the customer
     addressid = serializers.PrimaryKeyRelatedField(
         queryset = Address.objects.all(),
-        source = "addressid",
         write_only=True
     )
 
     class Meta:
-        models = Customer
+        model = Customer
         fields = ["customerid", "address", "addressid", "firstname", "lastname", "email", "phonenumber"]
 
 # Service
 class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
-        models = Service
+        model = Service
         fields = ["serviceid", "servicetypeid", "title", "description", "baseprice"]
 
 # Service Image 
@@ -34,7 +33,7 @@ class ServiceImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
 
     class Meta:
-        models = Serviceimage
+        model = Serviceimage
         fields = ["serviceimageid", "serviceid", "contenttype", "filename", "imagedata", "createdat", "url"]
 
         # Method to get the image url from db
@@ -57,20 +56,18 @@ class CustomerServiceSerializer(serializers.ModelSerializer):
 
     # Have a customer
     customerid = serializers.PrimaryKeyRelatedField(
-        queryset = Customer.objects.all(), 
-        source = "customerid", 
+        queryset = Customer.objects.all(),  
         write_only = True
     )
 
     # Have a service
     serviceid = serializers.PrimaryKeyRelatedField(
         queryset = Service.objects.all(),
-        source = "serviceid",
         write_only = True
     )
 
     class Meta:
-        models = Customerservice
+        model = Customerservice
         fields = ["customerid", "serviceid", "customer", "service", "createdat", "reqdate", "redyear", "completed"]
 
 class EmployeeSerializer(serializers.ModelSerializer):
@@ -78,6 +75,5 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     addressid = serializers.PrimaryKeyRelatedField(
         queryset = Address.objects.all(),
-        source = "addressid",
         write_only = True
     )
