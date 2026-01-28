@@ -11,6 +11,7 @@ import ListItemText from "@mui/material/ListItemText";
 
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
+import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -21,27 +22,78 @@ import ProfilePic from "../assets/img/Profile.jpg";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
+/* =========================
+   THEME
+========================= */
 const theme = createTheme({
   typography: { fontFamily: "'Courier New', monospace" },
 });
 
 const drawerWidth = 300;
 
+/* =========================
+   ROLE-BASED MENU CONFIG
+========================= */
+const menuConfig = {
+  client: [
+    {
+      label: "Dashboard",
+      path: "/home",
+      icon: <DashboardIcon sx={{ color: "#06632b" }} />,
+    },
+    {
+      label: "Services",
+      path: "/services",
+      icon: <WaterDropIcon sx={{ color: "#06632b" }} />,
+    },
+    {
+      label: "Booking",
+      path: "/booking",
+      icon: <CalendarMonthIcon sx={{ color: "#06632b" }} />,
+    },
+    {
+      label: "Settings",
+      path: "/settings",
+      icon: <SettingsIcon sx={{ color: "#06632b" }} />,
+    },
+  ],
+
+  employee: [
+    {
+      label: "Dashboard",
+      path: "/employeeHome",
+      icon: <DashboardIcon sx={{ color: "#06632b" }} />,
+    },
+    {
+      label: "Client",
+      path: "/client",
+      icon: <PeopleOutlineIcon sx={{ color: "#06632b" }} />,
+    },
+    {
+      label: "Settings",
+      path: "/settings",
+      icon: <SettingsIcon sx={{ color: "#06632b" }} />,
+    }
+  ],
+};
+
+/* =========================
+   NAVBAR COMPONENT
+========================= */
 export default function Navbar({ content }) {
   const location = useLocation();
   const navigate = useNavigate();
+
   const path = location.pathname;
 
   const firstName = localStorage.getItem("first_name") || "User";
-  const role = localStorage.getItem("role");
+  const role = localStorage.getItem("role") || "client";
 
-  const routes = {
-    dashboard: role === "employee" ? "/employeeHome" : "/home",
-    services: "/services",
-    booking: "/booking",
-    settings: "/settings",
-  };
+  const menuItems = menuConfig[role];
 
+  /* =========================
+     LOGOUT
+  ========================= */
   const handleLogout = async () => {
     const token = localStorage.getItem("token");
 
@@ -57,15 +109,16 @@ export default function Navbar({ content }) {
       console.log("Logout error:", error);
     }
 
-    localStorage.removeItem("token");
-    localStorage.removeItem("first_name");
-    localStorage.removeItem("role");
+    localStorage.clear();
     navigate("/");
   };
 
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ display: "flex" }}>
+        {/* =========================
+            DRAWER
+        ========================= */}
         <Drawer
           variant="permanent"
           sx={{
@@ -105,7 +158,6 @@ export default function Navbar({ content }) {
             sx={{
               mb: 4,
               textAlign: "center",
-              color: "#06632b",
               fontWeight: "bold",
               fontSize: "1.2rem",
             }}
@@ -116,62 +168,18 @@ export default function Navbar({ content }) {
           {/* MENU */}
           <Box sx={{ overflow: "auto" }}>
             <List>
-
-              {/* Dashboard */}
-              <ListItem disablePadding>
-                <ListItemButton
-                  component={Link}
-                  to={routes.dashboard}
-                  selected={path === routes.dashboard}
-                >
-                  <ListItemIcon>
-                    <DashboardIcon sx={{ color: "#06632b" }} />
-                  </ListItemIcon>
-                  <ListItemText primary="Dashboard" />
-                </ListItemButton>
-              </ListItem>
-
-              {/* Services */}
-              <ListItem disablePadding>
-                <ListItemButton
-                  component={Link}
-                  to={routes.services}
-                  selected={path === routes.services}
-                >
-                  <ListItemIcon>
-                    <WaterDropIcon sx={{ color: "#06632b" }} />
-                  </ListItemIcon>
-                  <ListItemText primary="Services" />
-                </ListItemButton>
-              </ListItem>
-
-              {/* Booking */}
-              <ListItem disablePadding>
-                <ListItemButton
-                  component={Link}
-                  to={routes.booking}
-                  selected={path === routes.booking}
-                >
-                  <ListItemIcon>
-                    <CalendarMonthIcon sx={{ color: "#06632b" }} />
-                  </ListItemIcon>
-                  <ListItemText primary="Booking" />
-                </ListItemButton>
-              </ListItem>
-
-              {/* Settings */}
-              <ListItem disablePadding>
-                <ListItemButton
-                  component={Link}
-                  to={routes.settings}
-                  selected={path === routes.settings}
-                >
-                  <ListItemIcon>
-                    <SettingsIcon sx={{ color: "#06632b" }} />
-                  </ListItemIcon>
-                  <ListItemText primary="Settings" />
-                </ListItemButton>
-              </ListItem>
+              {menuItems.map((item) => (
+                <ListItem disablePadding key={item.path}>
+                  <ListItemButton
+                    component={Link}
+                    to={item.path}
+                    selected={path === item.path}
+                  >
+                    <ListItemIcon>{item.icon}</ListItemIcon>
+                    <ListItemText primary={item.label} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
 
               {/* LOGOUT */}
               <ListItem disablePadding>
@@ -182,12 +190,13 @@ export default function Navbar({ content }) {
                   <ListItemText primary="Logout" />
                 </ListItemButton>
               </ListItem>
-
             </List>
           </Box>
         </Drawer>
 
-        {/* MAIN CONTENT */}
+        {/* =========================
+            MAIN CONTENT
+        ========================= */}
         <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
           <Toolbar />
           {content}

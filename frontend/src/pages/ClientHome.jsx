@@ -1,52 +1,48 @@
-import "../App.css";
+import "../clientCss/Dashboard.css";
 import Budget from "../dashboard/Budget.jsx";
 import Expenses from "../dashboard/Expenses.jsx";
 import FinishedServices from "../dashboard/FinishedServices.jsx";
 import Quote from "../dashboard/Quote.jsx";
 import RunningServices from "../dashboard/RunningServices.jsx";
-import Time from '../dashboard/Timeboard.jsx'
-import Report from '../dashboard/Report.jsx'
-import Progress from '../dashboard/Progress.jsx'
+import Time from '../dashboard/Timeboard.jsx';
+import Report from '../dashboard/Report.jsx';
+import Progress from '../dashboard/Progress.jsx';
 import Analytics from "../dashboard/Analytics.jsx";
 import Maps from "../dashboard/Maps.jsx";
-import Payment from "../dashboard/Payment.jsx";
 
 const Home = () => {
-   return(
-    <>
-    <div className="dashboardWrapper">
-    <div className="titleWrapper">
-      CLIENT DASHBOARD
-    </div>
-      <div className="firstLayerBoard">
-        <div className="leftColumn">
-          <Budget/>
-          <Expenses/>
-          <Report/>
-          <div className="timeRow">
-            <Time/>
-            <Maps/>
+  return (
+    <div className="mainArea">
+      <div className="dashboardContainer">
+        <div className="dashboardWrapper">
+          <div className="titleWrapper">
+            CLIENT DASHBOARD
           </div>
-          <div>
-            <Quote/>
+          <div className="firstLayerBoard">
+            <div className="leftColumn">
+              <Budget/>
+              <Expenses/>
+              <Report/>
+              <div className="timeRow">
+                <Time/>
+                <Maps/>
+              </div>
+              <Quote/>
+            </div>
+            <div className="rightColumn">
+              <div className="topServicesRow">
+                <RunningServices/>
+                <FinishedServices/>
+              </div>
+              <Analytics/>
+              <Progress/>
+            </div>
           </div>
-        </div>
-        <div className="rightColumn">
-          <div className="topServicesRow">
-            <RunningServices/>
-            <FinishedServices/>
-          </div>
-          <div>
-            <Progress/>
-            <Analytics/>
-            <Payment/>
-          </div>
+
         </div>
       </div>
     </div>
-    </>
-
-   )
+  );
 };
 
 export default Home;
