@@ -88,13 +88,13 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
 
         # Create Address
         address = Address.objects.create(
-            CustomerId = customer.CustomerId,
             Street = address_data["street"],
             City = address_data["city"],
             Province = address_data["province"],
             PostalCode = address_data["postal_code"],
         )
 
+        #If not working change addressid to AddressId
         customer.addressid = address.addressid
         customer.save(update_fields=["AddressId"])
 
