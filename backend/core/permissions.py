@@ -3,8 +3,11 @@ from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 # Allow clients only
 class IsAuthenticatedOrReadOnly(BasePermission):
+    #Check if the user has permission to view or edit.
     def has_permission(self, request, view):
+        #If their method is safe
         if request.method in SAFE_METHODS:
+            #If they are authenticated.
             return bool(request.user and request.user.is_authenticated)
         return bool(request.user and request.user.is_authenticated)
 

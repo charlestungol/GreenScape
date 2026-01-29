@@ -70,6 +70,9 @@ class CustomerServiceSerializer(serializers.ModelSerializer):
         model = Customerservice
         fields = ["customerid", "serviceid", "customer", "service", "createdat", "reqdate", "redyear", "completed"]
 
+
+# Employee Serializer
+
 class EmployeeSerializer(serializers.ModelSerializer):
     address = AddressSerializer(source="addressid", read_only = True)
 
@@ -77,3 +80,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
         queryset = Address.objects.all(),
         write_only = True
     )
+
+    class Meta:
+        models : Employee
+        fields = ["employeeid", "roleid", "address", "addressid", "employeenumber", "firstname", "lastname", "phonenumber", "staffstatus"]
