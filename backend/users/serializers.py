@@ -90,7 +90,7 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
         address = Address.objects.create(
             CustomerId = customer.CustomerId,
             Street = address_data["street"],
-            City = address_data["cirty"],
+            City = address_data["city"],
             Province = address_data["province"],
             PostalCode = address_data["postal_code"],
         )
