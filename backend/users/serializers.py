@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate, password_validation
 from django.core import exceptions
 from allauth.account.models import EmailAddress
-from core.serializers import AddressSerializer
+from core.serializers import AddressSerializer, CustomerSerializer
 from core.models import Address, Customer
 from django.db import transaction
 
@@ -45,11 +45,12 @@ class ClientLoginSerializer(serializers.Serializer):
 
 
 class ClientRegisterSerializer(serializers.ModelSerializer):
+    phone = serializers.CharField(required=True, write_only = True)
     address = AddressSerializer(required=True)
 
     class Meta:
         model = User
-        fields = ["id", "email", "password", "first_name", "last_name", "address"]
+        fields = ["id", "email", "password", "first_name", "last_name", "phone", "address"]
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate_email(self, value):
@@ -67,38 +68,29 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
         address_data = validated_data.pop("address")
         phone_number = validated_data.pop('phone')
         email = validated_data.pop("email")
+        password = validated_data.pop("password")
 
         # Create new user
         user = User.objects.create_user(
             email =  email,
+            password = password,
             is_active = False,
             **validated_data,
             role="client"
         )
 
+        # Create Address
+        address = Address.objects.create(**address_data)
+
         # Create Customer
         customer = Customer.objects.create(
-            UserId = user.id,
-            FirstName = user.first_name,
-            LastName = user.last_name,
-            Email = user.email,
-            PhoneNumber = phone_number,
-            AddressId = None,
+            user = user,
+            firstname = user.first_name,
+            lastname = user.last_name,
+            email = user.email,
+            phonenumber = phone_number,
+            addressid = address,
         )
-
-        # Create Address
-        address = Address.objects.create(
-            Street = address_data["street"],
-            City = address_data["city"],
-            Province = address_data["province"],
-            PostalCode = address_data["postal_code"],
-        )
-
-        #If not working change addressid to AddressId
-        customer.addressid = address.addressid
-        customer.save(update_fields=["AddressId"])
-
-
 
         return user
 
