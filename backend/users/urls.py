@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from knox.views import LogoutView, LogoutAllView
 from .views import *
@@ -13,6 +13,8 @@ urlpatterns = [
     path('change-password/', ChangePasswordViewSet.as_view({'post': 'create'}), name='change-password'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('logout-all/', LogoutAllView.as_view(), name='logout-all'),
+    path('accounts/', include("allauth.urls")),
+    path('resend-verification/', ResendVerificationView.as_view(), name = 'resend-verification')
 ]
 
 urlpatterns += router.urls

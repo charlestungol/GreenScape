@@ -5,8 +5,10 @@
 2. python -m venv venv
 3. venv\Scripts\activate
 4. pip install -r requirements.txt
-5. python manage.py migrate
-6. python manage.py runserver
+5. pip install django-allauth dj-rest-auth
+6. python manage.py makemigrations users
+7. python manage.py migrate --fake-initial
+8. python manage.py runserver
 
 
 ## FRONTEND SETUP 
