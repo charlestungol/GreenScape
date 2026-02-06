@@ -14,7 +14,11 @@ class ClientLoginViewSet(viewsets.ViewSet):
 
     def create(self, request):
         serializer = self.serializer_class(data=request.data, context = {"request" : request})
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+
+        except exceptions.ValidationError as e:
+            return Response({"detail": e.detail[0]}, status=status.HTTP_400_BAD_REQUEST)
 
         user = serializer.validated_data["user"]
 
@@ -41,6 +45,7 @@ class ClientRegisterViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+
         EmailAddress.objects.add_email(
             request,
             user,
@@ -124,13 +129,13 @@ class ResendVerificationView(views.APIView):
 
     def post(self, request):
         email = (request.data.get("email") or "").strip().lower()
-        user = User.objects.filter(email__iexact=email).first()
 
-        if user:
-            EmailAddress.objects.add_email(
-                request, user, user.email, confirm=True
-            )
-        return Response(
-            {"detail": "If an account exists, a verification email has been sent."},
-            status=status.HTTP_200_OK
-        )
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            return Response({"detail": "If an account with that email exists, a verification email has been sent."}, status=200)
+        
+        addr = EmailAddress.objects.filter(user=user, email__iexact=email).first()
+        if addr and not addr.verified:
+            addr.send_confirmation(request)
+        return Response({"detail": "If an account with that email exists, a verification email has been sent."}, status=200)

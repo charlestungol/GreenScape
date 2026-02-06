@@ -50,19 +50,40 @@ INSTALLED_APPS = [
     'knox',
 ]
 
+LOGGING = {
+    "version": 1,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "loggers": {
+        "django.core.mail": {"handlers": ["console"], "level": "DEBUG"},
+        "allauth": {"handlers": ["console"], "level": "INFO"},
+        "allauth.account": {"handlers": ["console"], "level": "INFO"},
+    },
+}
+
 # Email verifty
 SITE_ID = 1
 ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*", "first_name", "last_name"]
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-
-
 ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = "http://localhost:5173/client-login"
 ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = "http://localhost:5173/client-login"
 
+# Email Provider Settings
 
-# IMPORTANT REMOVE AFTER DEVELOPMENT
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "email-smtp.us-east-2.amazonaws.com"  # SES region
+EMAIL_PORT = 465
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = "AKIAUCGFGNJ2K4QPTQ5J"
+EMAIL_HOST_PASSWORD = "BIHyNRTuW65CKysKYiFgt+ED9e/JbUGcyIZrFm9h12A7"
+DEFAULT_FROM_EMAIL = "badoobob2@gmail.com"
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True
+EMAIL_TIMEOUT = 30  # seconds
+
+
+# # IMPORTANT REMOVE AFTER DEVELOPMENT
+# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -84,6 +105,7 @@ AUTH_USER_MODEL ='users.CustomUser'
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
 ROOT_URLCONF = 'auth.urls'
