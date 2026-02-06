@@ -31,8 +31,7 @@ class CustomUser(AbstractUser):
         choices=(
             ("client", "Client"),
             ("employee", "Employee")
-        ),
-        default="client"
+        )
     )
 
     objects = CustomManager()

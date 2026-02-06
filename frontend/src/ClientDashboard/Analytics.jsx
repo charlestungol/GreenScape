@@ -19,7 +19,7 @@ function Analytics() {
 
   return (
     <div className="analyticsWrapper">
-      <p>BUDGET VS EXPENSE</p>
+      <p>ANALYTICS</p>
 
       <div
         className="chartsRow clickableChart"

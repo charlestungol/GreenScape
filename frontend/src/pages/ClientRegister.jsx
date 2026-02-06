@@ -9,6 +9,8 @@ import { useNavigate } from "react-router-dom";
 
 const ClientRegister = () => {
   const [email, setEmail] = useState('');
+  const [address, setAddress] = useState('');
+  const [phoneNum, setPhoneNum] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
@@ -38,7 +40,9 @@ const ClientRegister = () => {
       email,
       password,
       first_name: firstName,
-      last_name: lastName
+      last_name: lastName,
+      address,
+      phoneNum
     });
 
     console.log(response.data);
@@ -48,6 +52,8 @@ const ClientRegister = () => {
     setPassword('');
     setFirstName('');
     setLastName('');
+    setAddress('');
+    setPhoneNum('');
     setConfirmPassword('');
 
     setTimeout(() => {
@@ -72,7 +78,7 @@ const ClientRegister = () => {
         Your browser does not support the video tag.
       </video>
 
-      <div className="loginForm">
+      <div className="registerForm">
         <div className="landingContent">
           <img src={Logo} alt="Logo" className="landingLogo" />
         </div>
@@ -89,6 +95,20 @@ const ClientRegister = () => {
           placeholder="Last Name"
           value={lastName}
           onChange={e => setLastName(e.target.value)}
+        />
+
+        <input
+          type="text"
+          placeholder="Address"
+          value={lastName}
+          onChange={e => setAddress(e.target.value)}
+        />
+
+        <input
+          type="text"
+          placeholder="Phone Number"
+          value={lastName}
+          onChange={e => setPhoneNum(e.target.value)}
         />
 
         <input
@@ -114,8 +134,8 @@ const ClientRegister = () => {
 
         <button onClick={handleRegister}>Create Client Account</button>
 
-        {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
-        {success && <p style={{ color: 'green', marginTop: '10px' }}>{success}</p>}
+        {error && <p className='errorMsg'>{error}</p>}
+        {success && <p className='successMsg'>{success}</p>}
 
 
       </div>
