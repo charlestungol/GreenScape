@@ -6,20 +6,49 @@ class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
         fields =  ["addressid", "street", "city", "province", "postalcode"]
+        read_only_fields=["addressid"]
 
 # Customer
 class CustomerSerializer(serializers.ModelSerializer):
     #View address data
-    address = AddressSerializer(source="addressid", read_only = True)
+    address = AddressSerializer(source="addressid", required = False)
     # Add an address to the customer
     addressid = serializers.PrimaryKeyRelatedField(
         queryset = Address.objects.all(),
-        write_only=True
+        write_only=True,
+        required = False
     )
 
     class Meta:
         model = Customer
         fields = ["customerid", "address", "addressid", "firstname", "lastname", "email", "phonenumber"]
+        read_only_fields = ["customerid"]
+
+    #own update method so user can update nested serializer fields.
+    def update(self, instance, validated_data):
+        # handles nested address update
+        address_data = validated_data.pop("addressid", None)
+
+        # handles switching address by id if provided.
+        new_address_obj = validated_data.pop("addressid", None) if "addressid" in validated_data else None
+
+        # Update fields on customer
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        # If address data is manipulated
+        if isinstance(address_data, dict):
+            addr = instance.addressid
+            for attr, value in address_data.items():
+                setattr(addr, attr, value)
+            addr.save()
+
+        # If the address id is provided
+        if new_address_obj is not None:
+            instance.addressid = new_address_obj
+
+        instance.save()
+        return instance
 
 # Service
 class ServiceSerializer(serializers.ModelSerializer):

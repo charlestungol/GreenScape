@@ -4,6 +4,7 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
 
 from .models import *
 from .serializers import *
@@ -27,15 +28,16 @@ class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.select_related("addressid").all()
     serializer_class = CustomerSerializer
 
-    # Sets it that only owner of admin can edit, those that is not can only view.
+    # Sets it that only owner of the data, admin, or employee can edit. 
     permission_classes = [IsOwnerOrAdmin]
 
     # Getting data
     def get_queryset(self):
         user = self.request.user
-        # If the user is not authenticated it will now allow access.
+        # If the user is not authenticated it will not allow access.
         if not (user and user.is_authenticated):
             return Customer.objects.none()
+        
         # If its a staff return all customer
         if user.is_staff:
             return Customer.objects.select_related("addressid").all()
@@ -44,6 +46,24 @@ class CustomerViewSet(viewsets.ModelViewSet):
             return Customer.objects.select_related("addressid").filter(user_id = user.id)
         # If customer return his data using email
         return Customer.objects.select_related("addressid").filter(email=user.email)
+    
+    @action(detail = False, methods = ['get', 'patch'])
+    def me(self, request):
+        instance = get_object_or_404(Customer, user=request.user)
+
+        # Getting customer data.
+        if request.method.lower() == 'get':
+            data = self.get_serializer(instance).data
+            return Response(data)
+        
+        # Patch customer data
+        serializers = self.get_serializer(instance, data=request.data, partial=True)
+
+        serializers.is_valid(raise_exception = True)
+
+        serializers.save(user=request.user)
+
+        return Response(serializers.data, status=status.HTTP_200_OK)
 
 # Employee View -- Allows for CRUD -- Needs update
 class EmployeeViewSet(viewsets.ModelViewSet):
