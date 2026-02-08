@@ -5,51 +5,77 @@
   position: relative;
   display: flex;
   align-items: center;
-  justify-content:start;
+  justify-content: center;
 }
 
 .backgroundVideo {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: translate(-50%, -50%);
-  z-index: -1; 
+  z-index: -1;
 }
 
-
-/* FORMS */
 .registerForm {
-  position: relative;
-  height: 100%;
-  z-index: 1;
-  background-color:#ddd; 
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px 30px;
+  background-color: #ddd;
   padding: 40px 60px;
   border-radius: 12px;
+  max-width: 900px;
+  width: 90%;
+  z-index: 1;
+}
+
+.regFormLogo {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.regFormLogo img {
+  width: 180px;
+  height: auto;
+}
+
+.formLeft,
+.addressSection {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.formLeft {
+  grid-column: 1;
+}
+
+.addressSection {
+  grid-column: 2;
+}
+
+.registerForm h2,
+.registerForm button,
+.statusMsg {
+  grid-column: 1 / -1;
   text-align: center;
-  color: white;
 }
 
-.loginForm h2 , .registerForm h2{
-  margin-bottom: 10px;
-}
-
-.loginForm input, .registerForm input {
-  padding: 12px;
-  border-radius: 8px;
+.loginForm input,
+.registerForm input {
+  padding: 14px;
+  border-radius: 10px;
   border: none;
   outline: none;
   font-size: 16px;
 }
 
-.loginForm button, .registerForm button {
-  padding: 12px;
-  border-radius: 8px;
+.loginForm button,
+.registerForm button {
+  padding: 14px;
+  border-radius: 10px;
   border: none;
   background-color: #0A8341;
   color: white;
@@ -58,60 +84,52 @@
   transition: 0.3s;
 }
 
+.loginForm button:hover,
+.registerForm button:hover {
+  background-color: #06632b;
+}
+
 .loginForm {
-  position: relative;
-  height: 100%;
-  z-index: 1;
-  background-color:#ddd; 
+  background-color: #ddd;
   padding: 40px 60px;
   border-radius: 12px;
   display: flex;
   flex-direction: column;
   gap: 20px;
   text-align: center;
-  color: white;
-}
-
-.loginForm button:hover {
-  background-color: #06632b;
-}
-
-.sponsorsImg {
-  margin-top: 50px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr); 
-  justify-content: center;
-  gap: 20px; 
-  align-items: center; 
-}
-
-.sponsorsImg img {
-  width: 100px; 
-  height: auto;
-  justify-self: center; 
-}
-
-.sponsorsImg img:last-child {
-  grid-column: 1 / span 3;
+  z-index: 1;
 }
 
 .landingContent {
   display: flex;
   flex-direction: column;
-  align-items: center; 
+  align-items: center;
   gap: 20px;
   z-index: 1;
 }
 
 .landingLogo {
   width: 200px;
-  height: auto;
-  margin-top: 100px;
-  margin-bottom: 30px;
+}
+
+.sponsorsImg { 
+   margin-top: 50px;
+   display: grid; 
+   grid-template-columns: repeat(3, 1fr); 
+   justify-content: center; 
+   gap: 20px; align-items: center; 
+  } 
+   
+.sponsorsImg img { 
+  width: 100px; height: auto; 
+  justify-self: center; 
+} 
+
+.sponsorsImg img:last-child { 
+  grid-column: 1 / span 3; 
 }
 
 .statusMsg {
-  text-align: center;
   margin-top: 10px;
   font-weight: bold;
 }
@@ -123,4 +141,3 @@
 .successMsg {
   color: #00e676;
 }
-

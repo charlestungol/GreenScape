@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 
 const ClientRegister = () => {
   const [email, setEmail] = useState('');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState({street: '', city:'',province:'',postalcode:''});
   const [phoneNum, setPhoneNum] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -41,7 +41,13 @@ const ClientRegister = () => {
       password,
       first_name: firstName,
       last_name: lastName,
-      address,
+      phone: phoneNum,
+      address:{
+        street: address.street,
+        city: address.city,
+        province: address.province,
+        postalcode: address.postalcode,
+      },
       phoneNum
     });
 
@@ -78,67 +84,101 @@ const ClientRegister = () => {
         Your browser does not support the video tag.
       </video>
 
-      <div className="registerForm">
-        <div className="landingContent">
-          <img src={Logo} alt="Logo" className="landingLogo" />
-        </div>
+<div className="registerForm">
+  <div className="regFormLogo">
+    <img src={Logo} alt="Logo"/>
+  </div>
 
-        <input
-          type="text"
-          placeholder="First Name"
-          value={firstName}
-          onChange={e => setFirstName(e.target.value)}
-        />
+  {/* LEFT COLUMN */}
+  <div className="formLeft">
+    <input
+      type="text"
+      placeholder="First Name"
+      value={firstName}
+      onChange={e => setFirstName(e.target.value)}
+    />
 
-        <input
-          type="text"
-          placeholder="Last Name"
-          value={lastName}
-          onChange={e => setLastName(e.target.value)}
-        />
+    <input
+      type="text"
+      placeholder="Last Name"
+      value={lastName}
+      onChange={e => setLastName(e.target.value)}
+    />
 
-        <input
-          type="text"
-          placeholder="Address"
-          value={lastName}
-          onChange={e => setAddress(e.target.value)}
-        />
+    <input
+      type="text"
+      placeholder="Email"
+      value={email}
+      onChange={e => setEmail(e.target.value)}
+    />
 
-        <input
-          type="text"
-          placeholder="Phone Number"
-          value={lastName}
-          onChange={e => setPhoneNum(e.target.value)}
-        />
+    <input
+      type="text"
+      placeholder="Phone Number"
+      value={phoneNum}
+      onChange={e => setPhoneNum(e.target.value)}
+    />
 
-        <input
-          type="text"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-        />
+    <input
+      type="password"
+      placeholder="Password"
+      value={password}
+      onChange={e => setPassword(e.target.value)}
+    />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        />
+    <input
+      type="password"
+      placeholder="Confirm Password"
+      value={confirmPassword}
+      onChange={e => setConfirmPassword(e.target.value)}
+    />
+  </div>
 
-        <input
-          type="password"
-          placeholder="Confirm Password"
-          value={confirmPassword}
-          onChange={e => setConfirmPassword(e.target.value)}
-        />
+  {/* ADDRESS SECTION */}
+  <div className="addressSection">
+    <input
+      type="text"
+      placeholder="Street"
+      value={address.street}
+      onChange={e =>
+        setAddress({ ...address, street: e.target.value })
+      }
+    />
 
-        <button onClick={handleRegister}>Create Client Account</button>
+    <input
+      type="text"
+      placeholder="City"
+      value={address.city}
+      onChange={e =>
+        setAddress({ ...address, city: e.target.value })
+      }
+    />
 
-        {error && <p className='errorMsg'>{error}</p>}
-        {success && <p className='successMsg'>{success}</p>}
+    <input
+      type="text"
+      placeholder="Province"
+      value={address.province}
+      onChange={e =>
+        setAddress({ ...address, province: e.target.value })
+      }
+    />
 
+    <input
+      type="text"
+      placeholder="Postal Code"
+      value={address.postalcode}
+      onChange={e =>
+        setAddress({ ...address, postalcode: e.target.value })
+      }
+    />
+  </div>
 
-      </div>
+  <button onClick={handleRegister}>Create Client Account</button>
+
+  {error && <p className="errorMsg">{error}</p>}
+  {success && <p className="successMsg">{success}</p>}
+</div>
+
     </div>
   );
 };
