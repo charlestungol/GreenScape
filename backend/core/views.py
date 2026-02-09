@@ -47,7 +47,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
         # If customer return his data using email
         return Customer.objects.select_related("addressid").filter(email=user.email)
     
-    @action(detail = False, methods = ['get', 'patch'])
+    @action(detail = False, methods = ['get', 'patch', 'delete'])
     def me(self, request):
         instance = get_object_or_404(Customer, user=request.user)
 

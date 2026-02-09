@@ -1,9 +1,10 @@
 
-from django.core.management import BaseCommand
+from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Group, Permission
-from django.db import connections, transaction
+from django.apps import apps
 
-ROLE_PERMS = {
+
+ROLE_POLICY = {
     # map DB RoleName -> list of Django codename permissions
     "Admin": ["add", "change", "delete", "view"],
     "Supervisor": ["view", "add", "change"],
@@ -26,25 +27,33 @@ MODELS_IN_SCOPE = [
 ]
 
 
+
 class Command(BaseCommand):
-    help = "Sync Roles table to Django Groups"
+    help = "Sync role-based groups and attach CRUD permissions by model."
 
     def handle(self, *args, **kwargs):
-        with connections['default'].cursor() as cur, transaction.atomic():
-            cur.execute("SELECT RoleName FROM dbo.Roles;")
-            for (role_name,) in cur.fetchall():
-                group, _ = Group.objects.get_or_create(name=role_name)
-                # Assign permissions based on ROLE_PERMS
-                for pattern in ROLE_PERMS.get(role_name, []):
-                    if pattern.endswith("_*"):
-                        action = pattern[:-2]
-                        perms = Permission.objects.filter(codename__startswith=f"{action}_")
-                        group.permissions.add(*perms)
-                    else:
-                        try:
-                            p = Permission.objects.get(codename=pattern)
-                            group.permissions.add(p)
-                        except Permission.DoesNotExist:
-                            self.stderr.write(f"Missing permission: {pattern}")
-                self.stdout.write(f"Synced group: {role_name}")
-        self.stdout.write(self.style.SUCCESS("Done"))
+        # Resolve content types / permissions for each model
+        model_perms = {}  # (app_label, model) -> {action: Permission}
+        for label in MODELS_IN_SCOPE:
+            app_label, model_name = label.split(".")
+            model = apps.get_model(app_label, model_name)
+            perms = Permission.objects.filter(content_type__app_label=app_label,
+                                              content_type__model=model._meta.model_name)
+            action_map = {p.codename.split("_", 1)[0]: p for p in perms}  # add/change/delete/view
+            model_perms[(app_label, model._meta.model_name)] = action_map
+
+        # Create groups and apply permissions per role
+        for role_name, actions in ROLE_POLICY.items():
+            group, _ = Group.objects.get_or_create(name=role_name)
+            # Start clean (comment out if you prefer incremental)
+            group.permissions.clear()
+
+            for (_, _), action_map in model_perms.items():
+                for action in actions:
+                    perm = action_map.get(action)
+                    if perm:
+                        group.permissions.add(perm)
+
+            self.stdout.write(self.style.SUCCESS(f"Synced group: {role_name}"))
+
+        self.stdout.write(self.style.SUCCESS("Role groups successfully synced."))
