@@ -83,3 +83,112 @@ class Employee(models.Model):
     class Meta:
         managed = False
         db_table = 'Employee'
+
+class Booking(models.Model):
+    bookingid = models.AutoField(db_column='BookingId', primary_key=True)  # Field name made lowercase.
+    customerid = models.ForeignKey('Customer', models.DO_NOTHING, db_column='CustomerId')  # Field name made lowercase.
+    serviceid = models.ForeignKey('Service', models.DO_NOTHING, db_column='ServiceId')  # Field name made lowercase.
+    siteid = models.ForeignKey('Site', models.DO_NOTHING, db_column='SiteId')  # Field name made lowercase.
+    appointmenttime = models.DateTimeField(db_column='AppointmentTime')  # Field name made lowercase.
+    status = models.CharField(db_column='Status', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+
+    class Meta:
+        managed = False
+        db_table = 'Booking'
+
+class Invoice(models.Model):
+    invoiceid = models.AutoField(db_column='InvoiceId', primary_key=True)  # Field name made lowercase.
+    quoteid = models.ForeignKey('Quotes', models.DO_NOTHING, db_column='QuoteId', blank=True, null=True)  # Field name made lowercase.
+    customerid = models.ForeignKey(Customer, models.DO_NOTHING, db_column='CustomerId', blank=True, null=True)  # Field name made lowercase.
+    amount = models.IntegerField(db_column='Amount', blank=True, null=True)  # Field name made lowercase.
+    transactionref = models.IntegerField(db_column='TransactionRef', blank=True, null=True)  # Field name made lowercase.
+    issuedate = models.DateTimeField(db_column='IssueDate', blank=True, null=True)  # Field name made lowercase.
+
+    class Meta:
+        managed = False
+        db_table = 'Invoice'
+
+class Quotes(models.Model):
+    quotesid = models.AutoField(db_column='QuotesId', primary_key=True)  # Field name made lowercase.
+    customerid = models.ForeignKey(Customer, models.DO_NOTHING, db_column='CustomerId')  # Field name made lowercase.
+    serviceid = models.ForeignKey('Service', models.DO_NOTHING, db_column='ServiceId')  # Field name made lowercase.
+    additionalserviceid = models.IntegerField(db_column='AdditionalServiceId')  # Field name made lowercase.
+    zoneid = models.ForeignKey('Zone', models.DO_NOTHING, db_column='ZoneId')  # Field name made lowercase.
+    taxamount = models.DecimalField(db_column='TaxAmount', max_digits=10, decimal_places=2)  # Field name made lowercase.
+    totalamount = models.DecimalField(db_column='TotalAmount', max_digits=10, decimal_places=2)  # Field name made lowercase.
+    currency = models.CharField(db_column='Currency', max_length=3, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+    status = models.CharField(db_column='Status', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+
+    class Meta:
+        managed = False
+        db_table = 'Quotes'
+
+class Roles(models.Model):
+    roleid = models.AutoField(db_column='RoleId', primary_key=True)  # Field name made lowercase.
+    rolename = models.CharField(db_column='RoleName', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+    description = models.CharField(db_column='Description', max_length=30, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+    earnperhour = models.DecimalField(db_column='EarnPerHour', max_digits=10, decimal_places=2)  # Field name made lowercase.
+
+    class Meta:
+        managed = False
+        db_table = 'Roles'
+
+class Schedule(models.Model):
+    scheduleid = models.AutoField(db_column='ScheduleId', primary_key=True)  # Field name made lowercase.
+    bookingid = models.ForeignKey(Booking, models.DO_NOTHING, db_column='BookingId')  # Field name made lowercase.
+    serviceid = models.ForeignKey('Service', models.DO_NOTHING, db_column='ServiceId')  # Field name made lowercase.
+    employeeid = models.ForeignKey(Employee, models.DO_NOTHING, db_column='EmployeeId')  # Field name made lowercase.
+    siteid = models.ForeignKey('Site', models.DO_NOTHING, db_column='SiteId')  # Field name made lowercase.
+    starttime = models.DateTimeField(db_column='StartTime')  # Field name made lowercase.
+    endtime = models.DateTimeField(db_column='EndTime')  # Field name made lowercase.
+    status = models.CharField(db_column='Status', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+
+    class Meta:
+        managed = False
+        db_table = 'Schedule'
+
+class Servicereport(models.Model):
+    servicereportid = models.AutoField(db_column='ServiceReportId', primary_key=True)  # Field name made lowercase.
+    bookingid = models.ForeignKey(Booking, models.DO_NOTHING, db_column='BookingId')  # Field name made lowercase.
+    employeeid = models.ForeignKey(Employee, models.DO_NOTHING, db_column='EmployeeId')  # Field name made lowercase.
+    customerid = models.ForeignKey(Customer, models.DO_NOTHING, db_column='CustomerId')  # Field name made lowercase.
+    reporttext = models.CharField(db_column='ReportText', max_length=100, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+    createdat = models.DateTimeField(db_column='CreatedAt')  # Field name made lowercase.
+
+    class Meta:
+        managed = False
+        db_table = 'ServiceReport'
+
+class Servicetype(models.Model):
+    servicetypeid = models.AutoField(db_column='ServiceTypeId', primary_key=True)  # Field name made lowercase.
+    typecode = models.CharField(db_column='TypeCode', max_length=10, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+    typename = models.CharField(db_column='TypeName', max_length=10, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+
+    class Meta:
+        managed = False
+        db_table = 'ServiceType'
+
+class Site(models.Model):
+    siteid = models.AutoField(db_column='SiteId', primary_key=True)  # Field name made lowercase.
+    addressid = models.ForeignKey(Address, models.DO_NOTHING, db_column='AddressId')  # Field name made lowercase.
+    customerid = models.ForeignKey(Customer, models.DO_NOTHING, db_column='CustomerId')  # Field name made lowercase.
+    mainlinesize = models.CharField(db_column='MainLineSize', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+    doorcode = models.CharField(db_column='DoorCode', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+    brandofheads = models.CharField(db_column='BrandOfHeads', max_length=30, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+    remarks = models.CharField(db_column='Remarks', max_length=30, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+
+    class Meta:
+        managed = False
+        db_table = 'Site'
+
+class Zone(models.Model):
+    zoneid = models.AutoField(db_column='ZoneId', primary_key=True)  # Field name made lowercase.
+    siteid = models.IntegerField(db_column='SiteId')  # Field name made lowercase.
+    zonename = models.CharField(db_column='ZoneName', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+    zonearea = models.CharField(db_column='ZoneArea', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+    zonetype = models.CharField(db_column='ZoneType', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+    baserate = models.DecimalField(db_column='BaseRate', max_digits=10, decimal_places=2)  # Field name made lowercase.
+
+    class Meta:
+        managed = False
+        db_table = 'Zone'
