@@ -15,15 +15,18 @@ ROLE_POLICY = {
 MODELS_IN_SCOPE = [
     "core.Booking",
     "core.Schedule",
-    "core.ServiceReport",
     "core.Quotes",
     "core.Invoice",
     "core.Site",
     "core.Zone",
     "core.Service",
-    "core.AdditionalService",
     "core.ServiceType",
     "core.Roles",
+    "core.Employee",
+    "core.Customer",
+    "core.Address",
+    "core.ServiceImage",
+    "core.CustomerService",
 ]
 
 

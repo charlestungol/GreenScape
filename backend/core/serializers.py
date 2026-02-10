@@ -1,5 +1,20 @@
 from rest_framework import serializers
-from .models import *
+from .models import (
+    Address,
+    Customer,
+    Employee,
+    Service,
+    Customerservice,
+    Serviceimage,
+    Roles,
+    Site,
+    Zone,
+    Servicetype,
+    Booking,
+    Invoice,
+    Quotes,
+    Schedule,
+);
 
 # Address
 class AddressSerializer(serializers.ModelSerializer):
@@ -49,12 +64,20 @@ class CustomerSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
-
+    
+# Service Type
+class ServiceTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Servicetype
+        fields = ["servicetypeid", "typecode", "typename"]
+        read_only_fields = ["servicetypeid"]
+        
 # Service
 class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
         fields = ["serviceid", "servicetypeid", "title", "description", "baseprice"]
+        read_only_fields = ["serviceid"]
 
 # Service Image 
 class ServiceImageSerializer(serializers.ModelSerializer):
@@ -64,6 +87,7 @@ class ServiceImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Serviceimage
         fields = ["serviceimageid", "serviceid", "contenttype", "filename", "imagedata", "createdat", "url"]
+        read_only_fields = ["serviceimageid", "createdat", "url"]
 
         # Method to get the image url from db
         def get_url(self, obj):
@@ -98,10 +122,16 @@ class CustomerServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customerservice
         fields = ["customerid", "serviceid", "customer", "service", "createdat", "reqdate", "redyear", "completed"]
+        read_only_fields = ["createdat", "customer", "service"]
 
+# Role Serializer
+class RoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Roles
+        fields = ["roleid", "rolename", "description", "earnperhour"]
+        read_only_fields = ["roleid"]
 
 # Employee Serializer
-
 class EmployeeSerializer(serializers.ModelSerializer):
     address = AddressSerializer(source="addressid", read_only = True)
 
@@ -111,5 +141,121 @@ class EmployeeSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        models : Employee
+        model : Employee
         fields = ["employeeid", "roleid", "address", "addressid", "employeenumber", "firstname", "lastname", "phonenumber", "staffstatus"]
+        read_only_fields = ["employeeid"]
+
+# Booking Serializer
+class BookingSerializer(serializers.ModelSerializer):
+    customer = CustomerSerializer(source="customerid", read_only = True)
+    service = ServiceSerializer(source="serviceid", read_only = True)
+
+    customerid = serializers.PrimaryKeyRelatedField(
+        queryset = Customer.objects.all(),
+        write_only = True
+    )
+
+    serviceid = serializers.PrimaryKeyRelatedField(
+        queryset = Service.objects.all(),
+        write_only = True
+    )
+
+    class Meta:
+        model = Booking
+        fields = ["bookingid", "customerid", "serviceid", "customer", "service", "bookingdate", "bookingtime", "status"]
+        read_only_fields = ["bookingid", "customer", "service"]
+
+# Invoice Serializer
+class InvoiceSerializer(serializers.ModelSerializer):
+    customer = CustomerSerializer(source="customerid", read_only = True)
+    service = ServiceSerializer(source="serviceid", read_only = True)
+
+    customerid = serializers.PrimaryKeyRelatedField(
+        queryset = Customer.objects.all(),
+        write_only = True
+    )
+
+    serviceid = serializers.PrimaryKeyRelatedField(
+        queryset = Service.objects.all(),
+        write_only = True
+    )
+
+    class Meta:
+        model = Invoice
+        fields = ["invoiceid", "customerid", "serviceid", "customer", "service", "amount", "invoicedate", "status"]
+        read_only_fields = ["invoiceid", "customer", "service"]
+
+#Quote Serializer
+class QuoteSerializer(serializers.ModelSerializer):
+    customer = CustomerSerializer(source="customerid", read_only = True)
+    service = ServiceSerializer(source="serviceid", read_only = True)
+
+    customerid = serializers.PrimaryKeyRelatedField(
+        queryset = Customer.objects.all(),
+        write_only = True
+    )
+
+    serviceid = serializers.PrimaryKeyRelatedField(
+        queryset = Service.objects.all(),
+        write_only = True
+    )
+
+    class Meta:
+        model = Quotes
+        fields = ["quoteid", "customerid", "serviceid", "customer", "service", "amount", "quotedate", "status"]
+        read_only_fields = ["quoteid", "customer", "service"]
+
+# Schedule Serializer
+class ScheduleSerializer(serializers.ModelSerializer):
+    booking = BookingSerializer(source="bookingid", read_only = True)
+    customerservice = CustomerServiceSerializer(source="serviceid", read_only = True)
+    employee = EmployeeSerializer(source="employeeid", read_only = True)
+
+
+    bookingid = serializers.PrimaryKeyRelatedField(
+        queryset = Booking.objects.all(),
+        write_only = True
+    )
+
+    customerserviceid = serializers.PrimaryKeyRelatedField(
+        queryset = Customerservice.objects.all(),
+        write_only = True
+    )
+
+    employeeid = serializers.PrimaryKeyRelatedField(
+        queryset = Employee.objects.all(),
+        write_only = True
+    )
+
+    class Meta:
+        model = Schedule
+        fields = ["scheduleid", "bookingid", "customerserviceid", "employeeid", "booking", "customerservice", "employee"]
+        read_only_fields = ["scheduleid"]
+
+# Site Serializer
+class SiteSerializer(serializers.ModelSerializer):
+    address = AddressSerializer(source="addressid", read_only = True)
+
+    addressid = serializers.PrimaryKeyRelatedField(
+        queryset = Address.objects.all(),
+        write_only = True
+    )
+
+    class Meta:
+        model = Site
+        fields = ["siteid", "addressid", "address"]
+        read_only_fields = ["siteid"]
+
+#Zone Serializer
+class ZoneSerializer(serializers.ModelSerializer):
+    site = SiteSerializer(source="siteid", read_only = True)
+
+    siteid = serializers.PrimaryKeyRelatedField(
+        queryset = Site.objects.all(),
+        write_only = True
+    )
+
+    class Meta:
+        model = Zone
+        fields = ["zoneid", "siteid", "site", "zonecode", "description"]
+        read_only_fields = ["zoneid"]

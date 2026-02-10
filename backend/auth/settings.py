@@ -134,16 +134,24 @@ REST_FRAMEWORK = {
     
     "DEFAULT_PERMISSION_CLASSES": (
             "rest_framework.permissions.IsAuthenticated",
+            "rest_framework.permissions.DjangoModelPermissions",
         ),
+
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
     ],
+
     "DEFAULT_THROTTLE_RATES": {
         # Login endpoint is accessible to unauthenticated users → protect it heavily
-        "anon": "5/minute",       # UMA: 5 unauthenticated requests per minute per IP
-        "user": "10/minute",      # Authenticated user actions
-    }
+        "anon": "30/minute",       # UMA: 5 unauthenticated requests per minute per IP
+        "user": "60/minute",      # Authenticated user actions
+        "register": "5/hour",    # Registration endpoint (if separate throttle needed)
+    },
+
+    "DEFAULT_PAGINATION_CLASS":
+        "rest_framework.pagination.PageNumberPagination",
+        "PAGE_SIZE": 10,
 
 }
 

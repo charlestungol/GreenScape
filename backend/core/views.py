@@ -4,32 +4,100 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
+from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 
-from .models import *
-from .serializers import *
+from .models import (
+    Address,
+    Customer,
+    Employee,
+    Service,
+    Customerservice,
+    Serviceimage,
+    Roles,
+    Site,
+    Zone,
+    Servicetype,
+    Booking,
+    Invoice,
+    Quotes,
+    Schedule,
+);
+from .serializers import (
+    AddressSerializer,
+    CustomerSerializer,
+    EmployeeSerializer,
+    ServiceSerializer,
+    CustomerServiceSerializer,
+    ServiceImageSerializer,
+    RoleSerializer,
+    SiteSerializer,
+    ZoneSerializer,
+    ServiceTypeSerializer,
+    BookingSerializer,
+    InvoiceSerializer,
+    QuoteSerializer,
+    ScheduleSerializer,
+);
 
 # Security -- Methods for permissions of roles.
-from .permissions import * 
+from .permissions import (
+    IsOwnerOrAdmin,
+    isAdmin,
+    IsAuthenticatedOrReadOnly
+)
 
 
 # -----------------------------------------------------------------------------
 # Simple CRUD ViewSets
 # -----------------------------------------------------------------------------
 
-# Address View - Allows for CRUD
+# -----------------------------------------------------------------------------
+# Address views -- Allows for CRUD --
+# -----------------------------------------------------------------------------
 class AddressViewSet(viewsets.ModelViewSet):
     queryset = Address.objects.all()
     serializer_class = AddressSerializer
-    permission_classes = [IsOwnerOrAdmin]
+    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
 
-# Customer View - Allows for CRUD
+    def get_queryset(self):
+        user = self.request.user
+        # If the user is not authenticated, data get, is denied.
+        if not (user and user.is_authenticated):
+            # No data given
+            return Address.objects.none()
+        # If user is staff return all data
+        if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            return Address.objects.all()
+        
+        # If user is a customer return the users data .
+        # Filters customers data
+        customer = Customer.objects.filter(user_id=user.id).first()
+        if customer:
+            return Address.objects.filter(customerid=customer)
+        
+        # If user is an employee return the users data .
+        employee = Employee.objects.filter(user_id=user.id).first()
+        if employee:
+            return Address.objects.filter(employeeid=employee)
+        
+        # Last fall back
+
+        # Uses users email instead to get customer data.
+        return Address.objects.filter(customer__email=user.email)
+
+
+
+# -----------------------------------------------------------------------------
+# Customer views -- Allows for CRUD --
+# -----------------------------------------------------------------------------
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.select_related("addressid").all()
     serializer_class = CustomerSerializer
 
     # Sets it that only owner of the data, admin, or employee can edit. 
-    permission_classes = [IsOwnerOrAdmin]
+    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
 
     # Getting data
     def get_queryset(self):
@@ -39,14 +107,18 @@ class CustomerViewSet(viewsets.ModelViewSet):
             return Customer.objects.none()
         
         # If its a staff return all customer
-        if user.is_staff:
+        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
             return Customer.objects.select_related("addressid").all()
+        
         # If its a customer, return customers data.
-        if hasattr(Customer, "user_id"):
-            return Customer.objects.select_related("addressid").filter(user_id = user.id)
+        customer = Customer.objects.filter(user_id=user.id).first()
+        if customer:
+            return Customer.objects.select_related("addressid").filter(user_id=user.id)
+        
         # If customer return his data using email
-        return Customer.objects.select_related("addressid").filter(email=user.email)
+        return Customer.objects.none()
     
+    # Allows user to retrieve or update their own data using /me endpoint.
     @action(detail = False, methods = ['get', 'patch', 'delete'])
     def me(self, request):
         instance = get_object_or_404(Customer, user=request.user)
@@ -65,30 +137,244 @@ class CustomerViewSet(viewsets.ModelViewSet):
 
         return Response(serializers.data, status=status.HTTP_200_OK)
 
-# Employee View -- Allows for CRUD -- Needs update
+
+# -----------------------------------------------------------------------------
+# Role view -- Allows for CRUD
+# -----------------------------------------------------------------------------
+class RoleViewSet(viewsets.ModelViewSet):
+    queryset = Roles.objects.all()
+    serializer_class = RoleSerializer
+    permission_classes = [isAdmin, DjangoModelPermissions]
+
+    # Only admin can view or edit role data.
+    def get_queryset(self):
+        user = self.request.user
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            return Roles.objects.none()
+        
+        # If its a admin return all role
+        if user.groups.filter(name__in=["Admin"]).exists():
+            return Roles.objects.all()
+
+    # Only admin can create, update, or delete role data.   
+    def perform_create(self, serializer):
+        user = self.request.user
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        if not user.groups.filter(name__in=["Admin"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+
+        serializer.save()
+    
+    # Only admin can update or delete role data.
+    def perform_update(self, serializer):
+        user = self.request.user
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        if not user.groups.filter(name__in=["Admin"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+
+        serializer.save()
+    
+    # Only admin can update or delete role data.
+    def perform_destroy(self, instance):
+        user = self.request.user
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        if not user.groups.filter(name__in=["Admin"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        return super().perform_destroy(instance)
+
+# -----------------------------------------------------------------------------
+# Employee View -- Allows for CRUD --
+# -----------------------------------------------------------------------------
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related("addressid").all()
     serializer_class = EmployeeSerializer
-    permission_classes = [isAdmin]
+    permission_classes = [isAdmin, DjangoModelPermissions]
 
+    # Only admin and supervisors can view or edit employee data.
+    def get_queryset(self):
+        user = self.request.user
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            return Employee.objects.none()
+        
+        # If its a staff return all employee -- Only admin and supervisor can see all employee data.
+        if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            return Employee.objects.select_related("addressid").all()
+        
+        # If its an employee, return employees data.
+        return Employee.objects.select_related("addressid").filter(user_id = user.id)
+
+    # Only admin and supervisors can create employee data.
+    def perform_create(self, serializer):
+        user = self.request.user
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+
+        serializer.save()
+    
+    # Only admin and supervisors can update employee data.
+    def perform_update(self, serializer):
+        user = self.request.user
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+
+        serializer.save()
+    
+    # Only admin and supervisors can delete employee data.
+    def perform_destroy(self, instance):
+        user = self.request.user
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        return super().perform_destroy(instance)
+    
+# -----------------------------------------------------------------------------
+# Service type view -- allows for CRUD
+# -----------------------------------------------------------------------------
+class ServiceTypeViewSet(viewsets.ModelViewSet):
+    queryset = Servicetype.objects.all()
+    serializer_class = ServiceTypeSerializer
+    permission_classes = [isAdmin, DjangoModelPermissions]
+
+    # Only admin and supervisors can view or edit service type data.
+    def get_queryset(self):
+        user = self.request.user
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            return Servicetype.objects.none()
+        
+        # If its a staff return all service type -- Only admin and supervisor can see all service type data.
+        if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            return Servicetype.objects.all()
+        
+        # If its a customer return no data.
+        return Servicetype.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+
+        serializer.save()
+    
+    def perform_update(self, serializer):
+        user = self.request.user
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+
+        serializer.save()
+    
+    def perform_destroy(self, instance):
+        user = self.request.user
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        return super().perform_destroy(instance)
+
+# -----------------------------------------------------------------------------
 # Service view -- allows for CRUD
+# -----------------------------------------------------------------------------
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
 
     # Permission
     def get_permissions(self):
+
         # Allows authenticated user to view services
         if self.request.method in permissions.SAFE_METHODS:
-            return [IsAuthenticatedOrReadOnly()]
-        # Allow admin to add new services
-        return [isAdmin()]
+            return [IsAuthenticatedOrReadOnly(), DjangoModelPermissions()]
+        
+        # Allows admin to view or edit data.
+        return [isAdmin(), DjangoModelPermissions()]
+    
 
+
+
+# -----------------------------------------------------------------------------
 # Customer's service view -- Allows for CRUD
+# -----------------------------------------------------------------------------
 class CustomerServiceViewSet(viewsets.ModelViewSet):
     queryset = Customerservice.objects.select_related("customerid", "serviceid").all()
     serializer_class = CustomerServiceSerializer
-    permission_classes = [IsOwnerOrAdmin]
+    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
+
+    #Secure perform_create
+    def perform_create(self, serializer):
+        
+        user = self.request.user
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        # If user is staff allow them to create data for any customer.
+        if self.request.user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            serializer.save()
+            return
+        
+        # If user is a customer, allow them to create data for themselves only.
+        customer = Customer.objects.filter(user_id=user.id).first()
+        if not customer:
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        serializer.save(customerid=customer)
+
+    # Secure perform_update
+    def perform_update(self, serializer):
+        instance = self.get_object()
+
+        user = self.request.user
+
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        # If user is staff allow them to update data for any customer.
+        if self.request.user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            serializer.save()
+            return
+
+        # If user is a customer, allow them to update data for themselves only.
+        customer = Customer.objects.filter(user_id=user.id).first()
+        if not customer or instance.customerid != customer:
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        serializer.save(customerid=customer)
 
     # Getting data
     def get_queryset(self):
@@ -98,19 +384,351 @@ class CustomerServiceViewSet(viewsets.ModelViewSet):
         if not (user and user.is_authenticated):
             # No data given
             return Customerservice.objects.none()
+        
         # If user is staff return all data
-        if user.is_staff:
+        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
             return self.queryset
         
         # If user is a customer return the users data .
         # Filters customers data
-        if hasattr(Customer, "user_id"):
-            return self.queryset.filter(customerid_user_id=user.id)
+        customer = Customer.objects.filter(user_id=user.id).first()
+        if customer:
+            return self.queryset.filter(customerid=customer)
+        
+        #Return no data if user is not a customer or staff (Security measure).
+        return Customerservice.objects.none()
+
+# -----------------------------------------------------------------------------
+# Booking service view -- Allows for CRUD
+# -----------------------------------------------------------------------------
+class BookingViewSet(viewsets.ModelViewSet):
+    queryset = Booking.objects.select_related("customerid", "serviceid").all()
+    serializer_class = BookingSerializer
+    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
+
+    # Getting data
+    def get_queryset(self):
+        user = self.request.user
+        # If the user is not authenticated, data get, is denied.
+        if not (user and user.is_authenticated):
+            # No data given
+            return Booking.objects.none()
+        
+        # If user is staff return all data
+        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            return self.queryset
+        
+        # If user is a customer return the users data .
+        # Filters customers data
+        customer = Customer.objects.filter(user_id=user.id).first()
+        if customer:
+            return self.queryset.filter(customerid=customer)
+        # Uses users email instead to get customer data.
+        return Booking.objects.none()
+    
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        # If user is staff allow them to create data for any customer.
+        if self.request.user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            serializer.save()
+            return
+        
+        # If user is a customer, allow them to create data for themselves only.
+        customer = Customer.objects.filter(user_id=user.id).first()
+        if not customer:
+            raise PermissionDenied("You do not have permission to perform this action.")
+        serializer.save(customerid=customer)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        user = self.request.user
+
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        # If user is staff allow them to update data for any customer.
+        if self.request.user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            serializer.save()
+            return
+
+        # If user is a customer, allow them to update data for themselves only.
+        customer = Customer.objects.filter(user_id=user.id).first()
+        if not customer or instance.customerid != customer:
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        serializer.save(customerid=customer)
+    
+# -----------------------------------------------------------------------------
+# Invoice view -- Allows for CRUD
+# -----------------------------------------------------------------------------
+class InvoiceViewSet(viewsets.ModelViewSet):
+    queryset = Invoice.objects.select_related("customerid").all()
+    serializer_class = InvoiceSerializer
+    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+
+    # Getting data
+    def get_queryset(self):
+
+        user = self.request.user
+        # If the user is not authenticated, data get, is denied.
+        if not (user and user.is_authenticated):
+            # No data given
+            return Invoice.objects.none()
+        
+        # If user is staff return all data
+        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            return self.queryset
+        
+        # If user is a customer return the users data .
+        # Filters customers data
+        customer = Customer.objects.filter(user_id=user.id).first()
+        # If customer return his data using user id
+        if customer:
+            return self.queryset.filter(customerid=customer)
+        
+        # Uses users email instead to get customer data.
+        return Invoice.objects.none()
+    
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        # If user is staff allow them to create data for any customer.
+        if self.request.user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            serializer.save()
+            return
+    
+    def perform_update(self, serializer):
+        user = self.request.user
+
+        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        return super().perform_destroy(instance)
+
+# -----------------------------------------------------------------------------
+# Quote view -- Allows for CRUD
+# -----------------------------------------------------------------------------
+class QuoteViewSet(viewsets.ModelViewSet):
+    queryset = Quotes.objects.select_related("customerid").all()
+    serializer_class = QuoteSerializer
+    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
+
+    # Getting data
+    def get_queryset(self):
+        user = self.request.user
+        # If the user is not authenticated, data get, is denied.
+        if not (user and user.is_authenticated):
+            # No data given
+            return Quotes.objects.none()
+        # If user is staff return all data
+        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            return self.queryset
+        
+        # If user is a customer return the users data .
+        # Filters customers data
+        customer = Customer.objects.filter(user_id=user.id).first()
+        if customer:
+            return self.queryset.filter(customerid=customer)
         # Uses users email instead to get customer data.
         return self.queryset.filter(customer_email=user.email)
+    
+    # Secure perform_create only employee can do.
+    def perform_create(self, serializer):
+        user = self.request.user
 
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
 
- 
+        serializer.save()
+    
+    # Secure perform_update only employee can do.
+    def perform_update(self, serializer):
+        user = self.request.user
+        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        serializer.save()
+
+    # Secure perform_destroy only employee can do.
+    def perform_destroy(self, instance):
+        user = self.request.user
+        # Only Admin can delete a quote.
+        if not user.groups.filter(name__in=["Admin"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        return super().perform_destroy(instance)
+    
+# -----------------------------------------------------------------------------
+# Schedule view -- Allows for CRUD
+# -----------------------------------------------------------------------------
+class ScheduleViewSet(viewsets.ModelViewSet):
+    queryset = Schedule.objects.select_related("employeeid").all()
+    serializer_class = ScheduleSerializer
+    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
+
+    # Getting data
+    def get_queryset(self):
+        user = self.request.user
+        # If the user is not authenticated, data get, is denied.
+        if not (user and user.is_authenticated):
+            # No data given
+            return Schedule.objects.none()
+        # If user is staff return all data
+        if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            return self.queryset.filter(employeeid__user_id=user.id)
+        
+        # If user is a customer return the users data .
+        # Filters customers data
+        if user.groups.filter(name__in=["Staff"]).exists():
+            return self.queryset.filter(employeeid__user_id=user.id)
+
+        # If user is an employee return the users data .
+        return Schedule.objects.none()
+    
+    # Only admin and supervisors can create schedule data.
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        serializer.save()
+    
+    # Only admin and supervisors can update schedule data.
+    def perform_update(self, serializer):
+        user = self.request.user
+        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        serializer.save()
+
+## -----------------------------------------------------------------------------
+# Site view -- Allows for CRUD
+# -----------------------------------------------------------------------------
+class SiteViewSet(viewsets.ModelViewSet):
+    queryset = Site.objects.all()
+    serializer_class = SiteSerializer
+    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
+
+    def get_queryset(self):
+        user = self.request.user
+        # If the user is not authenticated, data get, is denied.
+        if not (user and user.is_authenticated):
+            # No data given
+            return Site.objects.none()
+        # If user is staff return all data
+        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            return self.queryset
+        
+        # Un-comment if customer should be able to see site data. Currently, customers cannot see any site data for security measures.
+
+        # customer = Customer.objects.filter(user_id=user.id).first()
+        # if customer:
+        #     return self.queryset.filter(customerid=customer)
+        
+        return Site.objects.none()
+    
+    # Only employees can create site data.
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        serializer.save()
+    
+    # Only employees can update site data.
+    def perform_update(self, serializer):
+        user = self.request.user
+        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        serializer.save()
+    
+    # Only Admin and supervisors can delete site data.
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        return super().perform_destroy(instance)
+    
+# -----------------------------------------------------------------------------
+# Zone view -- Allows for CRUD
+# -----------------------------------------------------------------------------
+class ZoneViewSet(viewsets.ModelViewSet):
+    queryset = Zone.objects.all()
+    serializer_class = ZoneSerializer
+    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
+
+    def get_queryset(self):
+        user = self.request.user
+        # If the user is not authenticated, data get, is denied.
+        if not (user and user.is_authenticated):
+            # No data given
+            return Zone.objects.none()
+        # If user is staff return all data
+        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            return self.queryset
+        
+        # Un-comment if customer should be able to see zone data. Currently, customers cannot see any zone data for security measures.
+
+        # customer = Customer.objects.filter(user_id=user.id).first()
+        # if customer:
+        #     return self.queryset.filter(customerid=customer)
+        
+        return Zone.objects.none()
+    
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        # If the user is not authenticated it will not allow access.
+        if not (user and user.is_authenticated):
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        
+        serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        serializer.save()
+    
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            raise PermissionDenied("You do not have permission to perform this action.")
+        return super().perform_destroy(instance)
+
 # -----------------------------------------------------------------------------
 #Service Image ViewSet
 # - list/retrieve give metadata (no raw bytes)
@@ -121,6 +739,7 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
     queryset = Serviceimage.objects.select_related("serviceid").all()
     serializer_class = ServiceImageSerializer
     parser_classes = [MultiPartParser, FormParser]  # for upload
+    permission_classes = [DjangoModelPermissions]
 
     # Check users permission
     def get_permissions(self):
