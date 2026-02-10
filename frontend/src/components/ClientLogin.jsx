@@ -79,7 +79,7 @@ const ClientLogin = () => {
           Sign Up
         </button>
 
-        {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
+        <p className='errorMsg' >{error}</p>
 
       </div>
     </div>

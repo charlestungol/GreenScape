@@ -5,7 +5,7 @@ import FinishedServices from "../dashboard/FinishedServices.jsx";
 import Quote from "../dashboard/Quote.jsx";
 import RunningServices from "../dashboard/RunningServices.jsx";
 import Time from '../dashboard/Timeboard.jsx';
-import Report from '../dashboard/Report.jsx';
+import Remain from '../dashboard/RemainingBudget.jsx';
 import Progress from '../dashboard/Progress.jsx';
 import Analytics from "../dashboard/Analytics.jsx";
 import Maps from "../dashboard/Maps.jsx";
@@ -22,7 +22,7 @@ const Home = () => {
             <div className="leftColumn">
               <Budget/>
               <Expenses/>
-              <Report/>
+              <Remain/>
               <div className="timeRow">
                 <Time/>
                 <Maps/>

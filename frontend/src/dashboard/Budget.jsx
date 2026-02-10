@@ -1,40 +1,104 @@
-import { useState} from "react";
+import { useState } from "react";
 import "../App.css";
 
 function Budget() {
+  const getInitialBudget = () => {
+    const saved = localStorage.getItem("userBudget");
+    if (saved === null) return 0;
+    return Number(saved) || 0;
+  };
 
-  const saved = localStorage.getItem("userBudget");
-  const [budget, setBudget] = useState(saved ? Number(saved) : 0);
+  const [budget, setBudget] = useState(getInitialBudget());
   const [input, setInput] = useState("");
-  const [editing, setEditing] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
+  const [mode, setMode] = useState("set"); // "set", "add", "subtract"
 
-
-    const saveBudget = () => {
+  const handleSave = () => {
     const value = Number(input);
-    if (!value) return alert("Enter a valid number");
+    if (!value || value <= 0) {
+      alert("Please enter a valid positive number");
+      return;
+    }
     
-    setBudget(value);
-    localStorage.setItem("userBudget", value);
+    let newBudget;
+    switch(mode) {
+      case "add":
+        newBudget = budget + value;
+        break;
+      default: // "set"
+        newBudget = value;
+    }
+    
+    setBudget(newBudget);
+    localStorage.setItem("userBudget", newBudget.toString());
+    window.dispatchEvent(new Event("budgetUpdated"));
+
     setInput("");
-    setEditing(false);
-    };
+    setShowOverlay(false);
+  };
+
+  const cancelEdit = () => {
+    setInput("");
+    setShowOverlay(false);
+  };
 
   return (
-    <div className="budgetWrapper clickable" onClick={() => setEditing(true)} >
-      <p>BUDGET</p>
-      <p className="budgetAmount">${budget.toLocaleString()}</p>
-            {editing && (
-        <div className="budgetInputArea" onClick={(e) => e.stopPropagation()}>
-          <input
-            type="number"
-            value={input}
-            placeholder="Enter Budget"
-            onChange={(e) => setInput(e.target.value)}
-          />
-          <button onClick={saveBudget}>Save</button>
+    <>
+      <div 
+        className="budgetWrapper clickable" 
+        onClick={() => setShowOverlay(true)}
+      >
+        <p>BUDGET</p>
+        <p className="budgetAmount">${budget.toLocaleString()}</p>
+      </div>
+
+      {showOverlay && (
+        <div className="budgetOverlay" onClick={cancelEdit}>
+          <div 
+            className="budgetInputArea" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>Update Budget</h3>
+            
+            {/* Mode Selection */}
+            <div className="modeSelection">
+              <button 
+                className={mode === "set" ? "active" : ""}
+                onClick={() => setMode("set")}
+              >
+                Set New
+              </button>
+              <button 
+                className={mode === "add" ? "active" : ""}
+                onClick={() => setMode("add")}
+              >
+                Add
+              </button>
+            </div>
+            
+            <input
+              type="number"
+              value={input}
+              placeholder={`Amount to ${mode}`}
+              onChange={(e) => setInput(e.target.value)}
+              autoFocus
+            />
+            
+            <p className="currentBudget">
+              Current: ${budget.toLocaleString()}
+            </p>
+            
+            <div className="buttonGroup">
+              <button onClick={handleSave}>
+                {mode === "set" ? "Set Budget" : 
+                 mode === "add" ? "Add to Budget" : "Subtract from Budget"}
+              </button>
+              <button onClick={cancelEdit}>Cancel</button>
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

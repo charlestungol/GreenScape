@@ -95,23 +95,35 @@ export default function Navbar({ content }) {
      LOGOUT
   ========================= */
   const handleLogout = async () => {
-    const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token");
 
-    try {
-      await fetch("http://127.0.0.1:8000/api/logout/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Token ${token}`,
-        },
-      });
-    } catch (error) {
-      console.log("Logout error:", error);
-    }
+  try {
+    await fetch("http://127.0.0.1:8000/api/logout/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Token ${token}`,
+      },
+    });
+  } catch (error) {
+    console.log("Logout error:", error);
+  }
+  
+  // Define authentication keys (
+  const authKeys = [
+    "token", 
+    "role",
+    "user_id",      
+    "email",        
+    "last_login", 
+  ];
 
-    localStorage.clear();
-    navigate("/");
-  };
+  // Remove only authentication keys
+  authKeys.forEach(key => localStorage.removeItem(key));
+  
+  
+  navigate("/");
+};
 
   return (
     <ThemeProvider theme={theme}>
