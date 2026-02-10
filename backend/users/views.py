@@ -1,6 +1,8 @@
 from rest_framework import viewsets, permissions, views, status
 from rest_framework.response import Response
 from rest_framework import exceptions
+from django.db import transaction
+from rest_framework.throttling import ScopedRateThrottle
 from .serializers import (
     ClientLoginSerializer,
     ClientRegisterSerializer,
@@ -13,10 +15,11 @@ from django.contrib.auth import get_user_model
 from allauth.account.models import EmailAddress
 from knox.models import AuthToken
 
+throttle_classes = [ScopedRateThrottle]
 User = get_user_model()
 
 class ClientLoginViewSet(viewsets.ViewSet):
-    throttle_classes = "login"
+    throttle_scope = "login"
     permission_classes = [permissions.AllowAny]
     serializer_class = ClientLoginSerializer
 
@@ -56,7 +59,7 @@ class ClientLoginViewSet(viewsets.ViewSet):
 
     
 class ClientRegisterViewSet(viewsets.ModelViewSet):
-    throttle_classes = "register"
+    throttle_scope = "register"
     permission_classes = [permissions.AllowAny]
     queryset = User.objects.all()
     serializer_class = ClientRegisterSerializer
@@ -79,9 +82,9 @@ class ClientRegisterViewSet(viewsets.ModelViewSet):
     
 
 class EmployeeLoginViewSet(viewsets.ViewSet):
-    throttle_classes = "login"
     permission_classes = [permissions.AllowAny]
     serializer_class = EmployeeLoginSerializer
+    throttle_scope = "login"
 
     def create(self, request):
         serializer = self.serializer_class(data=request.data)
@@ -105,15 +108,22 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
 
 
 class EmployeeRegisterViewSet(viewsets.ModelViewSet):
-    throttle_classes = "register"
-    permission_classes = [permissions.DjangoModelPermissions]
+    throttle_scope = "register"
+    permission_classes = [permissions.AllowAny]
     queryset = User.objects.all()
     serializer_class = EmployeeRegisterSerializer
 
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
+            with transaction.atomic():
+                user = serializer.save()
+                EmailAddress.objects.add_email(
+                request,
+                user,
+                user.email,
+                confirm=True
+                )
             return Response(EmployeeRegisterSerializer(user).data, status=201)
         return Response(serializer.errors, status=400)
     
