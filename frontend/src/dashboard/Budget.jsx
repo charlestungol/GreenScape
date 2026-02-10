@@ -3,15 +3,38 @@ import "../App.css";
 
 function Budget() {
   const getInitialBudget = () => {
-    const saved = localStorage.getItem("userBudget");
-    if (saved === null) return 0;
-    return Number(saved) || 0;
+    const userId = localStorage.getItem("user_id");
+    let savedBudget = 0;
+    
+    // Try to get from user-specific storage first
+    if (userId) {
+      const userBudget = localStorage.getItem(`user_${userId}_userBudget`);
+      if (userBudget !== null) {
+        savedBudget = Number(userBudget) || 0;
+        // Also set it in current session for compatibility
+        localStorage.setItem("userBudget", userBudget);
+      } else {
+        // Fallback to global storage
+        const globalBudget = localStorage.getItem("userBudget");
+        if (globalBudget !== null) {
+          savedBudget = Number(globalBudget) || 0;
+        }
+      }
+    } else {
+      // No user ID, use global storage
+      const globalBudget = localStorage.getItem("userBudget");
+      if (globalBudget !== null) {
+        savedBudget = Number(globalBudget) || 0;
+      }
+    }
+    
+    return savedBudget;
   };
 
   const [budget, setBudget] = useState(getInitialBudget());
   const [input, setInput] = useState("");
   const [showOverlay, setShowOverlay] = useState(false);
-  const [mode, setMode] = useState("set"); // "set", "add", "subtract"
+  const [mode, setMode] = useState("set"); // "set", "add"
 
   const handleSave = () => {
     const value = Number(input);
@@ -29,8 +52,20 @@ function Budget() {
         newBudget = value;
     }
     
-    setBudget(newBudget);
+    const userId = localStorage.getItem("user_id");
+    
+    // Save to current session
     localStorage.setItem("userBudget", newBudget.toString());
+    
+    // Also save with user ID prefix for persistence
+    if (userId) {
+      localStorage.setItem(`user_${userId}_userBudget`, newBudget.toString());
+      console.log(`Budget saved for user ${userId}: $${newBudget}`);
+    } else {
+      console.log(`Budget saved (no user ID): $${newBudget}`);
+    }
+    
+    setBudget(newBudget);
     window.dispatchEvent(new Event("budgetUpdated"));
 
     setInput("");

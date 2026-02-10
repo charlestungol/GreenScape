@@ -1,4 +1,4 @@
-import { useState} from "react";
+import { useState } from "react";
 import "../App.css";
 
 function Expenses() {
@@ -12,11 +12,37 @@ function Expenses() {
     "Winterization"
   ];
 
-  // Get initial expenses from localStorage
+  // Get initial expenses from localStorage with user ID prefix
   const getInitialExpenses = () => {
+    const userId = localStorage.getItem("user_id");
+    
     try {
-      const saved = localStorage.getItem("userExpenses");
-      return saved ? JSON.parse(saved) : [];
+      let savedExpenses = [];
+      
+      // Try to get from user-specific storage first
+      if (userId) {
+        const userExpenses = localStorage.getItem(`user_${userId}_userExpenses`);
+        if (userExpenses) {
+          savedExpenses = JSON.parse(userExpenses);
+          // Also set it in current session for compatibility
+          localStorage.setItem("userExpenses", userExpenses);
+          console.log(`Loaded ${savedExpenses.length} expenses for user ${userId}`);
+        } else {
+          // Fallback to global storage
+          const globalExpenses = localStorage.getItem("userExpenses");
+          if (globalExpenses) {
+            savedExpenses = JSON.parse(globalExpenses);
+          }
+        }
+      } else {
+        // No user ID, use global storage
+        const globalExpenses = localStorage.getItem("userExpenses");
+        if (globalExpenses) {
+          savedExpenses = JSON.parse(globalExpenses);
+        }
+      }
+      
+      return savedExpenses;
     } catch (error) {
       console.error("Error loading expenses:", error);
       return [];
@@ -29,6 +55,30 @@ function Expenses() {
     amount: "",
     category: services[0]
   });
+
+  // Save expenses to localStorage with user ID prefix
+  const saveExpenses = (updatedExpenses) => {
+    const userId = localStorage.getItem("user_id");
+    const expensesString = JSON.stringify(updatedExpenses);
+    
+    try {
+      // Save to current session
+      localStorage.setItem("userExpenses", expensesString);
+      
+      // Also save with user ID prefix for persistence
+      if (userId) {
+        localStorage.setItem(`user_${userId}_userExpenses`, expensesString);
+        console.log(`Expenses saved for user ${userId}: ${updatedExpenses.length} items`);
+      } else {
+        console.log(`Expenses saved (no user ID): ${updatedExpenses.length} items`);
+      }
+    } catch (error) {
+      console.error("Error saving expenses:", error);
+      alert("Failed to save expenses. Please try again.");
+    }
+    
+    setExpenses(updatedExpenses);
+  };
 
   // Add new expense
   const addExpense = () => {
@@ -52,14 +102,7 @@ function Expenses() {
     };
 
     const updatedExpenses = [...expenses, newExpense];
-    setExpenses(updatedExpenses);
-    
-    try {
-      localStorage.setItem("userExpenses", JSON.stringify(updatedExpenses));
-    } catch (error) {
-      console.error("Error saving expense:", error);
-      alert("Failed to save expense. Please try again.");
-    }
+    saveExpenses(updatedExpenses);
 
     // Close overlay AND reset form
     setShowAddOverlay(false);
@@ -121,6 +164,9 @@ function Expenses() {
         <div className="expensesContent">
           <p className="expensesTitle">TOTAL EXPENSES</p>
           <p className="expensesTotal">${totalExpenses.toLocaleString()}</p>
+          <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
+            {expenses.length} expense{expenses.length !== 1 ? 's' : ''}
+          </div>
         </div>
       </div>
 
@@ -148,11 +194,13 @@ function Expenses() {
               onChange={handleInputChange}
               onKeyDown={handleKeyPress}
               autoFocus
+              min="0"
+              step="0.01"
             />
             
             {/* Service Selection */}
-            <div style={{ marginBottom: '15px' }}>
-              <p style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>
+            <div className="categoryChis">
+              <p>
                 Select Service:
               </p>
               <div className="categoryChips">
