@@ -140,12 +140,14 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle", 
     ],
 
     "DEFAULT_THROTTLE_RATES": {
         # Login endpoint is accessible to unauthenticated users → protect it heavily
         "anon": "30/minute",       # UMA: 5 unauthenticated requests per minute per IP
         "user": "60/minute",      # Authenticated user actions
+        "login": "30/minute",       # Login endpoint (if separate throttle needed)
         "register": "5/hour",    # Registration endpoint (if separate throttle needed)
     },
 
