@@ -11,6 +11,7 @@ from .serializers import (
     ChangePasswordSerializer
 )
 from .models import *
+from core.models import Employee
 from django.contrib.auth import get_user_model
 from allauth.account.models import EmailAddress
 from knox.models import AuthToken
@@ -96,6 +97,11 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
 
         _, token = AuthToken.objects.create(user)
 
+        emp = Employee.objects.filter(user_id=user.id).values("EmployeeId", "EmployeeNumber", "FirstName", "LastName").first()
+
+        if not emp:
+            return Response({"detail": "Employee record not found."}, status=status.HTTP_404_NOT_FOUND)
+        
         return Response({
             "token": token,
             "user": {
@@ -104,7 +110,8 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "role": user.role,               
-                "employee_number": user.employee_number 
+                "employee_number": emp["EmployeeNumber"] if emp else None,
+                "employee_id": emp["EmployeeId"] if emp else None,
             }
         })
 
