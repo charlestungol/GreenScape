@@ -26,11 +26,13 @@ class ClientLoginViewSet(viewsets.ViewSet):
     def create(self, request):
         serializer = self.serializer_class(data=request.data, context = {"request" : request})
         try:
+            # This will raise a ValidationError if authentication fails, which we catch to return a generic error message without revealing whether the email exists or not
             serializer.is_valid(raise_exception=True)
 
         except exceptions.ValidationError as e:
-            return Response({"detail": e.detail[0]}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "No user found."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # If we get here, authentication was successful and we have a valid user. We can now check if their email is verified before issuing a token.
         user = serializer.validated_data["user"]
         # Check if email is verified before issuing token
         email_verified = EmailAddress.objects.filter(user=user, email__iexact=user.email, verified=True).exists()
@@ -125,7 +127,7 @@ class EmployeeRegisterViewSet(viewsets.ModelViewSet):
                 confirm=True
                 )
             return Response(EmployeeRegisterSerializer(user).data, status=201)
-        return Response(serializer.errors, status=400)
+        return Response({"detail": "Registration failed. Please check your input."}, status=400)
     
 
 class UserViewSet(viewsets.ModelViewSet):
