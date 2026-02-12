@@ -14,7 +14,7 @@ from .models import *
 from core.models import Employee
 from django.contrib.auth import get_user_model
 from allauth.account.models import EmailAddress
-from knox.models import AuthToken
+from rest_framework_simplejwt.tokens import RefreshToken
 
 throttle_classes = [ScopedRateThrottle]
 User = get_user_model()
@@ -47,7 +47,8 @@ class ClientLoginViewSet(viewsets.ViewSet):
             )
             return Response({"detail": "Email address not verified. Please check your email."}, status=status.HTTP_403_FORBIDDEN)
 
-        _, token = AuthToken.objects.create(user)
+        refresh = RefreshToken.for_user(user)
+        token = str(refresh.access_token)
 
         return Response({
             "token": token,
@@ -70,6 +71,7 @@ class ClientRegisterViewSet(viewsets.ModelViewSet):
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         with transaction.atomic():
             user = serializer.save()
             EmailAddress.objects.add_email(
@@ -95,9 +97,10 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
 
         user = serializer.validated_data["user"]
 
-        _, token = AuthToken.objects.create(user)
+        refresh = RefreshToken.for_user(user)
+        token = str(refresh.access_token)
 
-        emp = Employee.objects.filter(user_id=user.id).values("EmployeeId", "EmployeeNumber", "FirstName", "LastName").first()
+        emp = Employee.objects.filter(user_id=user.id).values("employeeid", "employeenumber", "firstname", "lastname").first()
 
         if not emp:
             return Response({"detail": "Employee record not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -110,8 +113,8 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "role": user.role,               
-                "employee_number": emp["EmployeeNumber"] if emp else None,
-                "employee_id": emp["EmployeeId"] if emp else None,
+                "employee_number": emp["employeenumber"] if emp else None,
+                "employee_id": emp["employeeid"] if emp else None,
             }
         })
 

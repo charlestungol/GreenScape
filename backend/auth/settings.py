@@ -47,7 +47,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'users',
     'core',
-    'knox',
+    'rest_framework_simplejwt.token_blacklist',
+    # 'knox',
 ]
 
 LOGGING = {
@@ -72,17 +73,18 @@ ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = "http://localhost:5173/c
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "email-smtp.us-east-2.amazonaws.com"  # SES region
-EMAIL_PORT = 465
-EMAIL_USE_TLS = True
+# EMAIL_PORT = 465
+EMAIL_PORT = 587
 EMAIL_HOST_USER = "AKIAUCGFGNJ2K4QPTQ5J"
 EMAIL_HOST_PASSWORD = "BIHyNRTuW65CKysKYiFgt+ED9e/JbUGcyIZrFm9h12A7"
 DEFAULT_FROM_EMAIL = "badoobob2@gmail.com"
-EMAIL_USE_TLS = False
-EMAIL_USE_SSL = True
+EMAIL_USE_SSL = False
+EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 30  # seconds
 
 
 # # IMPORTANT REMOVE AFTER DEVELOPMENT
+PYTHONHTTPSVERIFY=0 
 # EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 MIDDLEWARE = [
@@ -129,7 +131,8 @@ WSGI_APPLICATION = 'auth.wsgi.application'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'knox.auth.TokenAuthentication', 
+        # 'knox.auth.TokenAuthentication', 
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         ),
     
     "DEFAULT_PERMISSION_CLASSES": (
