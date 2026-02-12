@@ -11,6 +11,7 @@ from .serializers import (
     ChangePasswordSerializer
 )
 from .models import *
+from core.models import Employee
 from django.contrib.auth import get_user_model
 from allauth.account.models import EmailAddress
 from knox.models import AuthToken
@@ -26,11 +27,13 @@ class ClientLoginViewSet(viewsets.ViewSet):
     def create(self, request):
         serializer = self.serializer_class(data=request.data, context = {"request" : request})
         try:
+            # This will raise a ValidationError if authentication fails, which we catch to return a generic error message without revealing whether the email exists or not
             serializer.is_valid(raise_exception=True)
 
         except exceptions.ValidationError as e:
-            return Response({"detail": e.detail[0]}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "No user found."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # If we get here, authentication was successful and we have a valid user. We can now check if their email is verified before issuing a token.
         user = serializer.validated_data["user"]
         # Check if email is verified before issuing token
         email_verified = EmailAddress.objects.filter(user=user, email__iexact=user.email, verified=True).exists()
@@ -94,6 +97,11 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
 
         _, token = AuthToken.objects.create(user)
 
+        emp = Employee.objects.filter(user_id=user.id).values("EmployeeId", "EmployeeNumber", "FirstName", "LastName").first()
+
+        if not emp:
+            return Response({"detail": "Employee record not found."}, status=status.HTTP_404_NOT_FOUND)
+        
         return Response({
             "token": token,
             "user": {
@@ -102,7 +110,8 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "role": user.role,               
-                "employee_number": user.employee_number 
+                "employee_number": emp["EmployeeNumber"] if emp else None,
+                "employee_id": emp["EmployeeId"] if emp else None,
             }
         })
 
@@ -125,7 +134,7 @@ class EmployeeRegisterViewSet(viewsets.ModelViewSet):
                 confirm=True
                 )
             return Response(EmployeeRegisterSerializer(user).data, status=201)
-        return Response(serializer.errors, status=400)
+        return Response({"detail": "Registration failed. Please check your input."}, status=400)
     
 
 class UserViewSet(viewsets.ModelViewSet):
