@@ -21,7 +21,7 @@ import EmployeeTimesheets from "./pages/Employee/EmployeeTimesheets";
 import ServiceSchedule from "./pages/Employee/ServiceSchedule";
 import FinancesBoard from "./pages/Employee/FinancesBoard";
 
-// ✅ NEW: account/logout page
+// account/logout page
 import EmployeeAccount from "./pages/Employee/EmployeeAccount";
 
 function App() {
@@ -128,7 +128,7 @@ function App() {
           }
         />
 
-        {/* ✅ NEW: Employee Account (profile + change password + logout) */}
+        {/* Employee Account (profile + change password + logout) */}
         <Route
           path="/employee/account"
           element={
