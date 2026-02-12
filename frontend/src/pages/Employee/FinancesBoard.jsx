@@ -1,9 +1,31 @@
 import React, { useMemo, useState } from "react";
-import { Box, Typography, Paper, Table, TableHead, TableRow, TableCell, TableBody, Chip, Button } from "@mui/material";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar } from "recharts";
+import {
+  Box,
+  Typography,
+  Paper,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Chip,
+  Button,
+} from "@mui/material";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  BarChart,
+  Bar,
+} from "recharts";
+
+const GREEN = "#1c3d37";
 
 export default function FinancesBoard() {
-  // ✅ Mock “finance” data
   const kpis = useMemo(
     () => ({
       contractsThisMonth: 36,
@@ -86,79 +108,151 @@ export default function FinancesBoard() {
 
   const [selectedReport, setSelectedReport] = useState(null);
 
+  const cardSx = { p: 2, borderRadius: 2, height: "100%" };
+
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ fontWeight: 900, color: "#06632b", mb: 2 }}>
+      <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN, mb: 2 }}>
         Finances Board
       </Typography>
 
-      {/* KPI cards */}
-      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 2, mb: 2 }}>
-        <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-          <Typography variant="body2" sx={{ opacity: 0.7 }}>Contracts (Month)</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900 }}>{kpis.contractsThisMonth}</Typography>
+      {/* KPI cards (symmetrical) */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 2,
+          mb: 2,
+          alignItems: "stretch",
+        }}
+      >
+        <Paper elevation={1} sx={cardSx}>
+          <Typography variant="body2" sx={{ opacity: 0.7, color: GREEN }}>
+            Contracts (Month)
+          </Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN }}>
+            {kpis.contractsThisMonth}
+          </Typography>
         </Paper>
-        <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-          <Typography variant="body2" sx={{ opacity: 0.7 }}>Monthly Revenue</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900 }}>${kpis.monthlyRevenue.toLocaleString()}</Typography>
+
+        <Paper elevation={1} sx={cardSx}>
+          <Typography variant="body2" sx={{ opacity: 0.7, color: GREEN }}>
+            Monthly Revenue
+          </Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN }}>
+            ${kpis.monthlyRevenue.toLocaleString()}
+          </Typography>
         </Paper>
-        <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-          <Typography variant="body2" sx={{ opacity: 0.7 }}>Monthly Expenses</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900 }}>${kpis.monthlyExpenses.toLocaleString()}</Typography>
+
+        <Paper elevation={1} sx={cardSx}>
+          <Typography variant="body2" sx={{ opacity: 0.7, color: GREEN }}>
+            Monthly Expenses
+          </Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN }}>
+            ${kpis.monthlyExpenses.toLocaleString()}
+          </Typography>
         </Paper>
-        <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-          <Typography variant="body2" sx={{ opacity: 0.7 }}>Profit (Month)</Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900 }}>${profit.toLocaleString()}</Typography>
-          <Typography variant="caption" sx={{ opacity: 0.7 }}>
+
+        <Paper elevation={1} sx={cardSx}>
+          <Typography variant="body2" sx={{ opacity: 0.7, color: GREEN }}>
+            Profit (Month)
+          </Typography>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN }}>
+            ${profit.toLocaleString()}
+          </Typography>
+          <Typography variant="caption" sx={{ opacity: 0.7, color: GREEN }}>
             Payroll included: ${kpis.payroll.toLocaleString()}
           </Typography>
         </Paper>
       </Box>
 
-      {/* Charts row */}
-      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}>
-        <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: "#06632b", mb: 1 }}>
+      {/* Charts row (symmetrical) */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, 1fr)",
+          gap: 2,
+          mb: 2,
+          alignItems: "stretch",
+        }}
+      >
+        <Paper elevation={1} sx={cardSx}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
             Income Breakdown
           </Typography>
           <Box sx={{ height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={incomeBreakdown}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" />
+                <CartesianGrid stroke="rgba(28, 61, 55, 0.10)" />
+                <XAxis dataKey="name" tick={{ fill: GREEN }} />
+                <YAxis tick={{ fill: GREEN }} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: "1px solid rgba(28, 61, 55, 0.15)",
+                  }}
+                  labelStyle={{ color: GREEN, fontWeight: 700 }}
+                />
+                <Bar dataKey="value" fill={GREEN} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Box>
         </Paper>
 
-        <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: "#06632b", mb: 1 }}>
+        <Paper elevation={1} sx={cardSx}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
             Revenue vs Expense Trend
           </Typography>
           <Box sx={{ height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" allowDuplicatedCategory={false} />
-                <YAxis />
-                <Tooltip />
-                <Line data={revenueTrend} dataKey="amount" name="Revenue" />
-                <Line data={expenseTracking} dataKey="amount" name="Expenses" />
+                <CartesianGrid stroke="rgba(28, 61, 55, 0.10)" />
+                <XAxis dataKey="month" allowDuplicatedCategory={false} tick={{ fill: GREEN }} />
+                <YAxis tick={{ fill: GREEN }} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 12,
+                    border: "1px solid rgba(28, 61, 55, 0.15)",
+                  }}
+                  labelStyle={{ color: GREEN, fontWeight: 700 }}
+                />
+                <Line
+                  data={revenueTrend}
+                  dataKey="amount"
+                  name="Revenue"
+                  stroke={GREEN}
+                  strokeWidth={3}
+                  dot={false}
+                />
+                <Line
+                  data={expenseTracking}
+                  dataKey="amount"
+                  name="Expenses"
+                  stroke="rgba(28, 61, 55, 0.45)"
+                  strokeWidth={3}
+                  dot={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           </Box>
         </Paper>
       </Box>
 
-      {/* Tables row */}
-      <Box sx={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 2, mb: 2 }}>
-        <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: "#06632b", mb: 1 }}>
+      {/* Tables row (symmetrical) */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, 1fr)",
+          gap: 2,
+          mb: 2,
+          alignItems: "stretch",
+        }}
+      >
+        <Paper elevation={1} sx={cardSx}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
             Upcoming Expenses
           </Typography>
+
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -177,7 +271,12 @@ export default function FinancesBoard() {
                   <TableCell>{x.item}</TableCell>
                   <TableCell align="right">${x.amount.toLocaleString()}</TableCell>
                   <TableCell>
-                    <Chip label={x.status} size="small" variant="outlined" />
+                    <Chip
+                      label={x.status}
+                      size="small"
+                      variant="outlined"
+                      sx={{ borderColor: "rgba(28, 61, 55, 0.35)", color: GREEN }}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -185,30 +284,43 @@ export default function FinancesBoard() {
           </Table>
         </Paper>
 
-        <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: "#06632b", mb: 1 }}>
+        <Paper elevation={1} sx={cardSx}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
             Financial Forecast (Next 3 Months)
           </Typography>
+
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {forecast.map((f) => (
               <Box key={f.month} style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontWeight: 700 }}>{f.month}</span>
-                <span>${f.amount.toLocaleString()}</span>
+                <span style={{ fontWeight: 700, color: GREEN }}>{f.month}</span>
+                <span style={{ color: GREEN }}>${f.amount.toLocaleString()}</span>
               </Box>
             ))}
           </Box>
-          <Typography variant="caption" sx={{ opacity: 0.7, mt: 1, display: "block" }}>
+
+          <Typography
+            variant="caption"
+            sx={{ opacity: 0.7, mt: 1, display: "block", color: GREEN }}
+          >
             (Forecast is mocked for frontend-only.)
           </Typography>
         </Paper>
       </Box>
 
-      {/* Payroll + Reports */}
-      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-        <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: "#06632b", mb: 1 }}>
+      {/* Payroll + Reports (symmetrical) */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, 1fr)",
+          gap: 2,
+          alignItems: "stretch",
+        }}
+      >
+        <Paper elevation={1} sx={cardSx}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
             Payroll
           </Typography>
+
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -239,8 +351,8 @@ export default function FinancesBoard() {
           </Table>
         </Paper>
 
-        <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: "#06632b", mb: 1 }}>
+        <Paper elevation={1} sx={cardSx}>
+          <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
             Financial Reports
           </Typography>
 
@@ -258,12 +370,22 @@ export default function FinancesBoard() {
                 }}
               >
                 <Box>
-                  <div style={{ fontWeight: 800 }}>{r.name}</div>
+                  <div style={{ fontWeight: 800, color: GREEN }}>{r.name}</div>
                   <div style={{ fontSize: 12, opacity: 0.7 }}>{r.period}</div>
                 </Box>
                 <Box style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <Chip label={r.status} size="small" variant="outlined" />
-                  <Button size="small" variant="outlined" onClick={() => setSelectedReport(r)}>
+                  <Chip
+                    label={r.status}
+                    size="small"
+                    variant="outlined"
+                    sx={{ borderColor: "rgba(28, 61, 55, 0.35)", color: GREEN }}
+                  />
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setSelectedReport(r)}
+                    sx={{ color: GREEN, borderColor: "rgba(28, 61, 55, 0.35)" }}
+                  >
                     Open
                   </Button>
                 </Box>
@@ -272,9 +394,9 @@ export default function FinancesBoard() {
           </Box>
 
           {selectedReport ? (
-            <Box sx={{ mt: 2, p: 2, borderRadius: 2, bgcolor: "rgba(6, 99, 43, 0.06)" }}>
-              <Typography sx={{ fontWeight: 900 }}>Selected:</Typography>
-              <Typography>{selectedReport.name}</Typography>
+            <Box sx={{ mt: 2, p: 2, borderRadius: 2, bgcolor: "rgba(28, 61, 55, 0.06)" }}>
+              <Typography sx={{ fontWeight: 900, color: GREEN }}>Selected:</Typography>
+              <Typography sx={{ color: GREEN }}>{selectedReport.name}</Typography>
               <Typography variant="caption" sx={{ opacity: 0.7 }}>
                 (Frontend-only preview panel.)
               </Typography>
