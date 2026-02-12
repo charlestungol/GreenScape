@@ -1,17 +1,28 @@
-import './App.css';
-import { Routes, Route } from 'react-router-dom';
-import NavbarWrapper from './components/NavbarWrapper';
-import Home from './pages/ClientHome';
-import Services from './pages/Services';
-import Booking from './pages/Booking';
-import Settings from './pages/Settings';
-import Landing from './pages/LandingPage';
-import EmployeeRegister from './pages/EmployeeRegister';
-import ClientLogin from './components/ClientLogin';
-import EmployeeLogin from './components/EmployeeLogin'; 
-import EmployeeHome from './pages/EmployeeHome';
-import ClientRegister from './pages/ClientRegister';
+import "./App.css";
+import { Routes, Route } from "react-router-dom";
+import NavbarWrapper from "./components/NavbarWrapper";
+import Home from "./pages/ClientHome";
+import Services from "./pages/Services";
+import Booking from "./pages/Booking";
+import Settings from "./pages/Settings";
+import Landing from "./pages/LandingPage";
+import EmployeeRegister from "./pages/EmployeeRegister";
+import ClientLogin from "./components/ClientLogin";
+import EmployeeLogin from "./components/EmployeeLogin";
+import EmployeeHome from "./pages/EmployeeHome";
+import ClientRegister from "./pages/ClientRegister";
 import RouteProtection from "./components/RouteProtection";
+
+// employee/admin pages
+import AdminDashboard from "./pages/employee/AdminDashboard";
+import MySchedule from "./pages/employee/MySchedule";
+import EmployeeManagement from "./pages/employee/EmployeeManagement";
+import EmployeeTimesheets from "./pages/Employee/EmployeeTimesheets";
+import ServiceSchedule from "./pages/Employee/ServiceSchedule";
+import FinancesBoard from "./pages/Employee/FinancesBoard";
+
+// ✅ NEW: account/logout page
+import EmployeeAccount from "./pages/Employee/EmployeeAccount";
 
 function App() {
   return (
@@ -21,15 +32,111 @@ function App() {
       <Route path="/client-login" element={<ClientLogin />} />
       <Route path="/employee-login" element={<EmployeeLogin />} />
       <Route path="/employee-register" element={<EmployeeRegister />} />
-      <Route path='client-register' element={<ClientRegister/>}/>
+      <Route path="client-register" element={<ClientRegister />} />
 
       {/* Pages with Navbar */}
       <Route element={<NavbarWrapper />}>
-        <Route path="/home" element={<RouteProtection allowedRole="client"><Home /></RouteProtection>}/>
-        <Route path="/employeeHome" element={<RouteProtection allowedRole="employee"><EmployeeHome /></RouteProtection>} />
-        <Route path="/services" element={<RouteProtection><Services /></RouteProtection>} />
-        <Route path="/booking" element={<RouteProtection><Booking /></RouteProtection>} />
-        <Route path="/settings" element={<RouteProtection><Settings /></RouteProtection>} />
+        {/* client */}
+        <Route
+          path="/home"
+          element={
+            <RouteProtection allowedRole="client">
+              <Home />
+            </RouteProtection>
+          }
+        />
+        <Route
+          path="/services"
+          element={
+            <RouteProtection>
+              <Services />
+            </RouteProtection>
+          }
+        />
+        <Route
+          path="/booking"
+          element={
+            <RouteProtection>
+              <Booking />
+            </RouteProtection>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <RouteProtection>
+              <Settings />
+            </RouteProtection>
+          }
+        />
+
+        {/* employee/admin */}
+        <Route
+          path="/employeeHome"
+          element={
+            <RouteProtection allowedRole="employee">
+              <EmployeeHome />
+            </RouteProtection>
+          }
+        />
+        <Route
+          path="/employee/dashboard"
+          element={
+            <RouteProtection allowedRole="employee">
+              <AdminDashboard />
+            </RouteProtection>
+          }
+        />
+        <Route
+          path="/employee/my-schedule"
+          element={
+            <RouteProtection allowedRole="employee">
+              <MySchedule />
+            </RouteProtection>
+          }
+        />
+        <Route
+          path="/employee/employee-management"
+          element={
+            <RouteProtection allowedRole="employee">
+              <EmployeeManagement />
+            </RouteProtection>
+          }
+        />
+        <Route
+          path="/employee/employee-management/timesheets"
+          element={
+            <RouteProtection allowedRole="employee">
+              <EmployeeTimesheets />
+            </RouteProtection>
+          }
+        />
+        <Route
+          path="/employee/service-schedule"
+          element={
+            <RouteProtection allowedRole="employee">
+              <ServiceSchedule />
+            </RouteProtection>
+          }
+        />
+        <Route
+          path="/employee/finances"
+          element={
+            <RouteProtection allowedRole="employee">
+              <FinancesBoard />
+            </RouteProtection>
+          }
+        />
+
+        {/* ✅ NEW: Employee Account (profile + change password + logout) */}
+        <Route
+          path="/employee/account"
+          element={
+            <RouteProtection allowedRole="employee">
+              <EmployeeAccount />
+            </RouteProtection>
+          }
+        />
       </Route>
     </Routes>
   );
