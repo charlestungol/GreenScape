@@ -23,11 +23,116 @@ import ProfilePic from "../assets/img/Profile.jpg";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
+const GREEN = "#1c3d37";
+const drawerWidth = 300;
+
+// ✅ Base-style theme (Inter + sizes + selected styles)
 const theme = createTheme({
-  typography: { fontFamily: "'Courier New', monospace" },
+  typography: {
+    fontFamily:
+      '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontWeightRegular: 400,
+    fontWeightMedium: 500,
+    fontWeightBold: 600,
+  },
+  components: {
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "#F8F8F8",
+        },
+      },
+    },
+    MuiListItemText: {
+      styleOverrides: {
+        primary: {
+          fontFamily:
+            '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          fontWeight: 500,
+          fontSize: "0.95rem",
+          letterSpacing: "-0.01em",
+          color: GREEN,
+          textTransform: "uppercase", // ✅ ensures labels show uppercase
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: "12px",
+          "&.Mui-selected": {
+            backgroundColor: "rgba(28, 61, 55, 0.08)",
+            "&:hover": {
+              backgroundColor: "rgba(28, 61, 55, 0.12)",
+            },
+            "& .MuiListItemText-primary": {
+              fontWeight: 600,
+              color: GREEN,
+            },
+          },
+        },
+      },
+    },
+  },
 });
 
-const drawerWidth = 300;
+// ✅ Menu config (keep your routes/features, match base style)
+const menuConfig = {
+  client: [
+    {
+      label: "DASHBOARD",
+      path: "/home",
+      icon: <DashboardIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "SERVICES",
+      path: "/services",
+      icon: <WaterDropIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "BOOKING",
+      path: "/booking",
+      icon: <CalendarMonthIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "SETTINGS",
+      path: "/settings",
+      icon: <SettingsIcon sx={{ color: GREEN }} />,
+    },
+  ],
+  employee: [
+    {
+      label: "DASHBOARD",
+      path: "/employee/dashboard",
+      icon: <DashboardIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "MY SCHEDULE",
+      path: "/employee/my-schedule",
+      icon: <CalendarMonthIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "EMPLOYEE MANAGEMENT",
+      path: "/employee/employee-management",
+      icon: <PeopleOutlineIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "SERVICE SCHEDULE",
+      path: "/employee/service-schedule",
+      icon: <WaterDropIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "FINANCES BOARD",
+      path: "/employee/finances",
+      icon: <SettingsIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "ACCOUNT",
+      path: "/employee/account",
+      icon: <AccountCircleIcon sx={{ color: GREEN }} />,
+    },
+  ],
+};
 
 export default function Navbar({ content }) {
   const location = useLocation();
@@ -35,23 +140,9 @@ export default function Navbar({ content }) {
   const path = location.pathname;
 
   const firstName = localStorage.getItem("first_name") || "User";
-  const role = localStorage.getItem("role");
+  const role = localStorage.getItem("role") || "client";
 
-  const routes = {
-    // client routes (keep)
-    dashboard: role === "employee" ? "/employeeHome" : "/home",
-    services: "/services",
-    booking: "/booking",
-    settings: "/settings",
-
-    // employee routes (new)
-    employeeDashboard: "/employee/dashboard",
-    mySchedule: "/employee/my-schedule",
-    employeeManagement: "/employee/employee-management",
-    serviceSchedule: "/employee/service-schedule",
-    finances: "/employee/finances",
-    account: "/employee/account",
-  };
+  const menuItems = menuConfig[role] || menuConfig.client;
 
   const handleLogout = async () => {
     const token = localStorage.getItem("token");
@@ -71,10 +162,8 @@ export default function Navbar({ content }) {
     localStorage.removeItem("token");
     localStorage.removeItem("first_name");
     localStorage.removeItem("role");
-    navigate("/");
+    navigate("/", { replace: true });
   };
-
-  const isEmployee = role === "employee";
 
   return (
     <ThemeProvider theme={theme}>
@@ -88,7 +177,6 @@ export default function Navbar({ content }) {
               width: drawerWidth,
               boxSizing: "border-box",
               backgroundColor: "#F8F8F8",
-              color: "#06632b",
             },
           }}
         >
@@ -108,180 +196,82 @@ export default function Navbar({ content }) {
                 width: "150px",
                 height: "150px",
                 borderRadius: "50%",
-                border: "2px solid #06632b",
+                border: `2px solid ${GREEN}`,
                 objectFit: "cover",
               }}
             />
           </Box>
 
+          {/* WELCOME MESSAGE */}
           <Typography
+            variant="h6"
             sx={{
               mb: 4,
               textAlign: "center",
-              color: "#06632b",
-              fontWeight: "bold",
+              fontWeight: 500,
               fontSize: "1.2rem",
+              color: GREEN,
+              letterSpacing: "-0.01em",
             }}
           >
             Welcome, {firstName}!
           </Typography>
 
           {/* MENU */}
-          <Box sx={{ overflow: "auto" }}>
+          <Box sx={{ overflow: "auto", px: 2 }}>
             <List>
-              {isEmployee ? (
-                <>
-                  {/* Employee Dashboard */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.employeeDashboard}
-                      selected={path === routes.employeeDashboard}
-                    >
-                      <ListItemIcon>
-                        <DashboardIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Dashboard" />
-                    </ListItemButton>
-                  </ListItem>
+              {menuItems.map((item) => (
+                <ListItem disablePadding key={item.path} sx={{ mb: 0.5 }}>
+                  <ListItemButton
+                    component={Link}
+                    to={item.path}
+                    selected={path === item.path}
+                    sx={{ py: 1, px: 2 }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 40 }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText primary={item.label} />
+                  </ListItemButton>
+                </ListItem>
+              ))}
 
-                  {/* My Schedule */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.mySchedule}
-                      selected={path === routes.mySchedule}
-                    >
-                      <ListItemIcon>
-                        <CalendarMonthIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="My Schedule" />
-                    </ListItemButton>
-                  </ListItem>
+              {/* LOGOUT DIVIDER */}
+              <Box
+                sx={{
+                  my: 2,
+                  borderTop: "1px solid rgba(28, 61, 55, 0.12)",
+                }}
+              />
 
-                  {/* Employee Management */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.employeeManagement}
-                      selected={path === routes.employeeManagement}
-                    >
-                      <ListItemIcon>
-                        <PeopleOutlineIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Employee Management" />
-                    </ListItemButton>
-                  </ListItem>
-
-                  {/* Service Schedule */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.serviceSchedule}
-                      selected={path === routes.serviceSchedule}
-                    >
-                      <ListItemIcon>
-                        <WaterDropIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Service Schedule" />
-                    </ListItemButton>
-                  </ListItem>
-
-                  {/* Finances Board */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.finances}
-                      selected={path === routes.finances}
-                    >
-                      <ListItemIcon>
-                        <SettingsIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Finances Board" />
-                    </ListItemButton>
-                  </ListItem>
-
-                  {/* ✅ Account (profile/change password/logout page) */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.account}
-                      selected={path === routes.account}
-                    >
-                      <ListItemIcon>
-                        <AccountCircleIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Account" />
-                    </ListItemButton>
-                  </ListItem>
-                </>
-              ) : (
-                <>
-                  {/* Client Dashboard */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.dashboard}
-                      selected={path === routes.dashboard}
-                    >
-                      <ListItemIcon>
-                        <DashboardIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Dashboard" />
-                    </ListItemButton>
-                  </ListItem>
-
-                  {/* Services */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.services}
-                      selected={path === routes.services}
-                    >
-                      <ListItemIcon>
-                        <WaterDropIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Services" />
-                    </ListItemButton>
-                  </ListItem>
-
-                  {/* Booking */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.booking}
-                      selected={path === routes.booking}
-                    >
-                      <ListItemIcon>
-                        <CalendarMonthIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Booking" />
-                    </ListItemButton>
-                  </ListItem>
-
-                  {/* Settings */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.settings}
-                      selected={path === routes.settings}
-                    >
-                      <ListItemIcon>
-                        <SettingsIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Settings" />
-                    </ListItemButton>
-                  </ListItem>
-                </>
-              )}
-
-              {/* LOGOUT (shared for both roles) */}
+              {/* LOGOUT */}
               <ListItem disablePadding>
-                <ListItemButton onClick={handleLogout}>
-                  <ListItemIcon>
-                    <LogoutIcon sx={{ color: "#06632b" }} />
+                <ListItemButton
+                  onClick={handleLogout}
+                  sx={{
+                    py: 1,
+                    px: 2,
+                    borderRadius: "12px",
+                    "&:hover": {
+                      backgroundColor: "rgba(255, 68, 68, 0.04)",
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <LogoutIcon sx={{ color: "#ff4444" }} />
                   </ListItemIcon>
-                  <ListItemText primary="Logout" />
+                  <ListItemText
+                    primary="LOGOUT"
+                    slotProps={{
+                      primary: {
+                        sx: {
+                          color: "#ff4444",
+                          fontWeight: 500,
+                          letterSpacing: "-0.01em",
+                        },
+                      },
+                    }}
+                  />
                 </ListItemButton>
               </ListItem>
             </List>
