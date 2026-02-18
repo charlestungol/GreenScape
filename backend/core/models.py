@@ -102,24 +102,12 @@ class Customerservice(models.Model):
 # Employee model and related models
 # ---------------------------------------
 
-# Roles model
-class Roles(models.Model):
-    roleid = models.AutoField(db_column='RoleId', primary_key=True)  # Field name made lowercase.
-    rolename = models.CharField(db_column='RoleName', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-    description = models.CharField(db_column='Description', max_length=30, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-    earnperhour = models.DecimalField(db_column='EarnPerHour', max_digits=10, decimal_places=2)  # Field name made lowercase.
-
-    class Meta:
-        managed = False
-        db_table = 'Roles'
-
 # Employee model
 class Employee(models.Model):
     # models.py
     user = models.ForeignKey(settings.AUTH_USER_MODEL, db_column='UserId',null=True, blank=True, on_delete=models.SET_NULL)
-    employeeid = models.AutoField(db_column='EmployeeId', primary_key=True)  # Field name made lowercase.
-    roleid = models.IntegerField(db_column='RoleId')  # Field name made lowercase.
-    addressid = models.OneToOneField(Address, models.DO_NOTHING, db_column='AddressId')  # Field name made lowercase.
+    employeeid = models.AutoField(db_column='EmployeeId', primary_key=True)  # Field name made lowercase.#
+    addressid = models.OneToOneField(Address, models.DO_NOTHING, db_column='AddressId', null=True, blank = True)  # Field name made lowercase.
     employeenumber = models.IntegerField(db_column='EmployeeNumber')  # Field name made lowercase.
     firstname = models.CharField(db_column='FirstName', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
     lastname = models.CharField(db_column='LastName', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.

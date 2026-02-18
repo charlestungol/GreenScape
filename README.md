@@ -8,7 +8,8 @@
 5. pip install django-allauth dj-rest-auth
 6. pip install mssql-django
 7. python manage.py migrate
-8. python manage.py runserver
+8. python manage.py sync_roles
+9. python manage.py runserver
 
 <!-- Back End Email verification when creating account -->
 <!-- Use either one of these 2, comment/uncomment as needed in auth/settings.py -->

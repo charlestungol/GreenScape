@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework import exceptions
 from django.db import transaction
 from rest_framework.throttling import ScopedRateThrottle
+from django.contrib import messages
+from django.shortcuts import redirect
 from .serializers import (
     ClientLoginSerializer,
     ClientRegisterSerializer,
@@ -183,3 +185,7 @@ class ResendVerificationView(views.APIView):
         if addr and not addr.verified:
             addr.send_confirmation(request)
         return Response({"detail": "If an account with that email exists, a verification email has been sent."}, status=200)
+
+def EmailVerifiedRedirectView(request):
+    messages.success(request, "Email verified successfully. You can now log in.")
+    return redirect("http://localhost:5173")
