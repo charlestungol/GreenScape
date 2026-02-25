@@ -129,7 +129,7 @@ class EmployeeRegisterViewSet(viewsets.ModelViewSet):
 
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
+        if serializer.is_valid(raise_exception=True):
             with transaction.atomic():
                 user = serializer.save()
                 EmailAddress.objects.add_email(
@@ -139,7 +139,7 @@ class EmployeeRegisterViewSet(viewsets.ModelViewSet):
                 confirm=True
                 )
             return Response(EmployeeRegisterSerializer(user).data, status=201)
-        return Response({"detail": "Registration failed. Please check your input."}, status=400)
+        return Response({"detail": f"Registration failed. Please check your input. {self.get_serializer(user).data}"}, status=400)
     
 
 class UserViewSet(viewsets.ModelViewSet):

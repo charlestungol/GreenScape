@@ -16,7 +16,7 @@ from .models import (
     Employee,
     Service,
     Customerservice,
-    Serviceimage,
+    ServiceImage,
     Site,
     Zone,
     Servicetype,
@@ -136,21 +136,18 @@ class ServiceImageSerializer(serializers.ModelSerializer):
     # Define URL
     url = serializers.SerializerMethodField()
 
-    # Do not return raw image data in the response, only use it for creating new service images. The URL will be used to retrieve the image.
-    imagedata = serializers.CharField(write_only=True)
-
     class Meta:
-        model = Serviceimage
-        fields = ["serviceimageid", "serviceid", "contenttype", "filename", "imagedata", "createdat", "url"]
-        read_only_fields = ["serviceimageid", "createdat", "url"]
+        model = ServiceImage
+        fields = ["id", "service", "filename", "content_type", "size_bytes", "created_at", "url"]
+        read_only_fields = ["id", "created_at", "url"]
 
     # Method to get the image url from db, write only = True for imagedata field, so it won't be returned in the response, only used for creating new service images.
-    def get_url(self, obj):
+    def get_url(self, obj: ServiceImage):
         request = self.context.get("request")
         if not request:
             return None
         return request.build_absolute_url(
-            f"/core/services/{obj.serviceid_id}/images/{obj.serviceimageid}"
+            f"/core/services/{obj.service_id}/images/{obj.id}/bytes"
         )
 
 # Customer Service

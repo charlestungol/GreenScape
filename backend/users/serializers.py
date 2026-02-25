@@ -6,11 +6,19 @@ from allauth.account.models import EmailAddress
 from core.serializers import AddressSerializer
 from core.models import Address, Customer, Employee
 from django.db import transaction
+from core.management.validators import (
+    validate_phone,
+    validate_name,
+    validate_max_length,
+    prevent_control_characters,
+    strip_string,
+
+)
 
 # Get the User model
 User = get_user_model()
 
-ALLOWED_GROUPS = ["Admin", "Manager", "Supervisor","Employee"]
+ALLOWED_GROUPS = ["Admin", "Supervisor", "Staff"]
 
 # Function to normalize email by stripping whitespace and converting to lowercase
 def normalize_email(value: str) -> str:
@@ -19,9 +27,9 @@ def normalize_email(value: str) -> str:
 # Serializer for client login, validates email and password, checks if email is verified and account is active, and ensures the user has a client role.
 class ClientLoginSerializer(serializers.Serializer):
     # Fields for email and password
-    email = serializers.EmailField()
+    email = serializers.EmailField(validators=[strip_string, prevent_control_characters, validate_max_length(254)])
     # Password field is write-only to ensure it is not included in serialized output
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True, validators=[strip_string, validate_max_length(254)])
 
     # Validation method to authenticate the user and check various conditions
     def validate(self, data):
@@ -57,8 +65,8 @@ class ClientLoginSerializer(serializers.Serializer):
 # Serializer for client registration, includes fields for email, password, first name, last name, phone number, and address. 
 # Validates email and password, and creates a new user, address, and customer record in the database within an atomic transaction.
 class ClientRegisterSerializer(serializers.ModelSerializer):
-    phone = serializers.CharField(required=True, write_only = True)
-    address = AddressSerializer(required=True)
+    phone = serializers.CharField(required=True, write_only = True, validators=[strip_string, prevent_control_characters, validate_phone])
+    address = AddressSerializer(required=True, validators=[strip_string, prevent_control_characters, validate_max_length(254), validate_name])
 
     class Meta:
         model = User
@@ -153,15 +161,16 @@ class EmployeeLoginSerializer(serializers.Serializer):
 
 # Create a user, and add an employee to db
 class EmployeeRegisterSerializer(serializers.ModelSerializer):
-    group = serializers.ChoiceField(write_only=True, required=True, choices=ALLOWED_GROUPS)
-    first_name = serializers.CharField(write_only=True, required=True, max_length=50)
-    last_name = serializers.CharField(write_only=True, required=True, max_length=50)
-    employee_number = serializers.CharField(write_only=True, required=True, max_length=50)
+    group = serializers.ChoiceField(write_only=True, required=True, choices=ALLOWED_GROUPS, validators=[strip_string, prevent_control_characters, validate_max_length(254)])
+    first_name = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
+    last_name = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
+    employee_number = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
     staff_status = serializers.BooleanField(write_only=True, required=False, allow_null=True, default=False)
+    phone_number = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=20, validators=[strip_string, prevent_control_characters, validate_phone])
 
     class Meta:
         model = User
-        fields = ["id", "email", "password", "first_name", "last_name", "employee_number", "staff_status", "group"]
+        fields = ["id", "email", "password", "first_name", "last_name", "employee_number", "staff_status", "phone_number", "group"]
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate_email(self, value):
@@ -181,15 +190,20 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
         employee_number = validated_data.pop("employee_number")
         staff_status = validated_data.pop("staff_status", False)
         group_name = validated_data.pop("group")
-        phone_number = validated_data.pop("phone", "")
+        phone_number = validated_data.pop("phone_number", "")
 
         user = User.objects.create_user(
             **validated_data,
             is_active = False,
-            is_staff=True,
+            is_staff=False,
             role="employee"
         )
-        grp = Group.objects.get(name=group_name)
+
+        try:
+            grp = Group.objects.get(name__iexact=group_name)
+        except Group.DoesNotExist:
+            grp = Group.objects.create(name=group_name.title())
+
         user.groups.add(grp)
 
         Employee.objects.create(
@@ -206,8 +220,8 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
 
 
 class ChangePasswordSerializer(serializers.Serializer):
-    old_password = serializers.CharField(required=True)
-    new_password = serializers.CharField(required=True)
+    old_password = serializers.CharField(required=True, validators=[strip_string, validate_max_length(254)])
+    new_password = serializers.CharField(required=True, validators=[strip_string, validate_max_length(254)])
 
     def validate_old_password(self, value):
         user = self.context['request'].user

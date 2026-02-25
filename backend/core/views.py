@@ -1,4 +1,5 @@
-from django.http import Http404, HttpResponse
+import os, uuid, mimetypes
+from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.utils.encoding import smart_str
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
@@ -9,13 +10,14 @@ from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 
+from core.supabase_client import supabase, signed_url
 from .models import (
     Address,
     Customer,
     Employee,
     Service,
     Customerservice,
-    Serviceimage,
+    ServiceImage,
     Site,
     Zone,
     Servicetype,
@@ -763,9 +765,11 @@ class ZoneViewSet(viewsets.ModelViewSet):
 # - list/retrieve give metadata (no raw bytes)
 # - POST /upload to attach a file to a service
 # - GET  /{id}/bytes to stream the image inline (no download dialog)
+BUCKET = os.getenv("SUPABASE_BUCKET_SERVICE_IMAGES", "service-images")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 # -----------------------------------------------------------------------------
 class ServiceImageViewSet(viewsets.ModelViewSet):
-    queryset = Serviceimage.objects.select_related("serviceid").all()
+    queryset = ServiceImage.objects.select_related("service").all()
     serializer_class = ServiceImageSerializer
     parser_classes = [MultiPartParser, FormParser]  # for upload
     permission_classes = [DjangoModelPermissions]
@@ -783,7 +787,7 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
         # Use super meaning admin to get a query set as qs
         qs = super().get_queryset()
         # Get service Id from the service image db
-        service_id = self.request.query_params.get("serviceid")
+        service_id = self.request.query_params.get("service")
         # Filter from the service the service for that image
         if service_id:
             qs = qs.filter(serviceid_id=service_id)
@@ -791,114 +795,85 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
         return qs
 
     # To upload an image to a service.
-    @action(detail=False, methods=["post"], url_path="upload")
-    def upload(self, request):
+    def create(self, request, *args, **kwargs):
+        file_obj = request.FILES.get("image")
+        service_id = request.data.get("service")
+        filename = request.data.get("filename", file_obj.name if file_obj else "image")
 
-        # Multipart upload:
-        #   - image: the file
-        #   - serviceid: FK to Service
-        #   - optional: filename, contenttype (will infer if not provided)
-
-        # Reduce upload of image to only 5mb
-        MAX_BYTES = 5 * 1024 * 1024 
-        # Only allows this type of uploads
-        ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
-
-        # The image object
-        file_obj = request.FILES.get("image") #The actual image data
-        service_id = request.data.get("serviceid") #The service which the image is for
-        filename = request.data.get("filename") #The setted name for the image
-        contenttype = request.data.get("contenttype") #The type of contant -- jpeg, png
-
-        # Check if there is an image
         if not file_obj:
-            return Response({"detail": "Missing file field 'image'."},
-                            status=status.HTTP_400_BAD_REQUEST)
-        # Check if there is a service
+            return Response({"detail": "No image file provided."}, status=status.HTTP_400_BAD_REQUEST)
         if not service_id:
-            return Response({"detail": "Missing 'serviceid'."},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Missing service."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Infer filename/content type if not provided
-        if not filename:
-            filename = getattr(file_obj, "name", "image")
-        if not contenttype:
-            contenttype = getattr(file_obj, "content_type", "application/octet-stream")
+        raw = file_obj.read()
+        if len(raw) > 20 * 1024 * 1024:  # Limit to 20MB
+            return Response({"detail": "Image file is too large (Max 20MB)"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Read bytes (BinaryField accepts bytes)
-        raw_bytes = file_obj.read() #Set the image data to an attribute
-        # Check the size of the file
-        if len(raw_bytes) > MAX_BYTES:
-            return Response({"details" : "File too large (max 5 MB)"}, status=413)
+        content_type = getattr(file_obj, "Content_type", None) or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        if content_type not in ["image/jpeg", "image/png", "image/webp"]:
+            return Response({"detail": "Unsupported image type. Only JPEG, PNG, and WebP are allowed."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        _, ext = os.path.splitext(filename)
+        ext = ext.lower() or ".bin"
+        storage_path = f"{service_id}/{uuid.uuid4().hex}{ext}"
 
-        # Check if the uploaded file is an image or not
-        ctype = getattr(file_obj, "content_type", None) or "application/octet-stream"
-        # Check if the image is allowed
-        if ctype not in ALLOWED_TYPES:
-            return Response({"detail" : f"Unsupported content type: {ctype}" }, status = 415)
+        up = supabase().storage.from_(BUCKET).upload(path=storage_path, file=raw, file_option={"content_type": content_type, "cache_control": "86400", "upsert": False},)
 
-        # Create the image itself.
-        img = Serviceimage.objects.create(
+        if up.get("error"):
+            return Response({"detail": f"upload failed: {up['error']}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        obj = ServiceImage.objects.create(
             serviceid_id=int(service_id),
-            contenttype=contenttype,
-            filename=filename,
-            imagedata=raw_bytes,
-            # createdat -> Added automatically from DB
+            bucket = BUCKET,
+            storage_path = storage_path,
+            filename = filename,
+            contenttype = content_type,
+            size_bytes = len(raw),
+            uploaded_by_id = request.user.id if request.user.is_authenticated else None,
         )
 
-        # Serialize the image
-        data = ServiceImageSerializer(img, context={"request": request}).data
-        # Return the data.
+        data = self.get_serializer(obj, context={"request": request}).data
         return Response(data, status=status.HTTP_201_CREATED)
 
-    # Get the image from db as bytes so machine can read it. --Gets all image
-    @action(detail=True, methods=["get"], url_path="bytes")
-    def bytes(self, request, pk=None):
+    # To replace an existing image with a new one, deletes the old one from storage and db, then uploads the new one.
+    @action(detail=True, methods=["post"], url_name="replace")
+    def replace_file(self, request, pk=None):
+        obj = self.get_object()
+        file_obj = request.FILES.get("image")
+        if not file_obj:
+            return Response({"detail": "No image file provided."}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Streams raw image bytes with Content-Disposition: inline
-        # so browsers/apps render it rather than prompting a download.
-
-        # Try getting query
-        try:
-            img = self.get_queryset().get(pk=pk)
-        except Serviceimage.DoesNotExist:
-            raise Http404("Image not found")
-
-        # Check image type
-        content_type = img.contenttype or "application/octet-stream"
-        # Get image name
-        disp_name = img.filename or "image"
-
-        # Get image link
-        resp = HttpResponse(img.imagedata, content_type=content_type)
-        # 
-        resp["Content-Disposition"] = f'inline; filename="{smart_str(disp_name)}"'
-        # Adjust caching policy as needed
-        resp["Cache-Control"] = "private, max-age=0, no-store"
-        return resp
-
-    #Get the latest image for that service. --  Get the most recent image for a service.
-    @action(detail=False, methods=["get"], url_path=r"service/(?P<service_id>\d+)/latest/bytes")
-    def latest_bytes(self, request, service_id: int):
+        raw = file_obj.read()
+        if len(raw) > 20 * 1024 * 1024:  # Limit to 20MB
+            return Response({"detail": "Image file is too large (Max 20MB)"}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Streams the most recent image for a service (inline).
-        img = (
-            self.get_queryset() #Get all image
-            .filter(serviceid_id=service_id) #Get service image with service selected
-            .order_by("-serviceimageid")  #Filter image by the most recent image by that service.
-            .first() 
-        )
-        #If there is no image raise error.
-        if not img:
-            raise Http404("No image for this service")
+        content_type = getattr(file_obj, "Content_type", None) or mimetypes.guess_type(file_obj.name)[0] or "application/octet-stream"
+        if content_type not in ["image/jpeg", "image/png", "image/webp"]:
+            return Response({"detail": "Unsupported image type. Only JPEG, PNG, and WebP are allowed."}, status=status.HTTP_400_BAD_REQUEST)
+        _, ext = os.path.splitext(file_obj.name)
+        ext = ext.lower() or ".bin"
+        new_path = f"{obj.serviceid_id}/{uuid.uuid4().hex}{ext}"
+        up = supabase().storage.from_(BUCKET).upload(path=new_path, file=raw, file_option={"content_type": content_type, "cache_control": "86400", "upsert": False},)
+        if up.get("error"):
+            return Response({"detail": f"upload failed: {up['error']}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        old_path = obj.storage_path
+        obj.storage_path = new_path
+        obj.content_type = content_type
+        obj.size_bytes = len(raw)
+        obj.filename = getattr(file_obj, "name", obj.filename)
+        obj.save(update_fields=["storage_path", "content_type", "size_bytes", "filename"])
+        supabase().storage.from_(BUCKET).remove(path=old_path)
 
-        # Check type of the image -- jpeg, png.
-        content_type = img.contenttype or "application/octet-stream"
-        #Get image name
-        disp_name = img.filename or "image"
-        #Create response with image.
-        resp = HttpResponse(img.imagedata, content_type=content_type)
-        resp["Content-Disposition"] = f'inline; filename="{smart_str(disp_name)}"'
-        resp["Cache-Control"] = "private, max-age=0, no-store"
-        #Return the image as HTTPs
-        return resp
+        return Response(self.get_serializer(obj, context={"request": request}).data, status=status.HTTP_200_OK)
+    
+    def destroy(self, request, *args, **kwargs):
+        obj = self.get_object()
+        supabase().storage.from_(BUCKET).remove(path=obj.storage_path)
+        return super().destroy(request, *args, **kwargs)
+    
+    @action(detail=True, methods=["get"], url_name="bytes")
+    def get_bytes(self, request, pk=None):
+        obj = self.get_object()
+        public_url = f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{obj.storage_path}"
+        return HttpResponseRedirect(public_url)

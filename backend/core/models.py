@@ -69,18 +69,35 @@ class Service(models.Model):
         managed = False
         db_table = 'Service'
 
-
-class Serviceimage(models.Model):
-    serviceimageid = models.AutoField(db_column='ServiceImageId', primary_key=True)  # Field name made lowercase.
-    serviceid = models.ForeignKey(Service, models.DO_NOTHING, db_column='ServiceId')  # Field name made lowercase.
-    contenttype = models.CharField(db_column='ContentType', max_length=100, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-    filename = models.CharField(db_column='FileName', max_length=50, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-    imagedata = models.BinaryField(db_column='ImageData')  # Field name made lowercase.
-    createdat = models.DateTimeField(db_column='CreatedAt')  # Field name made lowercase.
+class ServiceImage(models.Model):
+    service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="images", null=True, blank=True)
+    bucket = models.CharField( max_length=100, default="service-images")
+    storage_path = models.CharField(max_length=400) 
+    content_type = models.CharField(max_length=100)
+    filename = models.CharField(max_length=100)
+    size_bytes = models.IntegerField(null = True, blank = True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
-        managed = False
-        db_table = 'ServiceImage'
+        db_table = "ServiceImage"
+        ordering = ["-id"]
+    def __str__(self):
+        return f"{self.service_id} :: {self.filename}"
+
+# Old Service image model
+
+# class Serviceimage(models.Model):
+#     serviceimageid = models.AutoField(db_column='ServiceImageId', primary_key=True)  # Field name made lowercase.
+#     serviceid = models.ForeignKey(Service, models.DO_NOTHING, db_column='ServiceId')  # Field name made lowercase.
+#     contenttype = models.CharField(db_column='ContentType', max_length=100, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+#     filename = models.CharField(db_column='FileName', max_length=50, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+#     imagedata = models.BinaryField(db_column='ImageData')  # Field name made lowercase.
+#     createdat = models.DateTimeField(db_column='CreatedAt')  # Field name made lowercase.
+
+#     class Meta:
+#         managed = False
+#         db_table = 'ServiceImage'
 
 # ---------------------------------------
 # Customer Service

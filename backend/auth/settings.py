@@ -10,10 +10,13 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
@@ -26,6 +29,39 @@ SECRET_KEY = 'django-insecure-!e=(2vv(vp6z!d8aoe!%6o_4=_92l4(t5xw04#)-4n5w_*rdxf
 DEBUG = True
 
 ALLOWED_HOSTS = []
+
+# Email verifty
+SITE_ID = 1
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*", "first_name", "last_name"]
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = "/email-verified/"
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = "http://localhost:5173"
+
+# When user click verifiy email link, the email will be verified immediately without asking user to click another confirm button.
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "25"))
+
+# Booleans: accept 'true'/'false' (case-insensitive)
+def env_bool(name: str, default: bool = False) -> bool:
+    return os.getenv(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
+
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", False)
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
+
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "webmaster@localhost")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
+
+# Optional
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10") or "0") or None
+EMAIL_SSL_CERTFILE = os.getenv("EMAIL_SSL_CERTFILE") or None
+EMAIL_SSL_KEYFILE = os.getenv("EMAIL_SSL_KEYFILE") or None
 
 
 # Application definition
@@ -43,7 +79,7 @@ INSTALLED_APPS = [
     'dj_rest_auth',
     'dj_rest_auth.registration',
     'rest_framework',
-    'rest_framework.authtoken',
+    # 'rest_framework.authtoken',
     'corsheaders',
     'users',
     'core',
@@ -60,30 +96,6 @@ LOGGING = {
         "allauth.account": {"handlers": ["console"], "level": "INFO"},
     },
 }
-
-# Email verifty
-SITE_ID = 1
-ACCOUNT_LOGIN_METHODS = {"email"}
-ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*", "first_name", "last_name"]
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = "/email-verified/"
-ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = "http://localhost:5173"
-
-# When user click verifiy email link, the email will be verified immediately without asking user to click another confirm button.
-ACCOUNT_CONFIRM_EMAIL_ON_GET = True
-
-# Email Provider Settings
-
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "email-smtp.us-east-2.amazonaws.com"  # SES region
-EMAIL_PORT = 465
-# EMAIL_PORT = 587
-EMAIL_HOST_USER = "AKIAUCGFGNJ2K4QPTQ5J"
-EMAIL_HOST_PASSWORD = "BIHyNRTuW65CKysKYiFgt+ED9e/JbUGcyIZrFm9h12A7"
-DEFAULT_FROM_EMAIL = "badoobob2@gmail.com"
-EMAIL_USE_SSL = True
-EMAIL_USE_TLS = False
-EMAIL_TIMEOUT = 30  # seconds
 
 
 # # IMPORTANT REMOVE AFTER DEVELOPMENT
@@ -163,6 +175,18 @@ REST_FRAMEWORK = {
 
 }
 
+REST_AUTH = {
+    
+    "USE_JWT": True,            
+    "TOKEN_MODEL": None,
+    "TOKEN_SERIALIZER": None,
+
+    # If using cookies:
+    "JWT_AUTH_COOKIE": "access",
+    "JWT_AUTH_REFRESH_COOKIE": "refresh",
+    "JWT_AUTH_HTTPONLY": True,
+
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
