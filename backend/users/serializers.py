@@ -1,13 +1,16 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate, password_validation
+from django.contrib.auth.models import Group
 from django.core import exceptions
 from allauth.account.models import EmailAddress
 from core.serializers import AddressSerializer
-from core.models import Address, Customer
+from core.models import Address, Customer, Employee
 from django.db import transaction
 
 # Get the User model
 User = get_user_model()
+
+ALLOWED_GROUPS = ["Admin", "Manager", "Supervisor","Employee"]
 
 # Function to normalize email by stripping whitespace and converting to lowercase
 def normalize_email(value: str) -> str:
@@ -148,11 +151,17 @@ class EmployeeLoginSerializer(serializers.Serializer):
         return data
 
 
-
+# Create a user, and add an employee to db
 class EmployeeRegisterSerializer(serializers.ModelSerializer):
+    group = serializers.ChoiceField(write_only=True, required=True, choices=ALLOWED_GROUPS)
+    first_name = serializers.CharField(write_only=True, required=True, max_length=50)
+    last_name = serializers.CharField(write_only=True, required=True, max_length=50)
+    employee_number = serializers.CharField(write_only=True, required=True, max_length=50)
+    staff_status = serializers.BooleanField(write_only=True, required=False, allow_null=True, default=False)
+
     class Meta:
         model = User
-        fields = ["id", "email", "password", "first_name", "last_name", "employee_number"]
+        fields = ["id", "email", "password", "first_name", "last_name", "employee_number", "staff_status", "group"]
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate_email(self, value):
@@ -165,13 +174,34 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(list(exc.messages))
         return value
     
+    @transaction.atomic
     def create(self, validated_data):
+        first_name = validated_data.pop("first_name")
+        last_name = validated_data.pop("last_name")
+        employee_number = validated_data.pop("employee_number")
+        staff_status = validated_data.pop("staff_status", False)
+        group_name = validated_data.pop("group")
+        phone_number = validated_data.pop("phone", "")
+
         user = User.objects.create_user(
             **validated_data,
             is_active = False,
             is_staff=True,
             role="employee"
         )
+        grp = Group.objects.get(name=group_name)
+        user.groups.add(grp)
+
+        Employee.objects.create(
+            user=user,
+            addressid=None,
+            employeenumber=employee_number,
+            firstname=first_name,
+            lastname=last_name,
+            phonenumber=phone_number,
+            staffstatus=staff_status
+        )
+
         return user
 
 

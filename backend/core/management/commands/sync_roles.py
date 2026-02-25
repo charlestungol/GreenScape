@@ -21,7 +21,6 @@ MODELS_IN_SCOPE = [
     "core.Zone",
     "core.Service",
     "core.ServiceType",
-    "core.Roles",
     "core.Employee",
     "core.Customer",
     "core.Address",
@@ -51,7 +50,7 @@ class Command(BaseCommand):
             # Start clean (comment out if you prefer incremental)
             group.permissions.clear()
 
-            for (_, _), action_map in model_perms.items():
+            for action_map in model_perms.values():
                 for action in actions:
                     perm = action_map.get(action)
                     if perm:
