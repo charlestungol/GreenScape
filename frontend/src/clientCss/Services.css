@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .container{
     display: flex;
     justify-content:center;
@@ -10,3 +11,279 @@
   gap:50px;
 }
 
+=======
+.serviceContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem;
+  background: white;
+}
+
+/* Title wrapper */
+.titleWrapper {
+ border:solid 2px  #06632b;
+ color: #06632b;
+ padding: 20px;
+ font-size: 25px;
+ font-weight:bold;
+ border-radius: 20px;
+ width: 96%;
+}
+
+/* Cards grid */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+/* CARD STYLES */
+.card {
+  width: 100%;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #edf2f7;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(28, 61, 55, 0.12);
+  border-color: #d0dfd9;
+}
+
+/* Image container */
+.card-image-container {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #eef2f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Actual image styling */
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* NO PSEUDO-ELEMENT PLACEHOLDER */
+.card-image-container::before {
+  display: none;
+  content: none;
+}
+
+.card-image:not([src]), 
+.card-image[src=""] {
+  display: none;
+}
+
+.card-image-container:has(.card-image:not([src])),
+.card-image-container:has(.card-image[src=""]) {
+  background: #e2e8e5;
+  position: relative;
+}
+
+.card-image-container:has(.card-image:not([src]))::after,
+.card-image-container:has(.card-image[src=""])::after {
+  content: "NO IMAGE";
+  font-size: 0.8rem;
+  color: #8a9e98;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+  position: absolute;
+  opacity: 0.6;
+}
+
+/* Title container */
+.card-title-container {
+  padding: 1.25rem 1rem;
+  text-align: left;
+  background: white;
+}
+
+/* Service description text */
+.card-description {
+  font-size: 0.85rem;
+  color: #5a6e6a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.5rem 0;
+  font-weight: 500;
+}
+
+/* Main card title */
+.card-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a2e2a;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  word-break: break-word;
+}
+
+/* Divider */
+.section-divider {
+  margin: 2rem 0 2rem 0;
+  border: 0;
+  border-top: 2px solid #e4e9ec;
+  width: 100%;
+}
+
+/* Service / Spring Startup / Winterization block */
+.service-detail {
+  margin-bottom: 2.8rem;
+}
+
+.detail-headline {
+  font-size: 1.5rem;
+  font-weight: 650;
+  color: #0f2c2c;
+  margin: 0 0 0.75rem 0;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.detail-description {
+  text-align: center;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: #3f4e4c;
+  margin-bottom: 1.8rem;
+  font-weight: 400;
+}
+
+/* CTA buttons */
+.cta-group {
+  display: flex;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn {
+  background: transparent;
+  border: 2px solid #1c3d37;
+  color: #1c3d37;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.9rem 2.2rem;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.btn:before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50px;
+  background: #1c3d37;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s ease, height 0.4s ease;
+  z-index: -1;
+}
+
+.btn:hover {
+  color: white;
+}
+
+.btn:hover::before {
+  width: 110%;
+  height: 110%;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+/* Warranty section */
+.warranty-section {
+  background: #f6f8f9;
+  padding: 1.8rem 2rem;
+  border-radius: 12px;
+  margin-top: 0.5rem;
+}
+
+.warranty-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #1e3732;
+  margin: 0 0 0.8rem 0;
+}
+
+.warranty-text {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: #354946;
+  margin: 0;
+  max-width: 100%;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+  
+  .serviceContainer {
+    padding: 2rem 1.5rem;
+  }
+  
+  .titleWrapper {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .cards-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .detail-headline {
+    font-size: 1.3rem;
+  }
+  
+  .cta-group {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .btn {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .titleWrapper {
+    font-size: 1.35rem;
+  }
+}
+>>>>>>> origin/kevin

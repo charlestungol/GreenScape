@@ -1,64 +1,346 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "../clientCss/Dashboard.css";
 import {
   BarChart, Bar,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
+  LineChart, Line,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, 
+  Legend, CartesianGrid
 } from "recharts";
+
+// Custom tooltip outside component
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="custom-tooltip">
+        <p className="tooltip-label">{label}</p>
+        {payload.map((entry, index) => (
+          <p key={index} className="tooltip-value" style={{ color: entry.color }}>
+            <span className="tooltip-color-dot" style={{ background: entry.color }} />
+            {entry.name}: ${entry.value.toLocaleString()}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
 function Analytics() {
   const [showReport, setShowReport] = useState(false);
+  const [data, setData] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [chartType, setChartType] = useState('bar');
 
-  // Add 'budget' for comparison
-  const data = [
-    { name: "Jan", budget: 1500, expenses: 1200 },
-    { name: "Feb", budget: 1000, expenses: 300 },
-    { name: "Mar", budget: 2000, expenses: 270 },
-    { name: "Apr", budget: 800, expenses: 570 },
-    { name: "May", budget: 1200, expenses: 100 },
-  ];
+  // Define getExpenses at the top
+  const getExpenses = () => {
+    try {
+      const saved = localStorage.getItem("userExpenses");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const buildMonthlyData = () => {
+    const budget = Number(localStorage.getItem("userBudget")) || 0;
+    const expensesData = getExpenses();
+
+    const monthly = {};
+
+    expensesData.forEach(({ amount, date }) => {
+      const month = new Date(date).toLocaleString("default", {
+        month: "short",
+      });
+
+      monthly[month] = (monthly[month] || 0) + amount;
+    });
+
+    // Sort months in order
+    const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    return Object.keys(monthly)
+      .map((month) => ({
+        name: month,
+        budget,
+        expenses: monthly[month],
+      }))
+      .sort((a, b) => monthOrder.indexOf(a.name) - monthOrder.indexOf(b.name));
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  // Format time for display
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Calculate totals
+  const totalBudget = data.reduce((sum, month) => sum + month.budget, 0);
+  const totalExpensesAmount = data.reduce((sum, month) => sum + month.expenses, 0);
+  const recentExpenses = expenses.slice().reverse().slice(0, 10);
+
+  useEffect(() => {
+    const update = () => {
+      setData(buildMonthlyData());
+      setExpenses(getExpenses());
+    };
+
+    update();
+
+    window.addEventListener("budgetUpdated", update);
+    window.addEventListener("expensesUpdated", update);
+
+    return () => {
+      window.removeEventListener("budgetUpdated", update);
+      window.removeEventListener("expensesUpdated", update);
+    };
+  }, []);
 
   return (
     <div className="analyticsWrapper">
+<<<<<<< HEAD:frontend/src/ClientDashboard/Analytics.jsx
       <p>ANALYTICS</p>
+=======
+      {/* Header with Chart Toggle */}
+      <div className="analytics-header">    
+        {/* Chart Toggle Buttons */}
+        <div className="chart-toggle-group">
+          <button 
+            className={`chart-toggle-btn ${chartType === 'bar' ? 'active' : ''}`}
+            onClick={() => setChartType('bar')}
+          >
+             Bar
+          </button>
+          <button 
+            className={`chart-toggle-btn ${chartType === 'line' ? 'active' : ''}`}
+            onClick={() => setChartType('line')}
+          >
+            Line
+          </button>
+        </div>
+      </div>
+>>>>>>> origin/kevin:frontend/src/dashboard/Analytics.jsx
 
+      {/* Chart Container */}
       <div
         className="chartsRow clickableChart"
         onClick={() => setShowReport(true)}
       >
-        <ResponsiveContainer width="100%" height={190}>
+        <ResponsiveContainer width="100%" height={300}>
+          {chartType === 'bar' ? (
           <BarChart data={data} barCategoryGap="30%">
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            {/* Budget bars */}
-            <Bar dataKey="budget" fill="#65be69" barSize={25} />
-            {/* Expense bars */}
-            <Bar dataKey="expenses" fill="#06632b" barSize={25} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e0e8e5" vertical={false} />
+            <XAxis 
+              dataKey="name" 
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11, fill: '#8a9e98' }}
+            />
+            <YAxis 
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11, fill: '#8a9e98' }}
+              width={30}
+            />
+            <Tooltip 
+              content={<CustomTooltip />} 
+              cursor={false}  
+            />
+            <Legend 
+              wrapperStyle={{ fontSize: '11px', color: '#62ad97', marginTop: '5px' }}
+              iconType="circle"
+              iconSize={8}
+            />
+            <Bar 
+              dataKey="budget" 
+              fill="#6a9c6a" 
+              barSize={22}
+              radius={[6, 6, 0, 0]}
+              name="Budget"
+            />
+            <Bar 
+              dataKey="expenses" 
+              fill="#1c3d37" 
+              barSize={22}
+              radius={[6, 6, 0, 0]}
+              name="Expenses"
+            />
           </BarChart>
+          ) : (
+            <LineChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <XAxis 
+                dataKey="name" 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: '#8a9e98' }}
+              />
+              <YAxis 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: '#8a9e98' }}
+                width={30}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend 
+                wrapperStyle={{ fontSize: '11px', color: '#5a7c6c', marginTop: '5px' }}
+                iconType="circle"
+                iconSize={8}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="budget" 
+                stroke="#6a9c6a" 
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: '#a8c9b0', strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: '#a8c9b0', stroke: 'white', strokeWidth: 2 }}
+                name="Budget"
+              />
+              <Line 
+                type="monotone" 
+                dataKey="expenses" 
+                stroke="#1c3d37" 
+                strokeWidth={3}
+                dot={{ r: 3, fill: '#06632b', strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: '#06632b', stroke: 'white', strokeWidth: 2 }}
+                name="Expenses"
+              />
+            </LineChart>
+          )}
         </ResponsiveContainer>
       </div>
-
+      {/* Analytics Overlay / Modal */}
       {showReport && (
         <div className="overlay">
-          <div className="overlayContent">
-            <h2>Monthly Service Report</h2>
+          <div className="analyticsOverlayContent">
+            
+            {/* Header */}
+            <div className="analyticsHeader">
+              <h2>Analytics & Transactions</h2>
+            </div>
 
-            <p>This report shows the analytics summary for the selected period.</p>
+            {/* Summary Cards Grid */}
+            <div className="summaryGrid">
+              {/* Total Budget Card */}
+              <div className="summaryCard">
+                <div className="summaryCard-header">
+                  <p className="summaryLabel">Total Budget</p>
+                </div>
+                <p className="summaryValue budgetValue">${totalBudget.toLocaleString()}</p>
+              </div>
+              
+              {/* Total Spent Card */}
+              <div className="summaryCard">
+                <div className="summaryCard-header">
+                  <p className="summaryLabel">Total Spent</p>
+                </div>
+                <p className="summaryValue expenseValue">${totalExpensesAmount.toLocaleString()}</p>
+              </div>
+              
+              {/* Remaining Card */}
+              <div className="summaryCard">
+                <div className="summaryCard-header">
+                  <p className="summaryLabel">Remaining</p>
+                </div>
+                <p className="summaryValue remainingValue">${(totalBudget - totalExpensesAmount).toLocaleString()}</p>
+              </div>
+              
+              {/* Transactions Card */}
+              <div className="summaryCard">
+                <div className="summaryCard-header">
+                  <p className="summaryLabel">Transactions</p>
+                </div>
+                <p className="summaryValue transactionValue">{expenses.length}</p>
+              </div>
+            </div>
 
-            <ul>
-              <li><strong>Total Months:</strong> {data.length}</li>
-              <li><strong>Highest Expenses:</strong> ${Math.max(...data.map(d => d.expenses))}</li>
-              <li><strong>Lowest Expenses:</strong> ${Math.min(...data.map(d => d.expenses))}</li>
-              <li><strong>Total Expenses:</strong> ${data.reduce((sum, d) => sum + d.expenses, 0)}</li>
-              <li><strong>Total Budget:</strong> ${data.reduce((sum, d) => sum + d.budget, 0)}</li>
-            </ul>
+            {/* Recent Transactions Section */}
+            <div>
+              <h3 className="sectionHeader">Recent Activity</h3>
+              
+              {expenses.length === 0 ? (
+                <div className="emptyState">
+                  <span className="emptyState-icon">s</span>
+                  <p className="emptyState-text">No transactions yet</p>
+                </div>
+              ) : (
+                <div className="transactionsList">
+                  {recentExpenses.map((expense) => (
+                    <div key={expense.id} className="transactionItem">
+                      <div className="transactionDetails">
+                        <div className="transactionName">
+                          {expense.name}
+                          <span className="transactionCategory">{expense.category}</span>
+                        </div>
+                        <div className="transactionMeta">
+                          <span className="transactionDate">{formatDate(expense.date)}</span>
+                          <span className="transactionTime">{formatTime(expense.date)}</span>
+                        </div>
+                      </div>
+                      <div className="transactionAmount">{expense.amount.toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-            <button
-              className="closeBtn"
+            {/* Monthly Breakdown Section */}
+            <div className="monthlyBreakdown">
+              <h3 className="sectionHeader">Monthly Spending</h3>
+              
+              {data.length === 0 ? (
+                <div className="emptyState">
+                  <span className="emptyState-icon">📊</span>
+                  <p className="emptyState-text">No monthly data available</p>
+                </div>
+              ) : (
+                <div>
+                  {data.map((month) => {
+                    const percentage = ((month.expenses / month.budget) * 100) || 0;
+                    const isOverBudget = percentage > 100;
+                    
+                    return (
+                      <div key={month.name} className="monthlyItem">
+                        <div className="monthlyHeader">
+                          <span className="monthName">{month.name}</span>
+                          <span className="monthStats">
+                            ${month.expenses.toLocaleString()} <span>/ ${month.budget.toLocaleString()}</span>
+                          </span>
+                        </div>
+                        <div className="progressBarContainer">
+                          <div 
+                            className={`progressFill ${isOverBudget ? 'overBudget' : ''}`}
+                            style={{ width: `${Math.min(percentage, 100)}%` }}
+                          />
+                        </div>
+                        <div className={`percentageIndicator ${isOverBudget ? 'overBudget' : ''}`}>
+                          {percentage.toFixed(1)}% spent
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Close Button */}
+            <button 
+              className="analyticsCloseBtn"
               onClick={() => setShowReport(false)}
             >
-              Close
+             Close
             </button>
           </div>
         </div>
