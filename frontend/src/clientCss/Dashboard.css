@@ -1,4 +1,13 @@
-/* DASHBOARD */
+body:has(.dashboardContainer),
+html:has(.dashboardContainer) {
+  overflow: hidden !important;
+}
+
+.dashboardContainer {
+  height: 100vh;
+  overflow-y: auto !important;
+  scrollbar-width: none !important;
+}
 
 .secondLayerBoard p{
 font-weight: bold;
@@ -142,7 +151,7 @@ font-weight: bold;
   width: 335px;
   box-shadow: 0 3px 8px rgba(0,0,0,0.1);
   text-align: center;
-  height: 5vh;
+  height: 36px;
 }
 .quoteWrapper p{
   font-size: 20px;
@@ -307,7 +316,7 @@ font-weight: bold;
   border: 2px solid #ddd;
   box-shadow: 0 3px 8px rgba(0,0,0,0.1);
   border-radius: 10px;
-  height:240px;
+  height:238px;
   font-size: 20px;
   text-align: center;
   margin-top: 10px;

@@ -15,6 +15,8 @@ import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
+import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 
 import Logo from "../assets/img/Logo.png";
 import ProfilePic from "../assets/img/Profile.jpg";
@@ -22,64 +24,117 @@ import ProfilePic from "../assets/img/Profile.jpg";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
-/* =========================
-   THEME
-========================= */
-const theme = createTheme({
-  typography: { fontFamily: "'Courier New', monospace" },
-});
-
+const GREEN = "#1c3d37";
 const drawerWidth = 300;
 
-/* =========================
-   ROLE-BASED MENU CONFIG
-========================= */
+// ✅ Base-style theme (Inter + sizes + selected styles)
+const theme = createTheme({
+  typography: {
+    fontFamily:
+      '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontWeightRegular: 400,
+    fontWeightMedium: 500,
+    fontWeightBold: 600,
+  },
+  components: {
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "#F8F8F8",
+        },
+      },
+    },
+    MuiListItemText: {
+      styleOverrides: {
+        primary: {
+          fontFamily:
+            '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          fontWeight: 500,
+          fontSize: "0.95rem",
+          letterSpacing: "-0.01em",
+          color: GREEN,
+          textTransform: "uppercase", // ✅ ensures labels show uppercase
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: "12px",
+          "&.Mui-selected": {
+            backgroundColor: "rgba(28, 61, 55, 0.08)",
+            "&:hover": {
+              backgroundColor: "rgba(28, 61, 55, 0.12)",
+            },
+            "& .MuiListItemText-primary": {
+              fontWeight: 600,
+              color: GREEN,
+            },
+          },
+        },
+      },
+    },
+  },
+});
+
+// ✅ Menu config (keep your routes/features, match base style)
 const menuConfig = {
   client: [
     {
-      label: "Dashboard",
+      label: "DASHBOARD",
       path: "/home",
-      icon: <DashboardIcon sx={{ color: "#06632b" }} />,
+      icon: <DashboardIcon sx={{ color: GREEN }} />,
     },
     {
-      label: "Services",
+      label: "SERVICES",
       path: "/services",
-      icon: <WaterDropIcon sx={{ color: "#06632b" }} />,
+      icon: <WaterDropIcon sx={{ color: GREEN }} />,
     },
     {
-      label: "Booking",
+      label: "BOOKING",
       path: "/booking",
-      icon: <CalendarMonthIcon sx={{ color: "#06632b" }} />,
+      icon: <CalendarMonthIcon sx={{ color: GREEN }} />,
     },
     {
-      label: "Settings",
+      label: "SETTINGS",
       path: "/settings",
-      icon: <SettingsIcon sx={{ color: "#06632b" }} />,
+      icon: <SettingsIcon sx={{ color: GREEN }} />,
     },
   ],
-
   employee: [
     {
-      label: "Dashboard",
-      path: "/employeeHome",
-      icon: <DashboardIcon sx={{ color: "#06632b" }} />,
+      label: "DASHBOARD",
+      path: "/employee/dashboard",
+      icon: <DashboardIcon sx={{ color: GREEN }} />,
     },
     {
-      label: "Client",
-      path: "/client",
-      icon: <PeopleOutlineIcon sx={{ color: "#06632b" }} />,
+      label: "MY SCHEDULE",
+      path: "/employee/my-schedule",
+      icon: <CalendarMonthIcon sx={{ color: GREEN }} />,
     },
     {
-      label: "Settings",
-      path: "/settings",
-      icon: <SettingsIcon sx={{ color: "#06632b" }} />,
-    }
+      label: "EMPLOYEE MANAGEMENT",
+      path: "/employee/employee-management",
+      icon: <PeopleOutlineIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "SERVICE SCHEDULE",
+      path: "/employee/service-schedule",
+      icon: <WaterDropIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "FINANCES BOARD",
+      path: "/employee/finances",
+      icon: <SettingsIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "ACCOUNT",
+      path: "/employee/account",
+      icon: <AccountCircleIcon sx={{ color: GREEN }} />,
+    },
   ],
 };
 
-/* =========================
-   NAVBAR COMPONENT
-========================= */
 export default function Navbar({ content }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -89,11 +144,8 @@ export default function Navbar({ content }) {
   const firstName = localStorage.getItem("first_name") || "User";
   const role = localStorage.getItem("role") || "client";
 
-  const menuItems = menuConfig[role];
+  const menuItems = menuConfig[role] || menuConfig.client;
 
-  /* =========================
-     LOGOUT
-  ========================= */
   const handleLogout = async () => {
     const token = localStorage.getItem("token");
 
@@ -109,8 +161,10 @@ export default function Navbar({ content }) {
       console.log("Logout error:", error);
     }
 
-    localStorage.clear();
-    navigate("/");
+    localStorage.removeItem("token");
+    localStorage.removeItem("first_name");
+    localStorage.removeItem("role");
+    navigate("/", { replace: true });
   };
 
   return (
@@ -128,7 +182,6 @@ export default function Navbar({ content }) {
               width: drawerWidth,
               boxSizing: "border-box",
               backgroundColor: "#F8F8F8",
-              color: "#06632b",
             },
           }}
         >
@@ -148,46 +201,82 @@ export default function Navbar({ content }) {
                 width: "150px",
                 height: "150px",
                 borderRadius: "50%",
-                border: "2px solid #06632b",
+                border: `2px solid ${GREEN}`,
                 objectFit: "cover",
               }}
             />
           </Box>
 
+          {/* WELCOME MESSAGE */}
           <Typography
+            variant="h6"
             sx={{
               mb: 4,
               textAlign: "center",
-              fontWeight: "bold",
+              fontWeight: 500,
               fontSize: "1.2rem",
+              color: GREEN,
+              letterSpacing: "-0.01em",
             }}
           >
             Welcome, {firstName}!
           </Typography>
 
           {/* MENU */}
-          <Box sx={{ overflow: "auto" }}>
+          <Box sx={{ overflow: "auto", px: 2 }}>
             <List>
               {menuItems.map((item) => (
-                <ListItem disablePadding key={item.path}>
+                <ListItem disablePadding key={item.path} sx={{ mb: 0.5 }}>
                   <ListItemButton
                     component={Link}
                     to={item.path}
                     selected={path === item.path}
+                    sx={{ py: 1, px: 2 }}
                   >
-                    <ListItemIcon>{item.icon}</ListItemIcon>
+                    <ListItemIcon sx={{ minWidth: 40 }}>
+                      {item.icon}
+                    </ListItemIcon>
                     <ListItemText primary={item.label} />
                   </ListItemButton>
                 </ListItem>
               ))}
 
+              {/* LOGOUT DIVIDER */}
+              <Box
+                sx={{
+                  my: 2,
+                  borderTop: "1px solid rgba(28, 61, 55, 0.12)",
+                }}
+              />
+
               {/* LOGOUT */}
               <ListItem disablePadding>
-                <ListItemButton onClick={handleLogout}>
-                  <ListItemIcon>
-                    <LogoutIcon sx={{ color: "#06632b" }} />
+                <ListItemButton
+                  onClick={handleLogout}
+                  sx={{
+                    py: 1,
+                    px: 2,
+                    borderRadius: "12px",
+                    "&:hover": {
+                      backgroundColor: "rgba(255, 68, 68, 0.04)",
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <LogoutIcon sx={{ color: "#ff4444" }} />
                   </ListItemIcon>
-                  <ListItemText primary="Logout" />
+                  <ListItemText
+                    primary="LOGOUT"
+                    slotProps={{
+                      primary: {
+                        sx: {
+                          color: "#ff4444",
+                          fontWeight: 500,
+                          letterSpacing: "-0.01em",
+                        },
+                      },
+                    }}
+                  />
                 </ListItemButton>
               </ListItem>
             </List>
