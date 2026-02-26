@@ -8,7 +8,9 @@ from core.management.validators import (
     validate_not_past,
     strip_string,
     prevent_control_characters,
-    validate_max_length
+    validate_max_length,
+    validate_not_past_date,
+    validate_not_past_year,
 )
 from .models import (
     Address,
@@ -30,7 +32,7 @@ from .models import (
 # Address
 class AddressSerializer(serializers.ModelSerializer):
     # Custom validators for address fields
-    street = serializers.CharField(validators=[strip_string, prevent_control_characters, validate_max_length(120)])
+    street = serializers.CharField(validators=[prevent_control_characters, validate_max_length(120)])
     city = serializers.CharField(validators=[strip_string, prevent_control_characters, validate_max_length(50)])
     province = serializers.CharField(validators=[validate_province])
     postalcode = serializers.CharField(validators=[validate_postal_code])
@@ -73,6 +75,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         model = Customer
         fields = ["customerid", "address", "addressid", "firstname", "lastname", "email", "phonenumber"]
         read_only_fields = ["customerid"]
+
 
     #own update method so user can update nested serializer fields.
     def update(self, instance, validated_data):
@@ -154,8 +157,8 @@ class ServiceImageSerializer(serializers.ModelSerializer):
 class CustomerServiceSerializer(serializers.ModelSerializer):
 
     # Validators
-    reqdate = serializers.DateField(validators=[validate_not_past])
-    redyear = serializers.IntegerField(validators=[validate_not_past])
+    reqdate = serializers.DateField(validators=[validate_not_past_date])
+    redyear = serializers.IntegerField(validators=[validate_not_past_year])
 
 
     # View customer data
@@ -207,8 +210,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
 # Booking Serializer
 class BookingSerializer(serializers.ModelSerializer):
     # Validators
-    bookingdate = serializers.DateField(validators=[validate_not_past])
-    bookingtime = serializers.TimeField(validators=[validate_not_past])
+    bookingdate = serializers.DateField(validators=[validate_not_past_date])
+    bookingtime = serializers.TimeField()
 
     customer = CustomerSerializer(source="customerid", read_only = True)
     service = ServiceSerializer(source="serviceid", read_only = True)

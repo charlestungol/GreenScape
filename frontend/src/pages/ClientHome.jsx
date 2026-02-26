@@ -9,6 +9,7 @@ import Report from '../ClientDashboard/Report.jsx';
 import Progress from '../ClientDashboard/Progress.jsx';
 import Analytics from "../ClientDashboard/Analytics.jsx";
 import Maps from "../ClientDashboard/Maps.jsx";
+import Remain from "../ClientDashboard/RemainingBudget.jsx";
 
 const Home = () => {
   return (

@@ -10,9 +10,9 @@ import { useNavigate } from "react-router-dom";
 const ClientRegister = () => {
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState({street: '', city:'',province:'',postalcode:''});
-  const [phoneNum, setPhoneNum] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [phonenumber, setPhoneNum] = useState('');
+  const [firstname, setFirstName] = useState('');
+  const [lastname, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -25,7 +25,7 @@ const ClientRegister = () => {
   setError('');
   setSuccess('');
 
-  if (!email || !password || !confirmPassword || !firstName || !lastName) {
+  if (!email || !password || !confirmPassword || !firstname || !lastname) {
     setError('Please fill in all fields.');
     return;
   }
@@ -39,16 +39,16 @@ const ClientRegister = () => {
     const response = await AxiosInstance.post('register/client/', {
       email,
       password,
-      first_name: firstName,
-      last_name: lastName,
-      phone: phoneNum,
+      first_name: firstname,
+      last_name: lastname,
+      phone: phonenumber,
       address:{
         street: address.street,
         city: address.city,
         province: address.province,
         postalcode: address.postalcode,
       },
-      phoneNum
+      phoneNum: phonenumber
     });
 
     console.log(response.data);
@@ -94,14 +94,14 @@ const ClientRegister = () => {
     <input
       type="text"
       placeholder="First Name"
-      value={firstName}
+      value={firstname}
       onChange={e => setFirstName(e.target.value)}
     />
 
     <input
       type="text"
       placeholder="Last Name"
-      value={lastName}
+      value={lastname}
       onChange={e => setLastName(e.target.value)}
     />
 
@@ -115,7 +115,7 @@ const ClientRegister = () => {
     <input
       type="text"
       placeholder="Phone Number"
-      value={phoneNum}
+      value={phonenumber}
       onChange={e => setPhoneNum(e.target.value)}
     />
 
