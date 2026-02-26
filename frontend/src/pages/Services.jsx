@@ -1,20 +1,3 @@
-<<<<<<< HEAD
-import Card from "../components/ServiceCard"
-import "../clientCss/Services.css"
-
-const Services = () =>{
-    return(
-        <div>
-            <p className="titleWrapper">SERVICES</p>
-            <div className="container">
-            <div className="service-container">
-                <Card></Card>
-                <Card></Card>
-                <Card></Card>
-                <Card></Card>
-            </div>
-            </div>
-=======
 import Card from '../components/ServicesCard';
 import { useNavigate } from 'react-router-dom';
 import '../clientCss/Services.css';
@@ -63,7 +46,6 @@ const Services = () => {
             altText="Irrigation maintenance service"
             linkTo="/maintenance-service"  
           />
->>>>>>> origin/kevin
         </div>
 
 

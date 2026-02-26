@@ -1,10 +1,7 @@
-<<<<<<< HEAD
-=======
 /* ===========
    DASHBOARD
 =============*/
 
->>>>>>> origin/kevin
 body:has(.dashboardContainer),
 html:has(.dashboardContainer) {
   overflow: hidden !important;
@@ -13,12 +10,8 @@ html:has(.dashboardContainer) {
 .dashboardContainer {
   height: 100vh;
   overflow-y: auto !important;
-  scrollbar-width: none !important;
+  /* scrollbar-width: none !important; */
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/kevin
 
 .secondLayerBoard p{
 font-weight: bold;
@@ -581,11 +574,7 @@ font-weight: bold;
   width: 335px;
   box-shadow: 0 3px 8px rgba(0,0,0,0.1);
   text-align: center;
-<<<<<<< HEAD
-  height: 36px;
-=======
   height: 35px;
->>>>>>> origin/kevin
 }
 .quoteWrapper p{
   font-size: 20px;
@@ -767,11 +756,7 @@ font-weight: bold;
   border: 2px solid #ddd;
   box-shadow: 0 3px 8px rgba(0,0,0,0.1);
   border-radius: 10px;
-<<<<<<< HEAD
-  height:238px;
-=======
   height:375px;
->>>>>>> origin/kevin
   font-size: 20px;
   text-align: center;
   padding:10px;
@@ -847,7 +832,7 @@ font-weight: bold;
   width: 100vw;
   height: 100vh;
   background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
+  /* backdrop-filter: blur(4px); */
   display: flex;
   justify-content: center;
   align-items: center;

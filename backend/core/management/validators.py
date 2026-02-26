@@ -116,17 +116,6 @@ def strip_string(value):
     return cleaned
 
 # ---------------------------
-# CONTROL CHARACTERS - block invisible control chars, emojis, invalid unicode.
-# ---------------------------
-def prevent_control_characters(value):
-    """Block invisible control chars, emojis, invalid unicode."""
-    bad = re.compile(r"[\u0000-\u001F\u007F]")
-    if bad.search(value):
-        raise serializers.ValidationError("Value contains invalid control characters.")
-    return value
-
-
-# ---------------------------
 # GENERAL STRING LENGTH
 # ---------------------------
 def validate_max_length(max_len: int):
@@ -140,3 +129,54 @@ def validate_max_length(max_len: int):
             raise serializers.ValidationError(f"Value exceeds maximum length of {max_len}.")
         return value
     return inner
+
+
+# Control chars except \t \n \r
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+def _walk_values(value, fn):
+    """
+    Recursively walk value(s) and call fn on strings only.
+    - dict: walk values
+    - list/tuple/set: walk each element
+    - numbers/bools/None: ignore
+    """
+    if isinstance(value, str):
+        fn(value)
+    elif isinstance(value, dict):
+        for v in value.values():
+            _walk_values(v, fn)
+    elif isinstance(value, (list, tuple, set)):
+        for v in value:
+            _walk_values(v, fn)
+    else:
+        # int/float/bool/None... no-op
+        return
+
+def prevent_control_characters(value):
+    """
+    Fail if any string (or nested string) contains control characters.
+    Safe for dicts/lists; ignores non-strings.
+    """
+    def check(v: str):
+        if _CONTROL_CHARS_RE.search(v):
+            raise serializers.ValidationError("Contains disallowed control characters.")
+    _walk_values(value, check)
+    return value
+
+# OPTIONAL: keep this conservative; tune if needed to avoid false positives
+_SQL_TOKEN_RE = re.compile(
+    r"(--|/\*|\*/|;|\b(ALTER|DROP|INSERT|DELETE|UPDATE|EXEC|UNION|SELECT)\b)",
+    re.IGNORECASE
+)
+
+def prevent_basic_sql_injection(value):
+    """
+    Very conservative token check on strings only.
+    Use sparingly to avoid blocking legitimate content.
+    """
+    def check(v: str):
+        if _SQL_TOKEN_RE.search(v):
+            raise serializers.ValidationError("Suspicious input detected.")
+    _walk_values(value, check)
+    return value

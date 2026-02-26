@@ -110,9 +110,6 @@ function Analytics() {
 
   return (
     <div className="analyticsWrapper">
-<<<<<<< HEAD:frontend/src/ClientDashboard/Analytics.jsx
-      <p>ANALYTICS</p>
-=======
       {/* Header with Chart Toggle */}
       <div className="analytics-header">    
         {/* Chart Toggle Buttons */}
@@ -131,7 +128,6 @@ function Analytics() {
           </button>
         </div>
       </div>
->>>>>>> origin/kevin:frontend/src/dashboard/Analytics.jsx
 
       {/* Chart Container */}
       <div
