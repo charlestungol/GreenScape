@@ -6,7 +6,7 @@ function GaugeProgress({ percentage = 85, dayValue = 2 }) {
   const offset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className="progressWrapper">
+    <div className="progressWrapper clickable">
       <div className="ringWrapper">
         <br/>
         <svg width="160" height="90">
@@ -32,7 +32,7 @@ function GaugeProgress({ percentage = 85, dayValue = 2 }) {
             r={radius}
             strokeWidth="50"
             fill="none"
-            stroke="#00bfa5"
+            stroke="#1c3d37"
             strokeDasharray={circumference}
             strokeDashoffset={offset}
             strokeLinecap="round"

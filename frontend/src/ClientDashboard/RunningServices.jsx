@@ -1,47 +1,53 @@
-import { useState } from "react";
 import "../App.css";
 
-function FinishedServices() {
-  const [open, setOpen] = useState(false);
-
-  const services = [
-    "Landscape Lighting",
-    "Maintenance Service"
-  ];
-
-  const completedCount = services.length;
+function RunningServices({ percentage = 85, dayValue = 2 }) {
+  const radius = 70;
+  const circumference = Math.PI * radius; 
+  const offset = circumference - (percentage / 100) * circumference;
 
   return (
-    <>
-      <div
-        className="runningWrapper clickable"
-        onClick={() => setOpen(true)}
-      >
-        <p>RUNNING SERVICES</p>
-        <p>{completedCount}</p>
-      </div>
+    <div className="runningWrapper clickable">
+      <div className="ringWrapper">
+        <br/>
+        <svg width="160" height="90">
+          {/* Background half-circle */}
+          <circle
+            className="ringBg"
+            cx="80"
+            cy="80"
+            r={radius}
+            strokeWidth="12"
+            fill="none"
+            stroke="#eee"
+            strokeDasharray={circumference}
+            strokeDashoffset={0}
+            transform="rotate(-180 80 80)"
+          />
 
-      {open && (
-        <div className="overlay" onClick={() => setOpen(false)}>
-          <div
-            className="overlayContent"
-            onClick={(e) => e.stopPropagation()} e
-          >
-            <h2>In-Progress</h2>
-            {services.map((service, index) => (
-              <p key={index} className="modalItem">
-                {service}
-              </p>
-            ))}
+          {/* Progress */}
+          <circle
+            className="ringProgress"
+            cx="80"
+            cy="80"
+            r={radius}
+            strokeWidth="50"
+            fill="none"
+            stroke="#1c3d37"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            transform="rotate(-180 80 80)"
+          />
+        </svg>
 
-            <button className="closeBtn" onClick={() => setOpen(false)}>
-              Close
-            </button>
-          </div>
+        <div className="ringText">{percentage}%</div>
+        <div className="detailText">
+          <div>Landscape Lighting</div>
+          <div>Target: {dayValue} days</div>
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }
 
-export default FinishedServices;
+export default RunningServices;
