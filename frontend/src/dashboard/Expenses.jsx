@@ -164,9 +164,6 @@ function Expenses() {
         <div className="expensesContent">
           <p className="expensesTitle">TOTAL EXPENSES</p>
           <p className="expensesTotal">${totalExpenses.toLocaleString()}</p>
-          <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
-            {expenses.length} expense{expenses.length !== 1 ? 's' : ''}
-          </div>
         </div>
       </div>
 

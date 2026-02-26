@@ -30,12 +30,12 @@ const Home = () => {
               <Quote/>
             </div>
             <div className="rightColumn">
+              <Analytics/>
+              {/* <Progress/> */}
               <div className="topServicesRow">
                 <RunningServices/>
                 <FinishedServices/>
               </div>
-              <Analytics/>
-              <Progress/>
             </div>
           </div>
 

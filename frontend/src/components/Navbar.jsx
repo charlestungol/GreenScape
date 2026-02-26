@@ -22,23 +22,66 @@ import DefaultProfilePic from "../assets/img/Profile.jpg";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
+// Modern theme with Inter font
 const theme = createTheme({
-  typography: { fontFamily: "'Courier New', monospace" },
+  typography: {
+    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontWeightRegular: 400,
+    fontWeightMedium: 500,
+    fontWeightBold: 600,
+  },
+  components: {
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "#F8F8F8",
+        },
+      },
+    },
+    MuiListItemText: {
+      styleOverrides: {
+        primary: {
+          fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
+          fontWeight: 500,
+          fontSize: '0.95rem',
+          letterSpacing: '-0.01em',
+          color: '#1c3d37',
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: '12px',
+          '&.Mui-selected': {
+            backgroundColor: 'rgba(28, 61, 55, 0.08)',
+            '&:hover': {
+              backgroundColor: 'rgba(28, 61, 55, 0.12)',
+            },
+            '& .MuiListItemText-primary': {
+              fontWeight: 600,
+              color: '#1c3d37',
+            },
+          },
+        },
+      },
+    },
+  },
 });
 
 const drawerWidth = 300;
 
 const menuConfig = {
   client: [
-    { label: "Dashboard", path: "/home", icon: <DashboardIcon sx={{ color: "#06632b" }} /> },
-    { label: "Services", path: "/services", icon: <WaterDropIcon sx={{ color: "#06632b" }} /> },
-    { label: "Booking", path: "/booking", icon: <CalendarMonthIcon sx={{ color: "#06632b" }} /> },
-    { label: "Settings", path: "/settings", icon: <SettingsIcon sx={{ color: "#06632b" }} /> },
+    { label: "DASHBOARD", path: "/home", icon: <DashboardIcon sx={{ color: "#1c3d37" }} /> },
+    { label: "SERVICES", path: "/services", icon: <WaterDropIcon sx={{ color: "#1c3d37" }} /> },
+    { label: "BOOKING", path: "/booking", icon: <CalendarMonthIcon sx={{ color: "#1c3d37" }} /> },
+    { label: "SETTINGS", path: "/settings", icon: <SettingsIcon sx={{ color: "#1c3d37" }} /> },
   ],
   employee: [
-    { label: "Dashboard", path: "/employeeHome", icon: <DashboardIcon sx={{ color: "#06632b" }} /> },
-    { label: "Client", path: "/client", icon: <PeopleOutlineIcon sx={{ color: "#06632b" }} /> },
-    { label: "Settings", path: "/settings", icon: <SettingsIcon sx={{ color: "#06632b" }} /> },
+    { label: "Dashboard", path: "/employeeHome", icon: <DashboardIcon sx={{ color: "#1c3d37" }} /> },
+    { label: "Client", path: "/client", icon: <PeopleOutlineIcon sx={{ color: "#1c3d37" }} /> },
+    { label: "Settings", path: "/settings", icon: <SettingsIcon sx={{ color: "#1c3d37" }} /> },
   ],
 };
 
@@ -172,7 +215,7 @@ export default function Navbar({ content }) {
       });
     }
     
-    // 2. Call logout API
+    // Call logout API
     if (token) {
       try {
         await fetch("http://127.0.0.1:8000/api/logout/", {
@@ -187,19 +230,12 @@ export default function Navbar({ content }) {
       }
     }
     
-    // 3. Clear ONLY authentication/session data (keep user data in user-specific storage)
     const authKeysToClear = [
       "token", 
       "user_id",      
       "first_name",    
       "last_name",
       "email",
-      // DO NOT clear these - they're saved in user-specific storage above
-      // "userBudget",    
-      // "userExpenses",
-      // "userServices",
-      // "userBookings",
-      // "userSettings"
     ];
     
     authKeysToClear.forEach(key => {
@@ -207,7 +243,7 @@ export default function Navbar({ content }) {
       console.log(`Cleared auth key: ${key}`);
     });
     
-    // 4. Clear current session user data (it's already saved in user-specific storage)
+    // Clear current session user data (it's already saved in user-specific storage)
     const userDataKeysToClear = [
       "userBudget",
       "userExpenses",
@@ -221,15 +257,15 @@ export default function Navbar({ content }) {
       console.log(`Cleared session data: ${key}`);
     });
     
-    // 5. Clear sessionStorage
+    // Clear sessionStorage
     sessionStorage.clear();
     
-    // 6. Reset component state
+    // Reset component state
     setUserData({ firstName: "User", role: "client" });
     
     console.log("Logout complete. User data saved with prefix:", `user_${userId}_`);
     
-    // 7. Navigate to login
+    // Navigate to login
     navigate("/", { replace: true });
   };
 
@@ -245,7 +281,6 @@ export default function Navbar({ content }) {
               width: drawerWidth,
               boxSizing: "border-box",
               backgroundColor: "#F8F8F8",
-              color: "#06632b",
             },
           }}
         >
@@ -265,46 +300,89 @@ export default function Navbar({ content }) {
                 width: "150px",
                 height: "150px",
                 borderRadius: "50%",
-                border: "2px solid #06632b",
+                border: "2px solid #1c3d37",
                 objectFit: "cover",
               }}
             />
           </Box>
 
+          {/* WELCOME MESSAGE */}
           <Typography
+            variant="h6"
             sx={{
               mb: 4,
               textAlign: "center",
-              fontWeight: "bold",
+              fontWeight: 500,
               fontSize: "1.2rem",
+              color: "#1c3d37",
+              letterSpacing: '-0.01em',
             }}
           >
             Welcome, {userData.firstName}!
           </Typography>
 
           {/* MENU */}
-          <Box sx={{ overflow: "auto" }}>
+          <Box sx={{ overflow: "auto", px: 2 }}>
             <List>
               {menuItems.map((item) => (
-                <ListItem disablePadding key={item.path}>
+                <ListItem disablePadding key={item.path} sx={{ mb: 0.5 }}>
                   <ListItemButton
                     component={Link}
                     to={item.path}
                     selected={path === item.path}
+                    sx={{
+                      py: 1,
+                      px: 2,
+                    }}
                   >
-                    <ListItemIcon>{item.icon}</ListItemIcon>
-                    <ListItemText primary={item.label} />
+                    <ListItemIcon sx={{ minWidth: 40 }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={item.label}
+                      slotProps={{
+                        primary: {
+                          fontSize: '0.95rem',
+                          letterSpacing: '-0.01em',
+                        }
+                      }}
+                    />
                   </ListItemButton>
                 </ListItem>
               ))}
 
+              {/* LOGOUT DIVIDER */}
+              <Box sx={{ 
+                my: 2, 
+                borderTop: '1px solid rgba(28, 61, 55, 0.12)' 
+              }} />
+
               {/* LOGOUT */}
               <ListItem disablePadding>
-                <ListItemButton onClick={handleLogout}>
-                  <ListItemIcon>
-                    <LogoutIcon sx={{ color: "#06632b" }} />
+                <ListItemButton 
+                  onClick={handleLogout}
+                  sx={{
+                    py: 1,
+                    px: 2,
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 68, 68, 0.04)',
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <LogoutIcon sx={{ color: '#9e2c2c' }} />
                   </ListItemIcon>
-                  <ListItemText primary="Logout" />
+                  <ListItemText className="logoutBtn"
+                    primary="LOGOUT"
+                    slotProps={{
+                      primary: {
+                        sx: {
+                          color: '#9e2c2c !important',
+                          fontWeight: 500,
+                        }
+                      }
+                    }}
+                  />
                 </ListItemButton>
               </ListItem>
             </List>

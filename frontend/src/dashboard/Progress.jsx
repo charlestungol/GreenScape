@@ -32,7 +32,7 @@ function GaugeProgress({ percentage = 85, dayValue = 2 }) {
             r={radius}
             strokeWidth="50"
             fill="none"
-            stroke="#00bfa5"
+            stroke="#1c3d37"
             strokeDasharray={circumference}
             strokeDashoffset={offset}
             strokeLinecap="round"

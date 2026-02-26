@@ -1,69 +1,52 @@
-import { useState, useEffect } from "react";
 import "../App.css";
 
-function RunningServices() {
-  const [open, setOpen] = useState(false);
-  const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true); // optional, shows loading state
-
-  useEffect(() => {
-    // Replace this with your API call later
-    async function fetchServices() {
-      try {
-        setLoading(true);
-        // Example API call:
-        // const response = await fetch("YOUR_API_ENDPOINT");
-        // const data = await response.json();
-
-        // For now, using static data as placeholder
-        const data = ["Landscape Lighting", "Maintenance Service"];
-        setServices(data);
-      } catch (error) {
-        console.error("Failed to fetch services:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchServices();
-  }, []); // empty dependency array means it runs once on mount
-
-  const completedCount = services.length;
+function RunningServices({ percentage = 85, dayValue = 2 }) {
+  const radius = 70;
+  const circumference = Math.PI * radius; 
+  const offset = circumference - (percentage / 100) * circumference;
 
   return (
-    <>
-      <div className="runningWrapper clickable" onClick={() => setOpen(true)}>
-        <p>RUNNING SERVICES</p>
-        <p>{completedCount}</p>
-      </div>
+    <div className="runningWrapper clickable">
+      <div className="ringWrapper">
+        <br/>
+        <svg width="160" height="90">
+          {/* Background half-circle */}
+          <circle
+            className="ringBg"
+            cx="80"
+            cy="80"
+            r={radius}
+            strokeWidth="12"
+            fill="none"
+            stroke="#eee"
+            strokeDasharray={circumference}
+            strokeDashoffset={0}
+            transform="rotate(-180 80 80)"
+          />
 
-      {open && (
-        <div className="overlay" onClick={() => setOpen(false)}>
-          <div
-            className="overlayContent"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2>In-Progress</h2>
+          {/* Progress */}
+          <circle
+            className="ringProgress"
+            cx="80"
+            cy="80"
+            r={radius}
+            strokeWidth="50"
+            fill="none"
+            stroke="#1c3d37"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            transform="rotate(-180 80 80)"
+          />
+        </svg>
 
-            {loading ? (
-              <p>Loading services...</p>
-            ) : services.length > 0 ? (
-              services.map((service, index) => (
-                <p key={index} className="modalItem">
-                  {service}
-                </p>
-              ))
-            ) : (
-              <p>No services in progress</p>
-            )}
-
-            <button className="closeBtn" onClick={() => setOpen(false)}>
-              Close
-            </button>
-          </div>
+        <div className="ringText">{percentage}%</div>
+        <div className="detailText">
+          <div>Landscape Lighting</div>
+          <div>Target: {dayValue} days</div>
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }
 

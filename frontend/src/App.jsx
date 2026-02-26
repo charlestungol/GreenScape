@@ -12,6 +12,11 @@ import EmployeeLogin from './components/EmployeeLogin';
 import EmployeeHome from './pages/EmployeeHome';
 import ClientRegister from './pages/ClientRegister';
 import RouteProtection from "./components/RouteProtection";
+import IrrigationInstallation from './services-info/Irrigation';
+import LandscapeLighting from './services-info/Landscape';
+import MaintenanceManagement from './services-info/Maintenance';
+import StormWaterManangement from './services-info/Stormwater';
+
 
 function App() {
   return (
@@ -21,7 +26,7 @@ function App() {
       <Route path="/client-login" element={<ClientLogin />} />
       <Route path="/employee-login" element={<EmployeeLogin />} />
       <Route path="/employee-register" element={<EmployeeRegister />} />
-      <Route path='client-register' element={<ClientRegister/>}/>
+      <Route path='/client-register' element={<ClientRegister/>}/>
 
       {/* Pages with Navbar */}
       <Route element={<NavbarWrapper />}>
@@ -30,6 +35,12 @@ function App() {
         <Route path="/services" element={<RouteProtection><Services /></RouteProtection>} />
         <Route path="/booking" element={<RouteProtection><Booking /></RouteProtection>} />
         <Route path="/settings" element={<RouteProtection><Settings /></RouteProtection>} />
+        
+        {/* Service Detail Pages*/}
+        <Route path="/irrigation-installation" element={<RouteProtection><IrrigationInstallation /></RouteProtection>} />
+        <Route path="/landscape-lighting" element={<RouteProtection><LandscapeLighting /></RouteProtection>} />
+        <Route path="/stormwater-management" element={<RouteProtection><StormWaterManangement /></RouteProtection>} />
+        <Route path="/maintenance-service" element={<RouteProtection><MaintenanceManagement /></RouteProtection>} />
       </Route>
     </Routes>
   );
