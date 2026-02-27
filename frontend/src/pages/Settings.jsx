@@ -180,7 +180,7 @@ const Settings = () => {
     }
 
     try {
-      await AxiosInstance.post("/api/auth/change-password/", {
+      await AxiosInstance.post("/change-password/", {
         old_password: oldPassword,
         new_password: newPassword,
       });
