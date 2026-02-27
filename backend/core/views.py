@@ -179,24 +179,18 @@ class CustomerViewSet(viewsets.ModelViewSet):
         return [IsOwnerOrStaff(), DjangoModelPermissions()]
 
     # Allows user to retrieve or update their own data using /me endpoint.
-    @action(detail = False, methods = ['get', 'patch'])
+    @action(detail=False, methods=['get', 'patch'], permission_classes=[IsAuthenticated])
     def me(self, request):
         instance = get_object_or_404(Customer, user=request.user)
 
-        # Getting customer data.
         if request.method.lower() == 'get':
             data = self.get_serializer(instance).data
             return Response(data)
-        
-        # Patch customer data
-        serializers = self.get_serializer(instance, data=request.data, partial=True)
 
-        serializers.is_valid(raise_exception = True)
-
-        serializers.save(user=request.user)
-
-        return Response(serializers.data, status=status.HTTP_200_OK)
-
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()  # no need to pass user, since instance is fixed
+        return Response(serializer.data, status=status.HTTP_200_OK)
 # -----------------------------------------------------------------------------
 # Employee View -- Allows for CRUD --
 # -----------------------------------------------------------------------------

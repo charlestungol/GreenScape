@@ -11,7 +11,7 @@ const AxiosInstance = axios.create({
     }
 })
 
-
+// Add a request interceptor to include the access token in headers
 AxiosInstance.interceptors.request.use((config) => {
   const access = localStorage.getItem("access");
   if (access) {
@@ -26,6 +26,7 @@ AxiosInstance.interceptors.request.use((config) => {
 let isRefreshing = false;
 let queue = [];
 
+// Response interceptor to handle 401 errors and refresh tokens
 AxiosInstance.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -49,6 +50,7 @@ AxiosInstance.interceptors.response.use(
       try {
         const { data } = await axios.post("http://127.0.0.1:8000/api/auth/token/refresh/", { refresh });
         localStorage.setItem("access", data.access);
+        AxiosInstance.defaults.headers.common.Authorization = `Bearer ${data.access}`;
         queue.forEach((p) => p.resolve(data.access));
         queue = [];
         original.headers.Authorization = `Bearer ${data.access}`;

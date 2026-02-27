@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db import transaction
 from core.management.validators import (
     validate_name,
     validate_postal_code,
@@ -52,23 +53,24 @@ class AddressSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-# Customer
-class CustomerSerializer(serializers.ModelSerializer):
+# Customer Serializer
 
-    # Validator
+class CustomerSerializer(serializers.ModelSerializer):
+    # Validators (as you had)
     firstname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
     lastname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
     email = serializers.EmailField(validators=[strip_string, prevent_control_characters, validate_max_length(200)])
     phonenumber = serializers.CharField(validators=[validate_phone])
 
-    #View address data
-    address = AddressSerializer(source="addressid", required = False)
-    # Add an address to the customer
+    # View address data (read) using 'source' to map from addressid relation
+    address = AddressSerializer(source="addressid", required=False, allow_null=True)
+
+    # Allow switching address by id (write)
     addressid = serializers.PrimaryKeyRelatedField(
-        queryset = Address.objects.all(),
+        queryset=Address.objects.all(),
         write_only=True,
-        required = False,
-        allow_null = True
+        required=False,
+        allow_null=True,
     )
 
     class Meta:
@@ -76,32 +78,78 @@ class CustomerSerializer(serializers.ModelSerializer):
         fields = ["customerid", "address", "addressid", "firstname", "lastname", "email", "phonenumber"]
         read_only_fields = ["customerid"]
 
-
-    #own update method so user can update nested serializer fields.
+    @transaction.atomic
     def update(self, instance, validated_data):
-        # handles nested address update
-        address_data = validated_data.pop("address", None)
+        """
+        Supports:
+          - Partial updates to Customer fields
+          - Nested updates to Address via 'address' (field name) OR via 'addressid' (dict due to source="addressid")
+          - Switching Address via 'addressid' PK (Address instance)
+          - Updating related User's email if 'email' provided
+        """
+        # Pull out possible payload forms
+        nested_addr_from_field = validated_data.pop("address", None)     # normally nested dict here
+        addrid_payload = validated_data.pop("addressid", None)          # can be Address instance OR dict (because source)
 
-        # handles switching address by id if provided.
-        new_address_obj = validated_data.pop("addressid", None) if "addressid" in validated_data else None
+        # Normalize what we got
+        address_data = None
+        new_address_obj = None
 
-        # Update fields on customer
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
+        # If 'address' field provided, it wins for nested data
+        if nested_addr_from_field is not None:
+            address_data = nested_addr_from_field
 
-        # If address data is manipulated
-        if address_data and instance.addressid:
-            addr = instance.addressid
-            for attr, value in address_data.items():
-                setattr(addr, attr, value)
-            addr.save()
+        # If something came under 'addressid', decide whether it's dict (nested) or Address instance (switch)
+        if addrid_payload is not None:
+            if isinstance(addrid_payload, dict):
+                # DRF placed nested dict under 'addressid' due to source="addressid"
+                address_data = addrid_payload
+            else:
+                # Address instance (user sent PK)
+                new_address_obj = addrid_payload
 
-        # If the address id is provided
-        if new_address_obj is not None:
-            instance.addressid = new_address_obj
+        # Update basic Customer fields (only fields that truly belong to Customer)
+        for attr in ("firstname", "lastname", "phonenumber"):
+            if attr in validated_data:
+                setattr(instance, attr, validated_data[attr])
+
+        # Update User email if provided (if your email actually lives on User)
+        email = validated_data.pop("email", None)
+        if email is not None:
+            if hasattr(instance, "user") and instance.user:
+                instance.user.email = email
+                instance.user.save(update_fields=["email"])
+            else:
+                # If Customer has its own email field instead, replace with:
+                # instance.email = email
+                # (and include 'email' in allowed attributes above)
+                pass
+
+        # Handle nested address update/create
+        if address_data is not None:
+            allowed_addr_fields = {"street", "city", "province", "postalcode", "country"}
+            filtered = {k: v for k, v in address_data.items() if k in allowed_addr_fields}
+
+            if instance.addressid:
+                # Update existing related address
+                addr = instance.addressid
+                for k, v in filtered.items():
+                    setattr(addr, k, v)
+                addr.save()
+            else:
+                # Create new address and link it
+                addr = Address.objects.create(**filtered)
+                instance.addressid = addr
+
+        # If explicit Address instance provided, switch to it (can also unlink if None)
+        if new_address_obj is not None or (addrid_payload is None and nested_addr_from_field is None):
+            # Note: only assign here if an Address instance was actually provided.
+            if new_address_obj is not None:
+                instance.addressid = new_address_obj
 
         instance.save()
         return instance
+
     
 # Service Type
 class ServiceTypeSerializer(serializers.ModelSerializer):
