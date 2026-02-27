@@ -40,13 +40,17 @@ const ClientLogin = () => {
     const userId = response.data.user?.id || response.data.user_id || response.data.id;
     const userFirstName = response.data.user?.first_name || response.data.first_name || "";
     const userRole = response.data.user?.role || response.data.role || "client";
-    const token = response.data.token || response.data.key;
+
+    // Prefer SimpleJWT naming if present
+    const access = response.data.access || response.data.token || null;
+    const refresh = response.data.refresh || null;
+
     
     console.log("Extracted values:");
     console.log("userId:", userId);
     console.log("userFirstName:", userFirstName);
     console.log("userRole:", userRole);
-    console.log("token:", token);
+    console.log("access:", access);
     
     if (!userId) {
       console.error("No user_id found in response!");
@@ -56,7 +60,9 @@ const ClientLogin = () => {
     
     // Store data
     localStorage.setItem("user_id", userId);
-    localStorage.setItem("token", token);
+    // Save tokens (Bearer)
+    localStorage.setItem("access", access);
+    if (refresh) localStorage.setItem("refresh", refresh);
     localStorage.setItem("role", userRole);
     localStorage.setItem("first_name", userFirstName);
     

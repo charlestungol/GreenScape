@@ -33,31 +33,30 @@ const Settings = () => {
     fetchUserInfo();
   }, []);
 
+  // Fetch user info from backend and normalize for UI display
   const fetchUserInfo = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      const response = await AxiosInstance.get("client/profile/", {
-        headers: { Authorization: `Token ${token}` }
-      });
-      
-      // Handle the nested response structure
-      const userData = response.data.user;
-      const customerData = response.data.customer;
-      const addressData = customerData?.addressid || {};
-      
+      // Bearer header should be auto-injected by AxiosInstance
+      const res = await AxiosInstance.get("/core/customers/me/"); // trailing slash required by DRF
+      const data = res.data;
+
+      // Normalize/trim values for display
+      const clean = (v) => (typeof v === "string" ? v.trim() : v);
+
       setUserInfo({
-        email: userData?.email || "",
-        first_name: userData?.first_name || "",
-        last_name: userData?.last_name || "",
-        phone: customerData?.phonenumber || "",
+        email: clean(data?.email) || "",
+        // Your UI state currently uses first_name/last_name/phone; map backend -> UI
+        first_name: clean(data?.firstname) || "",
+        last_name: clean(data?.lastname) || "",
+        phone: clean(data?.phonenumber) || "",
         address: {
-          street: addressData?.street || "",
-          city: addressData?.city || "",
-          province: addressData?.province || "",
-          postal_code: addressData?.postal_code || "",
-          country: addressData?.country || ""
-        }
+          street: clean(data?.address?.street) || "",
+          city: clean(data?.address?.city) || "",
+          province: clean(data?.address?.province) || "",
+          // UI uses postal_code; backend sends postalcode
+          postal_code: clean(data?.address?.postalcode) || "",
+        },
       });
     } catch (err) {
       console.error("Error fetching user info:", err);
@@ -67,7 +66,6 @@ const Settings = () => {
       setIsLoading(false);
     }
   };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
@@ -94,7 +92,7 @@ const Settings = () => {
     setIsLoading(true);
 
     try {
-      const token = localStorage.getItem("token");
+      const access = localStorage.getItem("access");
       
       // Prepare data for backend
       const payload = {
@@ -109,15 +107,9 @@ const Settings = () => {
         }
       };
 
-      await AxiosInstance.put(
-        "client/profile/update/",
+      await AxiosInstance.patch(
+        "/core/customers/me/",
         payload,
-        { 
-          headers: { 
-            Authorization: `Token ${token}`,
-            'Content-Type': 'application/json'
-          } 
-        }
       );
 
       setUserMsgType("success");
