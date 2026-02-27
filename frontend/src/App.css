@@ -72,18 +72,11 @@
   font-size: 16px;
 }
 
-<<<<<<< HEAD
-.loginForm button,
-.registerForm button {
-  padding: 14px;
-  border-radius: 10px;
-=======
 /* BUTTON */
 
 .loginForm button {
   padding: 12px;
   border-radius: 8px;
->>>>>>> origin/kevin
   border: none;
   background-color: #1c3d37;
   color: white;
@@ -92,18 +85,12 @@
   transition: 0.3s;
 }
 
-<<<<<<< HEAD
-.loginForm button:hover,
-.registerForm button:hover {
-  background-color: #06632b;
-=======
 .loginForm button:hover {
   background-color: #1c3d37;
 }
 
 .logoutBtn{
   color: #9e2c2c;
->>>>>>> origin/kevin
 }
 
 .loginForm {
@@ -158,8 +145,6 @@
 .successMsg {
   color: #06632b;
 }
-<<<<<<< HEAD
-=======
 
 .spinner {
   width: 18px;
@@ -192,4 +177,3 @@ button:disabled {
   cursor: not-allowed;
   opacity: 0.7;
 }
->>>>>>> origin/kevin

@@ -20,7 +20,6 @@ const Settings = () => {
       city: "",
       province: "",
       postal_code: "",
-      country: ""
     }
   });
   
@@ -28,36 +27,72 @@ const Settings = () => {
   const [userMessage, setUserMessage] = useState("");
   const [userMsgType, setUserMsgType] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+
 
   useEffect(() => {
     fetchUserInfo();
   }, []);
 
+  function formatApiErrors(errors, header = "Error") {
+    let lines = [header];
+
+    const walk = (obj, prefix = "") => {
+      if (Array.isArray(obj)) {
+        obj.forEach((val) => {
+          if (typeof val === "object" && val !== null) {
+            walk(val, prefix);
+          } else {
+            lines.push(`${prefix}${String(val)}`);
+          }
+        });
+        return;
+      }
+
+      if (obj && typeof obj === "object") {
+        Object.entries(obj).forEach(([key, val]) => {
+          const label = key.replace(/_/g, " ").toUpperCase();
+          if (typeof val === "object" && val !== null) {
+            walk(val, `${prefix}${label}: `);
+          } else {
+            lines.push(`${prefix}${label}: ${String(val)}`);
+          }
+        });
+      } else if (obj != null) {
+        lines.push(`${prefix}${String(obj)}`);
+      }
+    };
+
+    walk(errors);
+    return lines.join("\n");
+  }
+
+  // Fetch user info from backend and normalize for UI display
   const fetchUserInfo = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      const response = await AxiosInstance.get("client/profile/", {
-        headers: { Authorization: `Token ${token}` }
-      });
-      
-      // Handle the nested response structure
-      const userData = response.data.user;
-      const customerData = response.data.customer;
-      const addressData = customerData?.addressid || {};
-      
+      // Bearer header should be auto-injected by AxiosInstance
+      const res = await AxiosInstance.get("/core/customers/me/"); // trailing slash required by DRF
+      const data = res.data;
+
+      // Normalize/trim values for display
+      const clean = (v) => (typeof v === "string" ? v.trim() : v);
+
       setUserInfo({
-        email: userData?.email || "",
-        first_name: userData?.first_name || "",
-        last_name: userData?.last_name || "",
-        phone: customerData?.phonenumber || "",
+        email: clean(data?.email) || "",
+        // Your UI state currently uses first_name/last_name/phone; map backend -> UI
+        first_name: clean(data?.firstname) || "",
+        last_name: clean(data?.lastname) || "",
+        phone: clean(data?.phonenumber) || "",
         address: {
-          street: addressData?.street || "",
-          city: addressData?.city || "",
-          province: addressData?.province || "",
-          postal_code: addressData?.postal_code || "",
-          country: addressData?.country || ""
-        }
+          street: clean(data?.address?.street) || "",
+          city: clean(data?.address?.city) || "",
+          province: clean(data?.address?.province) || "",
+          // UI uses postal_code; backend sends postalcode
+          postal_code: clean(data?.address?.postalcode) || "",
+        },
       });
     } catch (err) {
       console.error("Error fetching user info:", err);
@@ -67,7 +102,6 @@ const Settings = () => {
       setIsLoading(false);
     }
   };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
@@ -91,112 +125,68 @@ const Settings = () => {
   const handleUpdateUserInfo = async () => {
     setUserMessage("");
     setUserMsgType("");
-    setIsLoading(true);
-
+    setSavingProfile(true); // changed (see section 4)
     try {
-      const token = localStorage.getItem("token");
-      
-      // Prepare data for backend
       const payload = {
-        user: {
-          email: userInfo.email,
-          first_name: userInfo.first_name,
-          last_name: userInfo.last_name
+        email: userInfo.email?.trim() || "",
+        firstname: userInfo.first_name?.trim() || "",
+        lastname: userInfo.last_name?.trim() || "",
+        phonenumber: userInfo.phone?.trim() || "",
+        address: {
+          street: userInfo.address.street?.trim() || "",
+          city: userInfo.address.city?.trim() || "",
+          province: userInfo.address.province?.trim() || "",
+          postalcode: (userInfo.address.postal_code || "").replace(/\s+/g, "").toUpperCase(),
         },
-        customer: {
-          phonenumber: userInfo.phone,
-          address: userInfo.address
-        }
       };
 
-      await AxiosInstance.put(
-        "client/profile/update/",
-        payload,
-        { 
-          headers: { 
-            Authorization: `Token ${token}`,
-            'Content-Type': 'application/json'
-          } 
-        }
-      );
+      await AxiosInstance.patch("/core/customers/me/", payload);
 
       setUserMsgType("success");
       setUserMessage("Profile updated successfully!");
       setEditMode(false);
-      
-      // Refresh user data
       await fetchUserInfo();
-      
-      // Clear success message after 3 seconds
+
       setTimeout(() => setUserMessage(""), 3000);
     } catch (err) {
       setUserMsgType("error");
       if (err.response?.data) {
-        const errors = err.response.data;
-        let formatted = "Update failed:\n";
-        
-        // Format error messages
-        const formatErrors = (obj, prefix = '') => {
-          Object.keys(obj).forEach(key => {
-            const value = obj[key];
-            if (typeof value === 'object') {
-              formatErrors(value, `${prefix}${key}.`);
-            } else {
-              formatted += `${prefix}${key.replace(/_/g, ' ').toUpperCase()}: ${value}\n`;
-            }
-          });
-        };
-        
-        formatErrors(errors);
-        setUserMessage(formatted);
+        setUserMessage(formatApiErrors(err.response.data, "Update failed:"));
       } else {
         setUserMessage("An error occurred. Please try again.");
       }
     } finally {
-      setIsLoading(false);
+      setSavingProfile(false); // changed
     }
   };
 
-  const handleChangePassword = async () => {
+    const handleChangePassword = async () => {
     setMessage("");
     setMsgType("");
-    setIsLoading(true);
+    setChangingPassword(true); // changed
 
     if (!oldPassword || !newPassword) {
       setMsgType("error");
       setMessage("Both old and new password are required.");
-      setIsLoading(false);
+      setChangingPassword(false);
       return;
     }
 
     if (newPassword.length < 6) {
       setMsgType("error");
       setMessage("New password must be at least 6 characters long.");
-      setIsLoading(false);
+      setChangingPassword(false);
       return;
     }
 
     try {
-      const token = localStorage.getItem("token");
-
-      await AxiosInstance.post(
-        "change-password/",
-        { 
-          old_password: oldPassword, 
-          new_password: newPassword 
-        },
-        { 
-          headers: { 
-            Authorization: `Token ${token}`,
-            'Content-Type': 'application/json'
-          } 
-        }
-      );
+      await AxiosInstance.post("/api/auth/change-password/", {
+        old_password: oldPassword,
+        new_password: newPassword,
+      });
 
       setMsgType("success");
       setMessage("Password changed successfully!");
-
-      // Close modal after success
       setTimeout(() => {
         setOverlayOpen(false);
         setOldPassword("");
@@ -206,23 +196,12 @@ const Settings = () => {
     } catch (err) {
       setMsgType("error");
       if (err.response?.data) {
-        const errors = err.response.data;
-        let formatted = "Password change failed:\n";
-        
-        if (typeof errors === 'object') {
-          Object.keys(errors).forEach(key => {
-            formatted += `${key.replace(/_/g, ' ').toUpperCase()}: ${Array.isArray(errors[key]) ? errors[key][0] : errors[key]}\n`;
-          });
-        } else {
-          formatted += errors;
-        }
-        
-        setMessage(formatted);
+        setMessage(formatApiErrors(err.response.data, "Password change failed:"));
       } else {
         setMessage("An error occurred. Please try again.");
       }
     } finally {
-      setIsLoading(false);
+      setChangingPassword(false); // changed
     }
   };
 
@@ -406,23 +385,6 @@ const Settings = () => {
                     />
                   ) : (
                     <p className="infoValue">{userInfo.address.postal_code || "Not set"}</p>
-                  )}
-                </div>
-
-                <div className="infoItem">
-                  <label className="infoLabel">Country</label>
-                  {editMode ? (
-                    <input
-                      type="text"
-                      name="address.country"
-                      className="infoInput"
-                      value={userInfo.address.country}
-                      onChange={handleInputChange}
-                      placeholder="Enter country"
-                      disabled={isLoading}
-                    />
-                  ) : (
-                    <p className="infoValue">{userInfo.address.country || "Not set"}</p>
                   )}
                 </div>
               </div>

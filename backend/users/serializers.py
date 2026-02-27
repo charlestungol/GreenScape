@@ -27,7 +27,7 @@ def normalize_email(value: str) -> str:
 # Serializer for client login, validates email and password, checks if email is verified and account is active, and ensures the user has a client role.
 class ClientLoginSerializer(serializers.Serializer):
     # Fields for email and password
-    email = serializers.EmailField(validators=[strip_string, prevent_control_characters, validate_max_length(254)])
+    email = serializers.EmailField(validators=[strip_string, validate_max_length(254)])
     # Password field is write-only to ensure it is not included in serialized output
     password = serializers.CharField(write_only=True, validators=[strip_string, validate_max_length(254)])
 
@@ -66,7 +66,7 @@ class ClientLoginSerializer(serializers.Serializer):
 # Validates email and password, and creates a new user, address, and customer record in the database within an atomic transaction.
 class ClientRegisterSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(required=True, write_only = True, validators=[strip_string, prevent_control_characters, validate_phone])
-    address = AddressSerializer(required=True, validators=[strip_string, prevent_control_characters, validate_max_length(254), validate_name])
+    address = AddressSerializer(required=True, validators=[prevent_control_characters])
 
     class Meta:
         model = User

@@ -11,7 +11,6 @@ import ListItemText from "@mui/material/ListItemText";
 
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
-import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -24,116 +23,6 @@ import DefaultProfilePic from "../assets/img/Profile.jpg";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
-<<<<<<< HEAD
-const GREEN = "#1c3d37";
-const drawerWidth = 300;
-
-// ✅ Base-style theme (Inter + sizes + selected styles)
-const theme = createTheme({
-  typography: {
-    fontFamily:
-      '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    fontWeightRegular: 400,
-    fontWeightMedium: 500,
-    fontWeightBold: 600,
-  },
-  components: {
-    MuiDrawer: {
-      styleOverrides: {
-        paper: {
-          backgroundColor: "#F8F8F8",
-        },
-      },
-    },
-    MuiListItemText: {
-      styleOverrides: {
-        primary: {
-          fontFamily:
-            '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          fontWeight: 500,
-          fontSize: "0.95rem",
-          letterSpacing: "-0.01em",
-          color: GREEN,
-          textTransform: "uppercase", // ✅ ensures labels show uppercase
-        },
-      },
-    },
-    MuiListItemButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: "12px",
-          "&.Mui-selected": {
-            backgroundColor: "rgba(28, 61, 55, 0.08)",
-            "&:hover": {
-              backgroundColor: "rgba(28, 61, 55, 0.12)",
-            },
-            "& .MuiListItemText-primary": {
-              fontWeight: 600,
-              color: GREEN,
-            },
-          },
-        },
-      },
-    },
-  },
-});
-
-// ✅ Menu config (keep your routes/features, match base style)
-const menuConfig = {
-  client: [
-    {
-      label: "DASHBOARD",
-      path: "/home",
-      icon: <DashboardIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "SERVICES",
-      path: "/services",
-      icon: <WaterDropIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "BOOKING",
-      path: "/booking",
-      icon: <CalendarMonthIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "SETTINGS",
-      path: "/settings",
-      icon: <SettingsIcon sx={{ color: GREEN }} />,
-    },
-  ],
-  employee: [
-    {
-      label: "DASHBOARD",
-      path: "/employee/dashboard",
-      icon: <DashboardIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "MY SCHEDULE",
-      path: "/employee/my-schedule",
-      icon: <CalendarMonthIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "EMPLOYEE MANAGEMENT",
-      path: "/employee/employee-management",
-      icon: <PeopleOutlineIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "SERVICE SCHEDULE",
-      path: "/employee/service-schedule",
-      icon: <WaterDropIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "FINANCES BOARD",
-      path: "/employee/finances",
-      icon: <SettingsIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "ACCOUNT",
-      path: "/employee/account",
-      icon: <AccountCircleIcon sx={{ color: GREEN }} />,
-    },
-=======
 // Modern theme with Inter font
 const theme = createTheme({
   typography: {
@@ -194,7 +83,6 @@ const menuConfig = {
     { label: "Dashboard", path: "/employeeHome", icon: <DashboardIcon sx={{ color: "#1c3d37" }} /> },
     { label: "Client", path: "/client", icon: <PeopleOutlineIcon sx={{ color: "#1c3d37" }} /> },
     { label: "Settings", path: "/settings", icon: <SettingsIcon sx={{ color: "#1c3d37" }} /> },
->>>>>>> origin/kevin
   ],
 };
 
@@ -270,10 +158,6 @@ export default function Navbar({ content }) {
     return { firstName, role };
   };
 
-<<<<<<< HEAD
-  const menuItems = menuConfig[role] || menuConfig.client;
-
-=======
   // State for user data - initialized directly
   const [userData, setUserData] = useState(getUserData());
 
@@ -287,7 +171,6 @@ export default function Navbar({ content }) {
   /* =========================
      LOGOUT - Save user data and clear authentication only
   ========================= */
->>>>>>> origin/kevin
   const handleLogout = async () => {
     const token = localStorage.getItem("token");
     const userId = localStorage.getItem("user_id");
@@ -332,12 +215,6 @@ export default function Navbar({ content }) {
         }
       });
     }
-<<<<<<< HEAD
-
-    localStorage.removeItem("token");
-    localStorage.removeItem("first_name");
-    localStorage.removeItem("role");
-=======
     
     // Call logout API
     if (token) {
@@ -390,7 +267,6 @@ export default function Navbar({ content }) {
     console.log("Logout complete. User data saved with prefix:", `user_${userId}_`);
     
     // Navigate to login
->>>>>>> origin/kevin
     navigate("/", { replace: true });
   };
 
@@ -425,11 +301,7 @@ export default function Navbar({ content }) {
                 width: "150px",
                 height: "150px",
                 borderRadius: "50%",
-<<<<<<< HEAD
-                border: `2px solid ${GREEN}`,
-=======
                 border: "2px solid #1c3d37",
->>>>>>> origin/kevin
                 objectFit: "cover",
               }}
             />
@@ -443,13 +315,8 @@ export default function Navbar({ content }) {
               textAlign: "center",
               fontWeight: 500,
               fontSize: "1.2rem",
-<<<<<<< HEAD
-              color: GREEN,
-              letterSpacing: "-0.01em",
-=======
               color: "#1c3d37",
               letterSpacing: '-0.01em',
->>>>>>> origin/kevin
             }}
           >
             Welcome, {userData.firstName}!
@@ -464,21 +331,14 @@ export default function Navbar({ content }) {
                     component={Link}
                     to={item.path}
                     selected={path === item.path}
-<<<<<<< HEAD
-                    sx={{ py: 1, px: 2 }}
-=======
                     sx={{
                       py: 1,
                       px: 2,
                     }}
->>>>>>> origin/kevin
                   >
                     <ListItemIcon sx={{ minWidth: 40 }}>
                       {item.icon}
                     </ListItemIcon>
-<<<<<<< HEAD
-                    <ListItemText primary={item.label} />
-=======
                     <ListItemText 
                       primary={item.label}
                       slotProps={{
@@ -488,24 +348,11 @@ export default function Navbar({ content }) {
                         }
                       }}
                     />
->>>>>>> origin/kevin
                   </ListItemButton>
                 </ListItem>
               ))}
 
               {/* LOGOUT DIVIDER */}
-<<<<<<< HEAD
-              <Box
-                sx={{
-                  my: 2,
-                  borderTop: "1px solid rgba(28, 61, 55, 0.12)",
-                }}
-              />
-
-              {/* LOGOUT */}
-              <ListItem disablePadding>
-                <ListItemButton
-=======
               <Box sx={{ 
                 my: 2, 
                 borderTop: '1px solid rgba(28, 61, 55, 0.12)' 
@@ -514,48 +361,27 @@ export default function Navbar({ content }) {
               {/* LOGOUT */}
               <ListItem disablePadding>
                 <ListItemButton 
->>>>>>> origin/kevin
                   onClick={handleLogout}
                   sx={{
                     py: 1,
                     px: 2,
-<<<<<<< HEAD
-                    borderRadius: "12px",
-                    "&:hover": {
-                      backgroundColor: "rgba(255, 68, 68, 0.04)",
-=======
                     '&:hover': {
                       backgroundColor: 'rgba(255, 68, 68, 0.04)',
->>>>>>> origin/kevin
                     },
                   }}
                 >
                   <ListItemIcon sx={{ minWidth: 40 }}>
-<<<<<<< HEAD
-                    <LogoutIcon sx={{ color: "#ff4444" }} />
-                  </ListItemIcon>
-                  <ListItemText
-=======
                     <LogoutIcon sx={{ color: '#9e2c2c' }} />
                   </ListItemIcon>
                   <ListItemText className="logoutBtn"
->>>>>>> origin/kevin
                     primary="LOGOUT"
                     slotProps={{
                       primary: {
                         sx: {
-<<<<<<< HEAD
-                          color: "#ff4444",
-                          fontWeight: 500,
-                          letterSpacing: "-0.01em",
-                        },
-                      },
-=======
                           color: '#9e2c2c !important',
                           fontWeight: 500,
                         }
                       }
->>>>>>> origin/kevin
                     }}
                   />
                 </ListItemButton>
