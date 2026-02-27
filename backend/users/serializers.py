@@ -164,13 +164,12 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
     group = serializers.ChoiceField(write_only=True, required=True, choices=ALLOWED_GROUPS, validators=[strip_string, prevent_control_characters, validate_max_length(254)])
     first_name = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
     last_name = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
-    employee_number = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
     staff_status = serializers.BooleanField(write_only=True, required=False, allow_null=True, default=False)
     phone_number = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=20, validators=[strip_string, prevent_control_characters, validate_phone])
 
     class Meta:
         model = User
-        fields = ["id", "email", "password", "first_name", "last_name", "employee_number", "staff_status", "phone_number", "group"]
+        fields = ["id", "email", "password", "first_name", "last_name", "staff_status", "phone_number", "group"]
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate_email(self, value):
@@ -187,7 +186,6 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         first_name = validated_data.pop("first_name")
         last_name = validated_data.pop("last_name")
-        employee_number = validated_data.pop("employee_number")
         staff_status = validated_data.pop("staff_status", False)
         group_name = validated_data.pop("group")
         phone_number = validated_data.pop("phone_number", "")
@@ -209,7 +207,6 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
         Employee.objects.create(
             user=user,
             addressid=None,
-            employeenumber=employee_number,
             firstname=first_name,
             lastname=last_name,
             phonenumber=phone_number,
