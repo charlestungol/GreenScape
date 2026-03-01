@@ -27,41 +27,48 @@ class ClientLoginViewSet(viewsets.ViewSet):
     serializer_class = ClientLoginSerializer
 
     def create(self, request):
-        serializer = self.serializer_class(data=request.data, context = {"request" : request})
+        serializer = self.serializer_class(data=request.data, context={"request": request})
         try:
-            # This will raise a ValidationError if authentication fails, which we catch to return a generic error message without revealing whether the email exists or not
             serializer.is_valid(raise_exception=True)
-
-        except exceptions.ValidationError as e:
+        except exceptions.ValidationError:
             return Response({"detail": "No user found."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # If we get here, authentication was successful and we have a valid user. We can now check if their email is verified before issuing a token.
         user = serializer.validated_data["user"]
-        # Check if email is verified before issuing token
-        email_verified = EmailAddress.objects.filter(user=user, email__iexact=user.email, verified=True).exists()
-        # If email is not verified, send a new verification email and return an error response
+
+        # Optional but recommended if you use activation gating
+        if not user.is_active:
+            return Response({"detail": "Account not active. Please verify your email."},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        email_verified = EmailAddress.objects.filter(
+            user=user, email__iexact=user.email, verified=True
+        ).exists()
+
         if not email_verified:
-            EmailAddress.objects.add_email(
-                request,
-                user,
-                user.email,
-                confirm=True
-            )
-            return Response({"detail": "Email address not verified. Please check your email."}, status=status.HTTP_403_FORBIDDEN)
+            EmailAddress.objects.add_email(request, user, user.email, confirm=True)
+            return Response({"detail": "Email address not verified. Please check your email."},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        # Pull customer profile (OneToOne reverse accessor)
+        cust = getattr(user, "customer", None)
+        if not cust:
+            return Response({"detail": "Customer profile not found."},
+                            status=status.HTTP_404_NOT_FOUND)
 
         refresh = RefreshToken.for_user(user)
-        token = str(refresh.access_token)
 
         return Response({
-            "token": token,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
             "user": {
                 "id": user.id,
                 "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "role": user.role   
+                "role": user.role,
+                "customer_id": cust.customerid,
+                "first_name": cust.firstname,
+                "last_name": cust.lastname,
             }
-        })
+        }, status=status.HTTP_200_OK)
 
     
 class ClientRegisterViewSet(viewsets.ModelViewSet):
@@ -88,6 +95,7 @@ class ClientRegisterViewSet(viewsets.ModelViewSet):
         )
     
 
+
 class EmployeeLoginViewSet(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
     serializer_class = EmployeeLoginSerializer
@@ -99,26 +107,31 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
 
         user = serializer.validated_data["user"]
 
+        # If you require email verification / activation before login:
+        if not user.is_active:
+            raise exceptions.AuthenticationFailed("Account not active. Please verify your email.")
+
         refresh = RefreshToken.for_user(user)
-        token = str(refresh.access_token)
 
-        emp = Employee.objects.filter(user_id=user.id).values("employeeid", "employeenumber", "firstname", "lastname").first()
-
+        # Since Employee.user has related_name="employee"
+        emp = getattr(user, "employee", None)
         if not emp:
-            return Response({"detail": "Employee record not found."}, status=status.HTTP_404_NOT_FOUND)
-        
+            return Response({"detail": "Employee record not found."},
+                            status=status.HTTP_404_NOT_FOUND)
+
         return Response({
-            "token": token,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
             "user": {
                 "id": user.id,
                 "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "role": user.role,               
-                "employee_number": emp["employeenumber"] if emp else None,
-                "employee_id": emp["employeeid"] if emp else None,
+                "role": user.role,
+                "employee_number": user.employee_number,   # ✅ from user now
+                "employee_id": emp.employeeid,
+                "first_name": emp.firstname,               # ✅ from Employee now
+                "last_name": emp.lastname,                 # ✅ from Employee now
             }
-        })
+        }, status=status.HTTP_200_OK)
 
 
 class EmployeeRegisterViewSet(viewsets.ModelViewSet):

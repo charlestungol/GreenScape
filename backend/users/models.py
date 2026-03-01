@@ -34,12 +34,12 @@ class CustomManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 class CustomUser(AbstractUser):
+    username = None
+    first_name = None
+    last_name = None
+
     email = models.EmailField(max_length=200, unique=True)
-    username = models.CharField(max_length=200, null=True, blank=True)
-    first_name = models.CharField(max_length=150, null=True, blank=True)
-    last_name = models.CharField(max_length=150, null=True, blank=True)
-    birthday = models.DateField(null=True, blank=True)
-    employee_number = models.CharField(max_length=50, null=True, blank=True)
+    employee_number = models.CharField(max_length=50, null=True, blank=True, unique=True)
 
     role = models.CharField(
         max_length=20,
@@ -52,11 +52,8 @@ class CustomUser(AbstractUser):
     objects = CustomManager()
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = []  
+    REQUIRED_FIELDS = []
 
-    def __str__(self):
-        return f"{self.email} ({self.role})"
-    
     class Meta:
         db_table = "users_customuser"
 

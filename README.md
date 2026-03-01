@@ -1,8 +1,10 @@
 ﻿# GreenScape (ReactJS + Django + MSSQL)
+# Python version 3.12
 
 ## BACKEND SETUP
 1. cd backend
 2. python -m venv venv
+2. py -3.12 -m venv venv 
 3. venv\Scripts\activate
 4. pip install -r requirements.txt
 5. python manage.py migrate

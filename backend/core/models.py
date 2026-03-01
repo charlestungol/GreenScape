@@ -121,19 +121,23 @@ class Customerservice(models.Model):
 
 # Employee model
 class Employee(models.Model):
-    # models.py
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, db_column='UserId',null=True, blank=True, on_delete=models.SET_NULL)
-    employeeid = models.AutoField(db_column='EmployeeId', primary_key=True)  # Field name made lowercase.#
-    addressid = models.OneToOneField(Address, models.DO_NOTHING, db_column='AddressId', null=True, blank = True)  # Field name made lowercase.
-    employeenumber = models.IntegerField(db_column='EmployeeNumber')  # Field name made lowercase.
-    firstname = models.CharField(db_column='FirstName', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-    lastname = models.CharField(db_column='LastName', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-    phonenumber = models.CharField(db_column='PhoneNumber', max_length=10, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-    staffstatus = models.CharField(db_column='StaffStatus', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        db_column="UserId",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="employee",
+    )
+    employeeid = models.AutoField(db_column="EmployeeId", primary_key=True)
+    addressid = models.OneToOneField(Address, db_column="AddressId", null=True, blank=True, on_delete=models.DO_NOTHING)
+    firstname = models.CharField(db_column="FirstName", max_length=20)
+    lastname = models.CharField(db_column="LastName", max_length=20)
+    phonenumber = models.CharField(db_column="PhoneNumber", max_length=10)
+    staffstatus = models.CharField(db_column="StaffStatus", max_length=20)
     class Meta:
         managed = False
-        db_table = 'Employee'
+        db_table = "Employee"
 
 # ---------------------------------------
 # Booking model
