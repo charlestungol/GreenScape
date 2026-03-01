@@ -181,23 +181,22 @@ class ServiceSerializer(serializers.ModelSerializer):
         read_only_fields = ["serviceid"]
 
 # Service Image 
+from rest_framework import serializers
+
 class ServiceImageSerializer(serializers.ModelSerializer):
-    # Define URL
     url = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceImage
-        fields = ["id", "service", "filename", "content_type", "size_bytes", "created_at", "url"]
+        fields = ["id", "service", "bucket", "storage_path", "content_type", "filename", "size_bytes", "created_at", "uploaded_by", "url"]
         read_only_fields = ["id", "created_at", "url"]
 
-    # Method to get the image url from db, write only = True for imagedata field, so it won't be returned in the response, only used for creating new service images.
     def get_url(self, obj: ServiceImage):
         request = self.context.get("request")
         if not request:
             return None
-        return request.build_absolute_url(
-            f"/core/services/{obj.service_id}/images/{obj.id}/bytes"
-        )
+        # Use the endpoint you already implemented:
+        return request.build_absolute_uri(f"/core/service-images/{obj.id}/bytes/")
 
 # Customer Service
 class CustomerServiceSerializer(serializers.ModelSerializer):

@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.contrib.auth.models import Group
 
 # ---------------------------------------
 # Models
@@ -49,9 +50,9 @@ class Customer(models.Model):
 
 # Service Type model
 class Servicetype(models.Model):
-    servicetypeid = models.AutoField(db_column='ServiceTypeId', primary_key=True)  # Field name made lowercase.
-    typecode = models.CharField(db_column='TypeCode', max_length=10, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-    typename = models.CharField(db_column='TypeName', max_length=10, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+    servicetypeid = models.AutoField(db_column='ServiceTypeId', primary_key=True)  
+    typecode = models.CharField(db_column='TypeCode', max_length=10, db_collation='SQL_Latin1_General_CP1_CI_AS') 
+    typename = models.CharField(db_column='TypeName', max_length=10, db_collation='SQL_Latin1_General_CP1_CI_AS') 
 
     class Meta:
         managed = False
@@ -59,31 +60,41 @@ class Servicetype(models.Model):
 
 # Service model
 class Service(models.Model):
-    serviceid = models.AutoField(db_column='ServiceId', primary_key=True)  # Field name made lowercase.
-    servicetypeid = models.IntegerField(db_column='ServiceTypeId')  # Field name made lowercase.
-    title = models.CharField(db_column='Title', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-    description = models.CharField(db_column='Description', max_length=50, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-    baseprice = models.DecimalField(db_column='BasePrice', max_digits=10, decimal_places=2)  # Field name made lowercase.
+    serviceid = models.AutoField(db_column='ServiceId', primary_key=True) 
+    servicetypeid = models.IntegerField(db_column='ServiceTypeId') 
+    title = models.CharField(db_column='Title', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    description = models.CharField(db_column='Description', max_length=50, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    baseprice = models.DecimalField(db_column='BasePrice', max_digits=10, decimal_places=2)
 
     class Meta:
         managed = False
         db_table = 'Service'
 
 class ServiceImage(models.Model):
-    service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="images", null=True, blank=True)
-    bucket = models.CharField( max_length=100, default="service-images")
-    storage_path = models.CharField(max_length=400) 
+    service = models.ForeignKey(
+        Service,
+        db_column="ServiceId",
+        on_delete=models.CASCADE,
+        related_name="images",
+        null=False,
+        blank=False,
+    )
+    bucket = models.CharField(max_length=100, default="service-images")
+    storage_path = models.CharField(max_length=400)
     content_type = models.CharField(max_length=100)
     filename = models.CharField(max_length=100)
-    size_bytes = models.IntegerField(null = True, blank = True)
+    size_bytes = models.IntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
 
     class Meta:
+        managed = False
         db_table = "ServiceImage"
-        ordering = ["-id"]
-    def __str__(self):
-        return f"{self.service_id} :: {self.filename}"
 
 # Old Service image model
 
@@ -135,6 +146,7 @@ class Employee(models.Model):
     lastname = models.CharField(db_column="LastName", max_length=20)
     phonenumber = models.CharField(db_column="PhoneNumber", max_length=10)
     staffstatus = models.CharField(db_column="StaffStatus", max_length=20)
+    roleid = models.ForeignKey(Group, models.DO_NOTHING, db_column='RoleId')  # Field name made lowercase.
     class Meta:
         managed = False
         db_table = "Employee"

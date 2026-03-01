@@ -102,36 +102,37 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
     throttle_scope = "login"
 
     def create(self, request):
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.serializer_class(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data["user"]
 
-        # If you require email verification / activation before login:
-        if not user.is_active:
-            raise exceptions.AuthenticationFailed("Account not active. Please verify your email.")
-
         refresh = RefreshToken.for_user(user)
 
-        # Since Employee.user has related_name="employee"
         emp = getattr(user, "employee", None)
-        if not emp:
-            return Response({"detail": "Employee record not found."},
-                            status=status.HTTP_404_NOT_FOUND)
 
-        return Response({
+        # ✅ IMPORTANT: do NOT block login if emp doesn't exist yet
+        payload = {
             "access": str(refresh.access_token),
             "refresh": str(refresh),
             "user": {
                 "id": user.id,
                 "email": user.email,
                 "role": user.role,
-                "employee_number": user.employee_number,   # ✅ from user now
+                "employee_number": user.employee_number,
+            },
+            "profile_ready": bool(emp)  # tells client if Employee row exists
+        }
+
+        # If employee profile exists, include it
+        if emp:
+            payload["user"].update({
                 "employee_id": emp.employeeid,
-                "first_name": emp.firstname,               # ✅ from Employee now
-                "last_name": emp.lastname,                 # ✅ from Employee now
-            }
-        }, status=status.HTTP_200_OK)
+                "first_name": emp.firstname,
+                "last_name": emp.lastname,
+            })
+
+        return Response(payload, status=status.HTTP_200_OK)
 
 
 class EmployeeRegisterViewSet(viewsets.ModelViewSet):

@@ -19,7 +19,7 @@ def sync_employee_group(sender, instance: Employee, **kwargs):
         return
 
     # Normalize group name off Roles.rolename (must match your ROLE_POLICY keys)
-    group_name = role.rolename  # "Admin", "Supervisor", or "Staff"
+    group_name = role.name  # "Admin", "Supervisor", or "Staff"
     try:
         group = Group.objects.get(name=group_name)
     except Group.DoesNotExist:

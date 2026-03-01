@@ -168,15 +168,15 @@ class EmployeeLoginSerializer(serializers.Serializer):
 # Create a user, and add an employee to db
 class EmployeeRegisterSerializer(serializers.ModelSerializer):
     group = serializers.ChoiceField(write_only=True, required=True, choices=ALLOWED_GROUPS, validators=[strip_string, prevent_control_characters, validate_max_length(254)])
-    first_name = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
-    last_name = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
+    # first_name = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
+    # last_name = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
     employee_number = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
-    staff_status = serializers.ChoiceField( write_only=True, required=False, choices=[("Active", "Active"), ("Inactive", "Inactive")], default="Active")
-    phone_number = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=10, validators=[strip_string, prevent_control_characters, validate_phone])
+    # staff_status = serializers.ChoiceField( write_only=True, required=False, choices=[("Active", "Active"), ("Inactive", "Inactive")], default="Active")
+    # phone_number = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=10, validators=[strip_string, prevent_control_characters, validate_phone])
 
     class Meta:
         model = User
-        fields = ["id", "email", "password", "first_name", "last_name", "employee_number", "staff_status", "phone_number", "group"]
+        fields = ["id", "email", "password", "employee_number", "group"]
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate_email(self, value):
@@ -191,34 +191,23 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
     
     @transaction.atomic
     def create(self, validated_data):
-        first_name = validated_data.pop("first_name")
-        last_name = validated_data.pop("last_name")
-        staff_status = validated_data.pop("staff_status", False)
         group_name = validated_data.pop("group")
-        phone_number = validated_data.pop("phone_number", "")
+        is_staff = str(group_name).lower() == "admin"
 
         user = User.objects.create_user(
             **validated_data,
-            is_active = False,
-            is_staff=False,
+            is_active=False,
+            is_staff=is_staff,
             role="employee"
         )
 
+        grp = Group.objects.filter(name__iexact=group_name).first()
         if not grp:
             grp = Group.objects.create(name=group_name.title())
-        user.groups.add(grp)
 
         user.groups.add(grp)
 
-        Employee.objects.create(
-            user=user,
-            addressid=None,
-            firstname=first_name,
-            lastname=last_name,
-            phonenumber=phone_number,
-            staffstatus=staff_status
-        )
-
+        # ✅ DO NOT create Employee yet
         return user
 
 
