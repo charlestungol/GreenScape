@@ -37,7 +37,6 @@ class Customer(models.Model):
     addressid = models.ForeignKey(Address, models.DO_NOTHING, db_column='AddressId')  # Field name made lowercase.
     firstname = models.CharField(db_column='FirstName', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
     lastname = models.CharField(db_column='LastName', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-    email = models.CharField(db_column='Email', max_length=10, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
     phonenumber = models.CharField(db_column='PhoneNumber', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
 
     class Meta:

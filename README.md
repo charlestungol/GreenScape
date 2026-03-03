@@ -1,6 +1,20 @@
 ﻿# GreenScape (ReactJS + Django + MSSQL)
 # Python version 3.12
 
+## SQL Server Setup (Pre-requisit: Have SQL server and SSMS installed)
+1. Server Name = localhost
+2. Authentication = Windows Authentication
+3. Databse Name = <default>
+4. Encrypt = Mandatory
+5. Trust Server Certification = True/Check
+# Once SSMS is open and connection establish
+6. Click FIle
+7. Open
+8. File
+9. Find 'GreenScape.sql' From prject folder
+10. Execute
+
+
 ## BACKEND SETUP
 1. cd backend
 2. python -m venv venv

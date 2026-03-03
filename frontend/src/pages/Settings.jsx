@@ -145,7 +145,7 @@ const Settings = () => {
     setSavingProfile(true); // changed (see section 4)
     try {
       const payload = {
-        email: userInfo.email?.trim() || "",
+        // email: userInfo.email?.trim() || "",
         firstname: userInfo.first_name?.trim() || "",
         lastname: userInfo.last_name?.trim() || "",
         phonenumber: userInfo.phone?.trim() || "",
@@ -158,7 +158,7 @@ const Settings = () => {
       };
 
       const role = getRole();
-      
+
       const endpoint =
         role === "employee"
           ? "/core/employees/me/"
