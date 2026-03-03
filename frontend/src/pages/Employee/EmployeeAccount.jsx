@@ -1,32 +1,22 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Typography,
-  Paper,
-  TextField,
-  Button,
-  Divider,
-  Avatar,
-} from "@mui/material";
+import { Box, Typography, Paper, TextField, Button, Divider, Avatar } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import AxiosInstance from "../../components/AxiosInstance";
 
 export default function EmployeeAccount() {
   const navigate = useNavigate();
 
-  // Mock profile (you can later replace with API GET /me)
+  const userId = localStorage.getItem("user_id");
+  const storedFirst = (localStorage.getItem(`user_${userId}_first_name`) || "").trim();
+
   const [profile, setProfile] = useState({
-    name: localStorage.getItem("first_name") || "Employee",
+    name: storedFirst || "Employee",
     email: "employee@greenscape.com",
   });
 
-  const [password, setPassword] = useState({
-    current: "",
-    next: "",
-    confirm: "",
-  });
+  const [password, setPassword] = useState({ current: "", next: "", confirm: "" });
 
   const handleSaveProfile = () => {
-    // Frontend-only for now
     alert("Saved (frontend only). Connect to backend later.");
   };
 
@@ -40,23 +30,20 @@ export default function EmployeeAccount() {
   };
 
   const handleLogout = async () => {
-    const token = localStorage.getItem("token");
-
     try {
-      await fetch("http://127.0.0.1:8000/api/logout/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Token ${token}`,
-        },
-      });
+      await AxiosInstance.post("/dj-rest-auth/logout/");
     } catch (error) {
       console.log("Logout error:", error);
     }
 
-    localStorage.removeItem("token");
-    localStorage.removeItem("first_name");
-    localStorage.removeItem("role");
+    if (userId) {
+      localStorage.removeItem(`user_${userId}_first_name`);
+      localStorage.removeItem(`user_${userId}_last_name`);
+      localStorage.removeItem(`user_${userId}_role`);
+      localStorage.removeItem(`user_${userId}_email`);
+    }
+    localStorage.removeItem("user_id");
+
     navigate("/");
   };
 
@@ -67,7 +54,6 @@ export default function EmployeeAccount() {
       </Typography>
 
       <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-        {/* Profile card */}
         <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
             <Avatar sx={{ width: 72, height: 72 }}>
@@ -90,50 +76,27 @@ export default function EmployeeAccount() {
           </Typography>
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <TextField
-              label="Name"
-              value={profile.name}
-              onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
-            />
-            <TextField
-              label="Email"
-              value={profile.email}
-              onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
-            />
-            <Button variant="contained" onClick={handleSaveProfile}>
-              Save
-            </Button>
+            <TextField label="Name" value={profile.name}
+              onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
+            <TextField label="Email" value={profile.email}
+              onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} />
+            <Button variant="contained" onClick={handleSaveProfile}>Save</Button>
           </Box>
         </Paper>
 
-        {/* Password + Logout */}
         <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 900, color: "#06632b", mb: 1 }}>
             Change Password
           </Typography>
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <TextField
-              label="Current Password"
-              type="password"
-              value={password.current}
-              onChange={(e) => setPassword((p) => ({ ...p, current: e.target.value }))}
-            />
-            <TextField
-              label="New Password"
-              type="password"
-              value={password.next}
-              onChange={(e) => setPassword((p) => ({ ...p, next: e.target.value }))}
-            />
-            <TextField
-              label="Confirm New Password"
-              type="password"
-              value={password.confirm}
-              onChange={(e) => setPassword((p) => ({ ...p, confirm: e.target.value }))}
-            />
-            <Button variant="outlined" onClick={handleChangePassword}>
-              Update Password
-            </Button>
+            <TextField label="Current Password" type="password" value={password.current}
+              onChange={(e) => setPassword((p) => ({ ...p, current: e.target.value }))} />
+            <TextField label="New Password" type="password" value={password.next}
+              onChange={(e) => setPassword((p) => ({ ...p, next: e.target.value }))} />
+            <TextField label="Confirm New Password" type="password" value={password.confirm}
+              onChange={(e) => setPassword((p) => ({ ...p, confirm: e.target.value }))} />
+            <Button variant="outlined" onClick={handleChangePassword}>Update Password</Button>
           </Box>
 
           <Divider sx={{ my: 2 }} />

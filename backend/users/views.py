@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions, views, status
 from rest_framework.response import Response
 from rest_framework import exceptions
 from django.db import transaction
+from django.conf import settings
 from rest_framework.throttling import ScopedRateThrottle
 from django.contrib import messages
 from django.shortcuts import redirect
@@ -21,6 +22,47 @@ from rest_framework_simplejwt.tokens import RefreshToken
 throttle_classes = [ScopedRateThrottle]
 User = get_user_model()
 
+def _jwt_cookie_settings():
+    # Centralized cookie settings so set_cookie/delete_cookie always match.
+    
+    httponly = settings.REST_AUTH.get("JWT_AUTH_HTTPONLY", True)
+    cookie_access = settings.REST_AUTH.get("JWT_AUTH_COOKIE", "access")
+    cookie_refresh = settings.REST_AUTH.get("JWT_AUTH_REFRESH_COOKIE", "refresh")
+
+    # You added these in settings.py (good!)
+    samesite = getattr(settings, "JWT_AUTH_COOKIE_SAMESITE", "Lax")
+    secure = getattr(settings, "JWT_AUTH_COOKIE_SECURE", False)
+
+    # Optional: domain. Usually None for localhost.
+    domain = getattr(settings, "SESSION_COOKIE_DOMAIN", None)
+
+    return {
+        "cookie_access": cookie_access,
+        "cookie_refresh": cookie_refresh,
+        "cookie_kwargs": {
+            "httponly": httponly,
+            "secure": secure,
+            "samesite": samesite,
+            "path": "/",
+            "domain": domain,
+        }
+    }
+
+
+def set_jwt_cookies(response, access_token: str, refresh_token: str):
+    cfg = _jwt_cookie_settings()
+    response.set_cookie(cfg["cookie_access"], access_token, **cfg["cookie_kwargs"])
+    response.set_cookie(cfg["cookie_refresh"], refresh_token, **cfg["cookie_kwargs"])
+    return response
+
+
+def clear_jwt_cookies(response):
+    cfg = _jwt_cookie_settings()
+    # delete_cookie must match path/domain/samesite/secure used to set cookie
+    response.delete_cookie(cfg["cookie_access"], path=cfg["cookie_kwargs"]["path"], domain=cfg["cookie_kwargs"]["domain"])
+    response.delete_cookie(cfg["cookie_refresh"], path=cfg["cookie_kwargs"]["path"], domain=cfg["cookie_kwargs"]["domain"])
+    return response
+
 class ClientLoginViewSet(viewsets.ViewSet):
     throttle_scope = "login"
     permission_classes = [permissions.AllowAny]
@@ -35,10 +77,11 @@ class ClientLoginViewSet(viewsets.ViewSet):
 
         user = serializer.validated_data["user"]
 
-        # Optional but recommended if you use activation gating
         if not user.is_active:
-            return Response({"detail": "Account not active. Please verify your email."},
-                            status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"detail": "Account not active. Please verify your email."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         email_verified = EmailAddress.objects.filter(
             user=user, email__iexact=user.email, verified=True
@@ -46,20 +89,23 @@ class ClientLoginViewSet(viewsets.ViewSet):
 
         if not email_verified:
             EmailAddress.objects.add_email(request, user, user.email, confirm=True)
-            return Response({"detail": "Email address not verified. Please check your email."},
-                            status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"detail": "Email address not verified. Please check your email."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
-        # Pull customer profile (OneToOne reverse accessor)
         cust = getattr(user, "customer", None)
         if not cust:
-            return Response({"detail": "Customer profile not found."},
-                            status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail": "Customer profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
         refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
 
-        return Response({
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
+        payload = {
+            # Optional: you can remove these once cookies work everywhere
+            "access": access_token,
+            "refresh": refresh_token,
             "user": {
                 "id": user.id,
                 "email": user.email,
@@ -67,8 +113,12 @@ class ClientLoginViewSet(viewsets.ViewSet):
                 "customer_id": cust.customerid,
                 "first_name": cust.firstname,
                 "last_name": cust.lastname,
-            }
-        }, status=status.HTTP_200_OK)
+            },
+            "profile_ready": True,
+        }
+
+        resp = Response(payload, status=status.HTTP_200_OK)
+        return set_jwt_cookies(resp, access_token, refresh_token)
 
     
 class ClientRegisterViewSet(viewsets.ModelViewSet):
@@ -108,23 +158,24 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
         user = serializer.validated_data["user"]
 
         refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
 
         emp = getattr(user, "employee", None)
 
-        # ✅ IMPORTANT: do NOT block login if emp doesn't exist yet
         payload = {
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
+            # Optional: you can remove these once cookies work everywhere
+            "access": access_token,
+            "refresh": refresh_token,
             "user": {
                 "id": user.id,
                 "email": user.email,
                 "role": user.role,
                 "employee_number": user.employee_number,
             },
-            "profile_ready": bool(emp)  # tells client if Employee row exists
+            "profile_ready": bool(emp),
         }
 
-        # If employee profile exists, include it
         if emp:
             payload["user"].update({
                 "employee_id": emp.employeeid,
@@ -132,7 +183,8 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
                 "last_name": emp.lastname,
             })
 
-        return Response(payload, status=status.HTTP_200_OK)
+        resp = Response(payload, status=status.HTTP_200_OK)
+        return set_jwt_cookies(resp, access_token, refresh_token)
 
 
 class EmployeeRegisterViewSet(viewsets.ModelViewSet):

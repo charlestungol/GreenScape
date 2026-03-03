@@ -65,6 +65,8 @@ class ClientLoginSerializer(serializers.Serializer):
 # Serializer for client registration, includes fields for email, password, first name, last name, phone number, and address. 
 # Validates email and password, and creates a new user, address, and customer record in the database within an atomic transaction.
 class ClientRegisterSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(required=True, write_only = True, validators=[strip_string, prevent_control_characters, validate_name])
+    last_name = serializers.CharField(required=True, write_only = True, validators=[strip_string, prevent_control_characters, validate_name])
     phone = serializers.CharField(required=True, write_only = True, validators=[strip_string, prevent_control_characters, validate_phone])
     address = AddressSerializer(required=True, validators=[prevent_control_characters])
 
@@ -85,6 +87,8 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
+        first_name = validated_data.pop("first_name", "").strip()
+        last_name = validated_data.pop("last_name", "").strip()
         address_data = validated_data.pop("address")
         phone_number = validated_data.pop('phone')
         email = validated_data.pop("email")
@@ -105,16 +109,14 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
         # Create Customer
         customer = Customer.objects.create(
             user = user,
-            firstname = user.first_name,
-            lastname = user.last_name,
-            email = user.email,
-            phonenumber = phone_number,
+            firstname = first_name.strip(),
+            lastname = last_name.strip(),
+            email = user.email.strip().lower(),
+            phonenumber = phone_number.strip(),
             addressid = address,
         )
 
         return user
-
-
 
 
 class EmployeeLoginSerializer(serializers.Serializer):
@@ -207,7 +209,6 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
 
         user.groups.add(grp)
 
-        # ✅ DO NOT create Employee yet
         return user
 
 

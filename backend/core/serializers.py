@@ -235,8 +235,11 @@ class EmployeeSerializer(serializers.ModelSerializer):
     firstname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
     lastname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
     phonenumber = serializers.CharField(validators=[validate_phone])
-
-
+    email = serializers.EmailField(
+    source="user.email",
+    validators=[strip_string, prevent_control_characters, validate_max_length(200)],
+    required=False
+    )
     address = AddressSerializer(source="addressid", read_only = True)
 
     addressid = serializers.PrimaryKeyRelatedField(
@@ -248,7 +251,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Employee
-        fields = ["employeeid", "address", "addressid", "firstname", "lastname", "phonenumber", "staffstatus"]
+        fields = ["employeeid", "address", "addressid", "firstname", "lastname", "phonenumber", "email", "staffstatus"]
         read_only_fields = ["employeeid"]
 
 # Booking Serializer

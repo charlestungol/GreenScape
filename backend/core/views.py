@@ -143,11 +143,11 @@ class AddressViewSet(viewsets.ModelViewSet):
                     Employee.objects.create(
                         user=user,
                         addressid=address,
-                        roleid=role,
-                        firstname="",
-                        lastname="",
-                        phonenumber="",
-                        staffstatus="Active"
+                        roleid=role.strip(),
+                        firstname="".strip(),
+                        lastname="".strip(),
+                        phonenumber="".strip(),
+                        staffstatus="Active".strip()
                     )
                 else:
                     employee.addressid = address
