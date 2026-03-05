@@ -69,6 +69,7 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
     last_name = serializers.CharField(required=True, write_only = True, validators=[strip_string, prevent_control_characters, validate_name])
     phone = serializers.CharField(required=True, write_only = True, validators=[strip_string, prevent_control_characters, validate_phone])
     address = AddressSerializer(required=True, validators=[prevent_control_characters])
+    password = serializers.CharField(write_only=True, validators=[strip_string, validate_max_length(16)])
 
     class Meta:
         model = User
@@ -174,6 +175,7 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
     employee_number = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
     # staff_status = serializers.ChoiceField( write_only=True, required=False, choices=[("Active", "Active"), ("Inactive", "Inactive")], default="Active")
     # phone_number = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=10, validators=[strip_string, prevent_control_characters, validate_phone])
+    password = serializers.CharField(write_only=True, validators=[strip_string, validate_max_length(16)])
 
     class Meta:
         model = User
@@ -212,13 +214,13 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
 
 class ChangeEmailSerializer(serializers.Serializer):
     new_email = serializers.EmailField(required=True, validators=[strip_string, validate_max_length(254)])
-    password = serializers.CharField(required=True, write_only=True, validators=[strip_string, validate_max_length(254)])
+    password = serializers.CharField(required=True, write_only=True, validators=[strip_string, validate_max_length(16)])
     def validate_new_email(self, value):
         return normalize_email(value)
 
 class ChangePasswordSerializer(serializers.Serializer):
-    old_password = serializers.CharField(required=True, validators=[strip_string, validate_max_length(254)])
-    new_password = serializers.CharField(required=True, validators=[strip_string, validate_max_length(254)])
+    old_password = serializers.CharField(required=True, validators=[strip_string, validate_max_length(16)])
+    new_password = serializers.CharField(required=True, validators=[strip_string, validate_max_length(16)])
 
     def validate_old_password(self, value):
         user = self.context['request'].user
