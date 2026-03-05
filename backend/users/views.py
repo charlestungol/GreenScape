@@ -11,7 +11,8 @@ from .serializers import (
     ClientRegisterSerializer,
     EmployeeLoginSerializer,
     EmployeeRegisterSerializer,
-    ChangePasswordSerializer
+    ChangePasswordSerializer,
+    ChangeEmailSerializer,
 )
 from .models import *
 from core.models import Employee
@@ -217,7 +218,35 @@ class UserViewSet(viewsets.ModelViewSet):
         queryset = User.objects.all()
         serializers = self.serializer_class(queryset, many=True)
         return Response(serializers.data)
+
+# Endpoints for changing email/password and resending verification email
+class ChangeEmailViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ChangeEmailSerializer
+
+    # This endpoint allows users to change their email. It will send a new verification email to the new address and deactivate the account until verified.
+    def create(self, request):
+        # We can use the ChangeEmailSerializer for validating the new email by treating it as a "new_email" field, since it already has email validation logic.
+        serializer = self.serializer_class(
+            data=request.data,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
     
+        user = request.user
+        new_email = serializer.validated_data['new_email'].strip().lower()
+
+        if User.objects.filter(email__iexact=new_email).exclude(id=user.id).exists():
+            return Response({"detail": "Email already in use."}, status=400)
+
+        user.email = new_email
+        user.is_active = False  # Deactivate until email is verified
+        user.save()
+
+        EmailAddress.objects.add_email(request, user, new_email, confirm=True)
+
+        return Response({"message": "Email changed successfully. Please verify your new email."}, status=200)
+
 class ChangePasswordViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = ChangePasswordSerializer

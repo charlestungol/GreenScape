@@ -111,7 +111,6 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
             user = user,
             firstname = first_name.strip(),
             lastname = last_name.strip(),
-            email = user.email.strip().lower(),
             phonenumber = phone_number.strip(),
             addressid = address,
         )
@@ -211,6 +210,11 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
 
         return user
 
+class ChangeEmailSerializer(serializers.Serializer):
+    new_email = serializers.EmailField(required=True, validators=[strip_string, validate_max_length(254)])
+    password = serializers.CharField(required=True, write_only=True, validators=[strip_string, validate_max_length(254)])
+    def validate_new_email(self, value):
+        return normalize_email(value)
 
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True, validators=[strip_string, validate_max_length(254)])
