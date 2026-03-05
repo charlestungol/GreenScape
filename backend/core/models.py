@@ -17,7 +17,7 @@ class Address(models.Model):
     postalcode = models.CharField(db_column='PostalCode', max_length=7, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'Address'
 
 
@@ -40,7 +40,7 @@ class Customer(models.Model):
     phonenumber = models.CharField(db_column='PhoneNumber', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'Customer'
 
 # ---------------------------------------
@@ -54,7 +54,7 @@ class Servicetype(models.Model):
     typename = models.CharField(db_column='TypeName', max_length=10, db_collation='SQL_Latin1_General_CP1_CI_AS') 
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'ServiceType'
 
 # Service model
@@ -66,7 +66,7 @@ class Service(models.Model):
     baseprice = models.DecimalField(db_column='BasePrice', max_digits=10, decimal_places=2)
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'Service'
 
 class ServiceImage(models.Model):
@@ -92,7 +92,7 @@ class ServiceImage(models.Model):
     )
 
     class Meta:
-        managed = False
+        managed = True
         db_table = "ServiceImage"
 
 # Old Service image model
@@ -122,7 +122,7 @@ class Customerservice(models.Model):
     completed = models.BooleanField()
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'CustomerService'
 
 # ---------------------------------------
@@ -147,7 +147,7 @@ class Employee(models.Model):
     staffstatus = models.CharField(db_column="StaffStatus", max_length=20)
     roleid = models.ForeignKey(Group, models.DO_NOTHING, db_column='RoleId')  # Field name made lowercase.
     class Meta:
-        managed = False
+        managed = True
         db_table = "Employee"
 
 # ---------------------------------------
@@ -162,7 +162,7 @@ class Booking(models.Model):
     status = models.CharField(db_column='Status', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'Booking'
 
 # ---------------------------------------
@@ -177,7 +177,7 @@ class Invoice(models.Model):
     issuedate = models.DateTimeField(db_column='IssueDate', blank=True, null=True)  # Field name made lowercase.
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'Invoice'
 
 # ---------------------------------------
@@ -195,7 +195,7 @@ class Quotes(models.Model):
     status = models.CharField(db_column='Status', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'Quotes'
 
 # ---------------------------------------
@@ -211,7 +211,7 @@ class Schedule(models.Model):
     status = models.CharField(db_column='Status', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'Schedule'
 
 # ---------------------------------------
@@ -227,7 +227,7 @@ class Site(models.Model):
     remarks = models.CharField(db_column='Remarks', max_length=30, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'Site'
 
 # ---------------------------------------
@@ -242,5 +242,5 @@ class Zone(models.Model):
     baserate = models.DecimalField(db_column='BaseRate', max_digits=10, decimal_places=2)  # Field name made lowercase.
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'Zone'
