@@ -7,6 +7,7 @@ from .views import (
     EmployeeRegisterViewSet,
     EmployeeLoginViewSet,
     ChangePasswordViewSet,
+    ChangeEmailViewSet,
     ResendVerificationView,
     EmailVerifiedRedirectView,
 
@@ -20,6 +21,7 @@ router.register('login/employee', EmployeeLoginViewSet, basename='employee-login
 
 urlpatterns = [
     path('change-password/', ChangePasswordViewSet.as_view({'post': 'create'}), name='change-password'),
+    path('change-email/', ChangeEmailViewSet.as_view({'post': 'create'}), name='change-email'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('logout-all/', LogoutAllView.as_view(), name='logout-all'),
     path('accounts/', include("allauth.urls")),

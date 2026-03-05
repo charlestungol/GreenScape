@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions, views, status
 from rest_framework.response import Response
 from rest_framework import exceptions
 from django.db import transaction
+from django.conf import settings
 from rest_framework.throttling import ScopedRateThrottle
 from django.contrib import messages
 from django.shortcuts import redirect
@@ -10,7 +11,8 @@ from .serializers import (
     ClientRegisterSerializer,
     EmployeeLoginSerializer,
     EmployeeRegisterSerializer,
-    ChangePasswordSerializer
+    ChangePasswordSerializer,
+    ChangeEmailSerializer,
 )
 from .models import *
 from core.models import Employee
@@ -21,47 +23,103 @@ from rest_framework_simplejwt.tokens import RefreshToken
 throttle_classes = [ScopedRateThrottle]
 User = get_user_model()
 
+def _jwt_cookie_settings():
+    # Centralized cookie settings so set_cookie/delete_cookie always match.
+    
+    httponly = settings.REST_AUTH.get("JWT_AUTH_HTTPONLY", True)
+    cookie_access = settings.REST_AUTH.get("JWT_AUTH_COOKIE", "access")
+    cookie_refresh = settings.REST_AUTH.get("JWT_AUTH_REFRESH_COOKIE", "refresh")
+
+    # You added these in settings.py (good!)
+    samesite = getattr(settings, "JWT_AUTH_COOKIE_SAMESITE", "Lax")
+    secure = getattr(settings, "JWT_AUTH_COOKIE_SECURE", False)
+
+    # Optional: domain. Usually None for localhost.
+    domain = getattr(settings, "SESSION_COOKIE_DOMAIN", None)
+
+    return {
+        "cookie_access": cookie_access,
+        "cookie_refresh": cookie_refresh,
+        "cookie_kwargs": {
+            "httponly": httponly,
+            "secure": secure,
+            "samesite": samesite,
+            "path": "/",
+            "domain": domain,
+        }
+    }
+
+
+def set_jwt_cookies(response, access_token: str, refresh_token: str):
+    cfg = _jwt_cookie_settings()
+    response.set_cookie(cfg["cookie_access"], access_token, **cfg["cookie_kwargs"])
+    response.set_cookie(cfg["cookie_refresh"], refresh_token, **cfg["cookie_kwargs"])
+    return response
+
+
+def clear_jwt_cookies(response):
+    cfg = _jwt_cookie_settings()
+    # delete_cookie must match path/domain/samesite/secure used to set cookie
+    response.delete_cookie(cfg["cookie_access"], path=cfg["cookie_kwargs"]["path"], domain=cfg["cookie_kwargs"]["domain"])
+    response.delete_cookie(cfg["cookie_refresh"], path=cfg["cookie_kwargs"]["path"], domain=cfg["cookie_kwargs"]["domain"])
+    return response
+
 class ClientLoginViewSet(viewsets.ViewSet):
     throttle_scope = "login"
     permission_classes = [permissions.AllowAny]
     serializer_class = ClientLoginSerializer
 
     def create(self, request):
-        serializer = self.serializer_class(data=request.data, context = {"request" : request})
+        serializer = self.serializer_class(data=request.data, context={"request": request})
         try:
-            # This will raise a ValidationError if authentication fails, which we catch to return a generic error message without revealing whether the email exists or not
             serializer.is_valid(raise_exception=True)
-
-        except exceptions.ValidationError as e:
+        except exceptions.ValidationError:
             return Response({"detail": "No user found."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # If we get here, authentication was successful and we have a valid user. We can now check if their email is verified before issuing a token.
         user = serializer.validated_data["user"]
-        # Check if email is verified before issuing token
-        email_verified = EmailAddress.objects.filter(user=user, email__iexact=user.email, verified=True).exists()
-        # If email is not verified, send a new verification email and return an error response
-        if not email_verified:
-            EmailAddress.objects.add_email(
-                request,
-                user,
-                user.email,
-                confirm=True
+
+        if not user.is_active:
+            return Response(
+                {"detail": "Account not active. Please verify your email."},
+                status=status.HTTP_403_FORBIDDEN
             )
-            return Response({"detail": "Email address not verified. Please check your email."}, status=status.HTTP_403_FORBIDDEN)
+
+        email_verified = EmailAddress.objects.filter(
+            user=user, email__iexact=user.email, verified=True
+        ).exists()
+
+        if not email_verified:
+            EmailAddress.objects.add_email(request, user, user.email, confirm=True)
+            return Response(
+                {"detail": "Email address not verified. Please check your email."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        cust = getattr(user, "customer", None)
+        if not cust:
+            return Response({"detail": "Customer profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
         refresh = RefreshToken.for_user(user)
-        token = str(refresh.access_token)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
 
-        return Response({
-            "token": token,
+        payload = {
+            # Optional: you can remove these once cookies work everywhere
+            "access": access_token,
+            "refresh": refresh_token,
             "user": {
                 "id": user.id,
                 "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "role": user.role   
-            }
-        })
+                "role": user.role,
+                "customer_id": cust.customerid,
+                "first_name": cust.firstname,
+                "last_name": cust.lastname,
+            },
+            "profile_ready": True,
+        }
+
+        resp = Response(payload, status=status.HTTP_200_OK)
+        return set_jwt_cookies(resp, access_token, refresh_token)
 
     
 class ClientRegisterViewSet(viewsets.ModelViewSet):
@@ -88,37 +146,46 @@ class ClientRegisterViewSet(viewsets.ModelViewSet):
         )
     
 
+
 class EmployeeLoginViewSet(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
     serializer_class = EmployeeLoginSerializer
     throttle_scope = "login"
 
     def create(self, request):
-        serializer = self.serializer_class(data=request.data)
+        serializer = self.serializer_class(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data["user"]
 
         refresh = RefreshToken.for_user(user)
-        token = str(refresh.access_token)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
 
-        emp = Employee.objects.filter(user_id=user.id).values("employeeid", "employeenumber", "firstname", "lastname").first()
+        emp = getattr(user, "employee", None)
 
-        if not emp:
-            return Response({"detail": "Employee record not found."}, status=status.HTTP_404_NOT_FOUND)
-        
-        return Response({
-            "token": token,
+        payload = {
+            # Optional: you can remove these once cookies work everywhere
+            "access": access_token,
+            "refresh": refresh_token,
             "user": {
                 "id": user.id,
                 "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "role": user.role,               
-                "employee_number": emp["employeenumber"] if emp else None,
-                "employee_id": emp["employeeid"] if emp else None,
-            }
-        })
+                "role": user.role,
+                "employee_number": user.employee_number,
+            },
+            "profile_ready": bool(emp),
+        }
+
+        if emp:
+            payload["user"].update({
+                "employee_id": emp.employeeid,
+                "first_name": emp.firstname,
+                "last_name": emp.lastname,
+            })
+
+        resp = Response(payload, status=status.HTTP_200_OK)
+        return set_jwt_cookies(resp, access_token, refresh_token)
 
 
 class EmployeeRegisterViewSet(viewsets.ModelViewSet):
@@ -151,7 +218,35 @@ class UserViewSet(viewsets.ModelViewSet):
         queryset = User.objects.all()
         serializers = self.serializer_class(queryset, many=True)
         return Response(serializers.data)
+
+# Endpoints for changing email/password and resending verification email
+class ChangeEmailViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ChangeEmailSerializer
+
+    # This endpoint allows users to change their email. It will send a new verification email to the new address and deactivate the account until verified.
+    def create(self, request):
+        # We can use the ChangeEmailSerializer for validating the new email by treating it as a "new_email" field, since it already has email validation logic.
+        serializer = self.serializer_class(
+            data=request.data,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
     
+        user = request.user
+        new_email = serializer.validated_data['new_email'].strip().lower()
+
+        if User.objects.filter(email__iexact=new_email).exclude(id=user.id).exists():
+            return Response({"detail": "Email already in use."}, status=400)
+
+        user.email = new_email
+        user.is_active = False  # Deactivate until email is verified
+        user.save()
+
+        EmailAddress.objects.add_email(request, user, new_email, confirm=True)
+
+        return Response({"message": "Email changed successfully. Please verify your new email."}, status=200)
+
 class ChangePasswordViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = ChangePasswordSerializer

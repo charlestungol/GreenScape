@@ -9,7 +9,6 @@ const Settings = () => {
   const [message, setMessage] = useState("");
   const [msgType, setMsgType] = useState("");
   
-  
   const [userInfo, setUserInfo] = useState({
     email: "",
     first_name: "",
@@ -35,6 +34,13 @@ const Settings = () => {
   useEffect(() => {
     fetchUserInfo();
   }, []);
+
+  
+  const getRole = () => {
+    const userId = localStorage.getItem("user_id");
+    const role = localStorage.getItem(`user_${userId}_role`);
+    return (role || "").trim();
+  };
 
   function formatApiErrors(errors, header = "Error") {
     let lines = [header];
@@ -72,27 +78,37 @@ const Settings = () => {
   // Fetch user info from backend and normalize for UI display
   const fetchUserInfo = async () => {
     setIsLoading(true);
+
     try {
-      // Bearer header should be auto-injected by AxiosInstance
-      const res = await AxiosInstance.get("/core/customers/me/"); // trailing slash required by DRF
+
+      const role = getRole();
+
+      // 2️⃣ Pick endpoint based on role
+      const endpoint =
+        role === "employee"
+          ? "/core/employees/me/"
+          : "/core/customers/me/";
+
+      const res = await AxiosInstance.get(endpoint);
       const data = res.data;
 
-      // Normalize/trim values for display
       const clean = (v) => (typeof v === "string" ? v.trim() : v);
 
+      // 3️⃣ Normalize into ONE UI shape
       setUserInfo({
         email: clean(data?.email) || "",
-        // Your UI state currently uses first_name/last_name/phone; map backend -> UI
         first_name: clean(data?.firstname) || "",
         last_name: clean(data?.lastname) || "",
         phone: clean(data?.phonenumber) || "",
-        address: {
-          street: clean(data?.address?.street) || "",
-          city: clean(data?.address?.city) || "",
-          province: clean(data?.address?.province) || "",
-          // UI uses postal_code; backend sends postalcode
-          postal_code: clean(data?.address?.postalcode) || "",
-        },
+        address: data?.address
+          ? {
+              street: clean(data.address.street) || "",
+              city: clean(data.address.city) || "",
+              province: clean(data.address.province) || "",
+              postal_code: clean(data.address.postalcode) || "",
+            }
+          : null,
+        role, // ✅ keep role in UI state
       });
     } catch (err) {
       console.error("Error fetching user info:", err);
@@ -102,6 +118,7 @@ const Settings = () => {
       setIsLoading(false);
     }
   };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
@@ -128,7 +145,7 @@ const Settings = () => {
     setSavingProfile(true); // changed (see section 4)
     try {
       const payload = {
-        email: userInfo.email?.trim() || "",
+        // email: userInfo.email?.trim() || "",
         firstname: userInfo.first_name?.trim() || "",
         lastname: userInfo.last_name?.trim() || "",
         phonenumber: userInfo.phone?.trim() || "",
@@ -140,7 +157,14 @@ const Settings = () => {
         },
       };
 
-      await AxiosInstance.patch("/core/customers/me/", payload);
+      const role = getRole();
+
+      const endpoint =
+        role === "employee"
+          ? "/core/employees/me/"
+          : "/core/customers/me/";
+
+      await AxiosInstance.patch(endpoint, payload);
 
       setUserMsgType("success");
       setUserMessage("Profile updated successfully!");
@@ -180,7 +204,7 @@ const Settings = () => {
     }
 
     try {
-      await AxiosInstance.post("/api/auth/change-password/", {
+      await AxiosInstance.post("/change-password/", {
         old_password: oldPassword,
         new_password: newPassword,
       });

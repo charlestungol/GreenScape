@@ -59,7 +59,11 @@ class CustomerSerializer(serializers.ModelSerializer):
     # Validators (as you had)
     firstname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
     lastname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
-    email = serializers.EmailField(validators=[strip_string, prevent_control_characters, validate_max_length(200)])
+    email = serializers.EmailField(
+    source="user.email",
+    validators=[strip_string, prevent_control_characters, validate_max_length(200)],
+    required=False
+    )
     phonenumber = serializers.CharField(validators=[validate_phone])
 
     # View address data (read) using 'source' to map from addressid relation
@@ -69,8 +73,6 @@ class CustomerSerializer(serializers.ModelSerializer):
     addressid = serializers.PrimaryKeyRelatedField(
         queryset=Address.objects.all(),
         write_only=True,
-        required=False,
-        allow_null=True,
     )
 
     class Meta:
@@ -114,16 +116,12 @@ class CustomerSerializer(serializers.ModelSerializer):
                 setattr(instance, attr, validated_data[attr])
 
         # Update User email if provided (if your email actually lives on User)
-        email = validated_data.pop("email", None)
-        if email is not None:
-            if hasattr(instance, "user") and instance.user:
-                instance.user.email = email
+        user_data = validated_data.pop("user", None)
+        if user_data and instance.user:
+            new_email = user_data.get("email")
+            if new_email is not None:
+                instance.user.email = new_email
                 instance.user.save(update_fields=["email"])
-            else:
-                # If Customer has its own email field instead, replace with:
-                # instance.email = email
-                # (and include 'email' in allowed attributes above)
-                pass
 
         # Handle nested address update/create
         if address_data is not None:
@@ -183,23 +181,22 @@ class ServiceSerializer(serializers.ModelSerializer):
         read_only_fields = ["serviceid"]
 
 # Service Image 
+from rest_framework import serializers
+
 class ServiceImageSerializer(serializers.ModelSerializer):
-    # Define URL
     url = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceImage
-        fields = ["id", "service", "filename", "content_type", "size_bytes", "created_at", "url"]
+        fields = ["id", "service", "bucket", "storage_path", "content_type", "filename", "size_bytes", "created_at", "uploaded_by", "url"]
         read_only_fields = ["id", "created_at", "url"]
 
-    # Method to get the image url from db, write only = True for imagedata field, so it won't be returned in the response, only used for creating new service images.
     def get_url(self, obj: ServiceImage):
         request = self.context.get("request")
         if not request:
             return None
-        return request.build_absolute_url(
-            f"/core/services/{obj.service_id}/images/{obj.id}/bytes"
-        )
+        # Use the endpoint you already implemented:
+        return request.build_absolute_uri(f"/core/service-images/{obj.id}/bytes/")
 
 # Customer Service
 class CustomerServiceSerializer(serializers.ModelSerializer):
@@ -237,10 +234,12 @@ class EmployeeSerializer(serializers.ModelSerializer):
     # Validators
     firstname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
     lastname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
-    employeenumber = serializers.CharField(validators=[strip_string, prevent_control_characters, validate_max_length(10)])
     phonenumber = serializers.CharField(validators=[validate_phone])
-
-
+    email = serializers.EmailField(
+    source="user.email",
+    validators=[strip_string, prevent_control_characters, validate_max_length(200)],
+    required=False
+    )
     address = AddressSerializer(source="addressid", read_only = True)
 
     addressid = serializers.PrimaryKeyRelatedField(
@@ -252,7 +251,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Employee
-        fields = ["employeeid", "address", "addressid", "employeenumber", "firstname", "lastname", "phonenumber", "staffstatus"]
+        fields = ["employeeid", "address", "addressid", "firstname", "lastname", "phonenumber", "email", "staffstatus"]
         read_only_fields = ["employeeid"]
 
 # Booking Serializer
