@@ -111,7 +111,6 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
             user = user,
             firstname = first_name.strip(),
             lastname = last_name.strip(),
-            email = user.email.strip().lower(),
             phonenumber = phone_number.strip(),
             addressid = address,
         )
