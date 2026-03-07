@@ -1,7 +1,6 @@
 import { useState, useEffect, useContext } from "react";
 import AxiosInstance from "../components/AxiosInstance";
 import "../clientCss/Settings.css";
-import { AuthContext } from '../context/AuthProvider';
 
 const Settings = () => {
   const [overlayOpen, setOverlayOpen] = useState(false);
