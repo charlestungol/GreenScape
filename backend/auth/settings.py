@@ -93,6 +93,7 @@ CORS_ALLOW_CREDENTIALS = True
 # If using cookies, ensure the frontend is included in CSRF_TRUSTED_ORIGINS
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
 # --- Session cookies ---
@@ -160,6 +161,7 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
+    "http://127.0.0.1:5173",
 ]
 
 AUTH_USER_MODEL ='users.CustomUser'

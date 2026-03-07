@@ -15,12 +15,13 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+// import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 
 import Logo from "../assets/img/Logo.png";
 import DefaultProfilePic from "../assets/img/Profile.jpg";
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import AxiosInstance from "./AxiosInstance";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
 // Modern theme with Inter font
@@ -216,19 +217,12 @@ export default function Navbar({ content }) {
       });
     }
     
-    // Call logout API
-    if (token) {
-      try {
-        await fetch("http://127.0.0.1:8000/api/logout/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Token ${token}`,
-          },
-        });
-      } catch (error) {
-        console.log("Logout API error:", error);
-      }
+    // Call logout API using AxiosInstance (cookie-based auth). We always
+    // attempt to call the backend so the server can clear auth cookies.
+    try {
+      await AxiosInstance.post("/logout/");
+    } catch (error) {
+      console.log("Logout API error:", error);
     }
     
     const authKeysToClear = [

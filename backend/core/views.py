@@ -105,65 +105,73 @@ class AddressViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You do not have permission to perform this action.")
         serializer.save()
 
+    # Allows user to add thier data.
     @action(detail=False, methods=['put'], url_path='me', permission_classes=[permissions.IsAuthenticated])
     @transaction.atomic
     def upsert_me(self, request):
         user = request.user
-
         is_staff_user = user.groups.filter(name__in=["Staff"]).exists()
-        
+
         customer = None
         employee = None
         address = None
 
         if is_staff_user:
-            employee = Employee.objects.filter(user_id=user.id).first()
+            employee = Employee.objects.filter(user_id=user.id).select_related("addressid").first()
             address = employee.addressid if employee else None
         else:
-            customer = Customer.objects.filter(user_id=user.id).first()
+            customer = Customer.objects.filter(user_id=user.id).select_related("addressid").first()
             address = customer.addressid if customer else None
 
-        # ✅ NEW: allow staff users even if Employee doesn't exist yet
+        # For non-staff users, ensure Customer exists; otherwise deny.
         if not is_staff_user and not customer:
-            return Response({"detail": "You do not have permission to perform this action."},
-                            status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"detail": "You do not have permission to perform this action."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-        # Create address if none exists
+        # Create Address if none exists
         if address is None:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             address = serializer.save()
 
             if is_staff_user:
-                # ✅ Create Employee profile now that Address exists
+                # Create Employee profile if missing
                 if not employee:
-                    # Default role = Staff
-                    role = Group.objects.get(name="Staff")
+                    try:
+                        staff_group = Group.objects.get(name="Staff")
+                    except Group.DoesNotExist:
+                        return Response(
+                            {"detail": "Group 'Staff' does not exist. Ask admin to create it."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
-                    Employee.objects.create(
+                    employee = Employee.objects.create(
                         user=user,
                         addressid=address,
-                        roleid=role.strip(),
-                        firstname="".strip(),
-                        lastname="".strip(),
-                        phonenumber="".strip(),
-                        staffstatus="Active".strip()
+                        roleid=staff_group,     # ✅ assign Group instance directly
+                        firstname="",
+                        lastname="",
+                        phonenumber="",
+                        staffstatus="Active",
                     )
                 else:
                     employee.addressid = address
                     employee.save(update_fields=["addressid"])
             else:
-                # customer flow unchanged
+                # Customer flow: link address
                 customer.addressid = address
                 customer.save(update_fields=["addressid"])
 
             return Response(self.get_serializer(address).data, status=status.HTTP_201_CREATED)
 
-        # update existing address
+        # Update existing address (partial)
         serializer = self.get_serializer(address, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(self.get_serializer(address).data, status=status.HTTP_200_OK)
+
 
 # -----------------------------------------------------------------------------
 # Customer views -- Allows for CRUD --

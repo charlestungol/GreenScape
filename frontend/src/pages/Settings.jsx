@@ -83,7 +83,7 @@ const Settings = () => {
 
       const role = getRole();
 
-      // 2️⃣ Pick endpoint based on role
+      //Pick endpoint based on role
       const endpoint =
         role === "employee"
           ? "/core/employees/me/"
@@ -94,7 +94,7 @@ const Settings = () => {
 
       const clean = (v) => (typeof v === "string" ? v.trim() : v);
 
-      // 3️⃣ Normalize into ONE UI shape
+      //Normalize into ONE UI shape
       setUserInfo({
         email: clean(data?.email) || "",
         first_name: clean(data?.firstname) || "",
