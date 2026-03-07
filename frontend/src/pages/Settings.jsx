@@ -1,7 +1,6 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect } from "react";
 import AxiosInstance from "../components/AxiosInstance";
 import "../clientCss/Settings.css";
-import { AuthContext } from '../context/AuthProvider';
 
 const Settings = () => {
   const [overlayOpen, setOverlayOpen] = useState(false);
@@ -37,9 +36,10 @@ const Settings = () => {
   }, []);
 
   
-  const { user } = useContext(AuthContext);
   const getRole = () => {
-    return (user?.role || "client").trim();
+    const userId = localStorage.getItem("user_id");
+    const role = localStorage.getItem(`user_${userId}_role`);
+    return (role || "").trim();
   };
 
   function formatApiErrors(errors, header = "Error") {
