@@ -168,9 +168,6 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
         emp = getattr(user, "employee", None)
 
         payload = {
-            # Access and refresh tokens are included in the response body for convenience, but the frontend should primarily rely on the cookies for authentication. This is because cookies will be sent automatically with each request, while tokens in the body would require manual handling on the frontend.
-            "access": access_token,
-            "refresh": refresh_token,
             "user": {
                 "id": user.id,
                 "email": user.email,
@@ -190,7 +187,8 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
         resp = Response(payload, status=status.HTTP_200_OK)
         return set_jwt_cookies(resp, access_token, refresh_token)
 
-    
+# The ClientRegisterViewSet and EmployeeRegisterViewSet handle user registration for clients and employees, respectively. 
+# They validate the registration data, create new user accounts, and send verification emails.
 class ClientRegisterViewSet(viewsets.ModelViewSet):
     throttle_scope = "register"
     permission_classes = [permissions.AllowAny]
@@ -214,7 +212,8 @@ class ClientRegisterViewSet(viewsets.ModelViewSet):
             {"detail": "Registration received. Please check your email to confirm your account."}, status = 201
         )
 
-
+# The EmployeeRegisterViewSet is similar to the ClientRegisterViewSet but is designed for employee users.
+# It validates the registration data, creates new user accounts, and sends verification emails.
 class EmployeeRegisterViewSet(viewsets.ModelViewSet):
     throttle_scope = "register"
     permission_classes = [permissions.AllowAny]

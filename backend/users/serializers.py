@@ -208,7 +208,23 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
         if not grp:
             grp = Group.objects.create(name=group_name.title())
 
-        user.groups.add(grp)
+        user.groups.add(grp) 
+
+        employee, created = Employee.objects.get_or_create(
+            user=user,
+            defaults={
+                "roleid": grp,
+                "firstname": "",
+                "lastname": "",
+                "phonenumber": "",
+                "staffstatus": "Active",
+            },
+        )
+
+        if not created:
+            if employee.roleid != grp:
+                employee.roleid = grp
+                employee.save(update_fields=["roleid"])
 
         return user
 

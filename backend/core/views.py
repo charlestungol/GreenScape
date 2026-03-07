@@ -65,40 +65,33 @@ class AddressViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        # If the user is not authenticated, data get, is denied.
         if not (user and user.is_authenticated):
-            # No data given
             return Address.objects.none()
-        
-        # If user is staff return all data
+
+        # Admin / Supervisor can see all
         if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
             return Address.objects.all()
-        
-        address_ids = []
-        
-        # If user is a customer return the users data.
-                # Filters employees data
-        if user.groups.filter(name__in=["Staff"]).exists():
-            employee = Employee.objects.filter(user_id=user.id).first()
-            if employee and employee.addressid:
-                address_ids.append(employee.addressid)
-        else:
-            customer = Customer.objects.filter(user_id=user.id).first()
-            if customer and customer.addressid:
-                address_ids.append(customer.addressid)
 
-        # Return addresses related to the user if they are a customer or employee.
+        address_ids = []
+
+        # Staff → use Employee.addressid
+        if user.groups.filter(name__in=["Staff"]).exists():
+            employee = Employee.objects.filter(user_id=user.id).select_related("addressid").first()
+            if employee and employee.addressid_id:
+                address_ids.append(employee.addressid_id)
+        else:
+            # Customers → use Customer.addressid
+            customer = Customer.objects.filter(user_id=user.id).select_related("addressid").first()
+            if customer and customer.addressid_id:
+                address_ids.append(customer.addressid_id)
+
         if address_ids:
             return Address.objects.filter(pk__in=address_ids)
-            
-        
-        # Return no data if user is not a customer or staff (Security measure).
+
         return Address.objects.none()
 
-    # Only admin and supervisors can create address data. If customer or employee they use def usurp_me to update or create their own data.
     def perform_create(self, serializer):
         user = self.request.user
-        # If the user is not authenticated it will not allow access.
         if not (user and user.is_authenticated):
             raise PermissionDenied("You do not have permission to perform this action.")
         if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
@@ -110,7 +103,7 @@ class AddressViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def upsert_me(self, request):
         user = request.user
-        is_staff_user = user.groups.filter(name__in=["Staff"]).exists()
+        is_staff_user = user.groups.filter(name__in=["Staff", "Supervisor", "Admin"]).exists()
 
         customer = None
         employee = None
@@ -228,30 +221,20 @@ class CustomerViewSet(viewsets.ModelViewSet):
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related("addressid").all()
     serializer_class = EmployeeSerializer
-    # Don't set class-level permission_classes if you're overriding get_permissions()
 
-    # Only admin and supervisors can view ALL employee data; others see only their own.
     def get_queryset(self):
         user = self.request.user
         if not (user and user.is_authenticated):
             return Employee.objects.none()
-
         if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
             return Employee.objects.select_related("addressid").all()
-
-        # For Employees, return only their own record
         return Employee.objects.select_related("addressid").filter(user_id=user.id)
 
-    # Permit reads for any authenticated user; writes require admin via your custom permission.
     def get_permissions(self):
         if self.request.method in permissions.SAFE_METHODS:
             return [IsAuthenticated()]
-        # Write operations:
-        # If you have a custom isAdmin, use it; otherwise enforce via perform_* below.
-        # return [isAdmin(), DjangoModelPermissions()]
-        return [DjangoModelPermissions()]  # and we’ll hard-check admin/supervisor in perform_*.
+        return [DjangoModelPermissions()]  # writes guarded by perform_* and action-level perms
 
-    # Only admin and supervisors can create employee data.
     def perform_create(self, serializer):
         user = self.request.user
         if not (user and user.is_authenticated):
@@ -260,7 +243,6 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You do not have permission to perform this action.")
         serializer.save()
 
-    # Only admin and supervisors can update employee data.
     def perform_update(self, serializer):
         user = self.request.user
         if not (user and user.is_authenticated):
@@ -269,7 +251,6 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You do not have permission to perform this action.")
         serializer.save()
 
-    # Only admin and supervisors can delete employee data.
     def perform_destroy(self, instance):
         user = self.request.user
         if not (user and user.is_authenticated):
@@ -278,57 +259,87 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You do not have permission to perform this action.")
         return super().perform_destroy(instance)
 
-    # GET/PATCH /core/employees/me/
-    @action(detail=False, methods=["get", "patch"], url_path="me", permission_classes=[IsAuthenticated])
+    def _pick_user_role_group(self, user):
+        """Pick a Group to use as roleid; prefer Admin > Supervisor > Staff; default to Staff."""
+        for name in ("Admin", "Supervisor", "Staff"):
+            grp = user.groups.filter(name=name).first()
+            if grp:
+                return grp
+        # ensure Staff exists as a fallback
+        return Group.objects.get_or_create(name="Staff")[0]
+
+    # GET/POST/PATCH /core/employees/me/
+    @action(detail=False, methods=["get", "post", "patch"], url_path="me", permission_classes=[IsAuthenticated])
+    @transaction.atomic
     def me(self, request):
-        # Adjust if your FK name differs (assuming Employee.user -> CustomUser)
-        instance = get_object_or_404(Employee, user=request.user)
-
-        if request.method == "GET":
-            data = self.get_serializer(instance).data
-            return Response(data, status=status.HTTP_200_OK)
-
-        # PATCH
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(user=request.user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    # PATCH /core/employees/{id}/role/
-    @action(detail=True, methods=["patch"], url_path="role", permission_classes=[isAdmin])
-    def change_role(self, request, pk=None):
         user = request.user
-        employee = self.get_object()
-        target_user = employee.user 
 
-        is_admin = user.groups.filter(name="Admin").exists()
+        if request.method.lower() == "get":
+            instance = Employee.objects.select_related("addressid").filter(user_id=user.id).first()
+            if not instance:
+                return Response({"detail": "Employee profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(self.get_serializer(instance).data, status=status.HTTP_200_OK)
 
-        if not is_admin:
-            return Response(
-                {"detail": "You do not have permission to change roles."},
-                status=status.HTTP_403_FORBIDDEN,
+        if request.method.lower() == "post":
+            # Create only if missing; require that user is staff-ish
+            is_staffish = user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists()
+            if not is_staffish:
+                return Response({"detail": "Only staff can create an employee profile."},
+                                status=status.HTTP_403_FORBIDDEN)
+            if Employee.objects.filter(user_id=user.id).exists():
+                return Response({"detail": "Employee profile already exists."},
+                                status=status.HTTP_409_CONFLICT)
+
+            payload = request.data or {}
+            addr_data = payload.get("address") or {}
+            # You can relax this if address is optional initially
+            if not addr_data:
+                return Response({"detail": "Address data is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Create Address
+            addr_ser = AddressSerializer(data=addr_data)
+            addr_ser.is_valid(raise_exception=True)
+            address = addr_ser.save()
+
+            # Role from user’s group(s)
+            role_group = self._pick_user_role_group(user)
+
+            emp = Employee.objects.create(
+                user=user,
+                addressid=address,
+                roleid=role_group,
+                firstname=(payload.get("firstname") or "").strip(),
+                lastname=(payload.get("lastname") or "").strip(),
+                phonenumber=(payload.get("phonenumber") or "").strip(),
+                staffstatus=(payload.get("staffstatus") or "Active").strip(),
             )
+            # Optionally ensure User carries the picked group too
+            user.groups.add(role_group)
 
-        new_role = request.data.get("role")  # "Staff", "Supervisor", "Admin"
-        if new_role not in ["Staff", "Supervisor", "Admin"]:
-            return Response({"detail": "Invalid role."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(self.get_serializer(emp).data, status=status.HTTP_201_CREATED)
 
-        # Apply role via auth_group
-        try:
-            group = Group.objects.get(name=new_role)
-        except Group.DoesNotExist:
-            return Response({"detail": f"Group '{new_role}' does not exist."},
-                            status=status.HTTP_400_BAD_REQUEST)
+        # PATCH (partial update)
+        instance = get_object_or_404(Employee, user=user)
+        payload = request.data or {}
 
-        target_user.groups.clear()
-        target_user.groups.add(group)
+        # Upsert nested address
+        addr_data = payload.get("address")
+        if addr_data:
+            if not instance.addressid:
+                addr_ser = AddressSerializer(data=addr_data)
+                addr_ser.is_valid(raise_exception=True)
+                address = addr_ser.save()
+                instance.addressid = address
+                instance.save(update_fields=["addressid"])
+            else:
+                addr_ser = AddressSerializer(instance.addressid, data=addr_data, partial=True)
+                addr_ser.is_valid(raise_exception=True)
+                addr_ser.save()
 
-        # Keep Employee.roleid in sync if you have that FK to Group
-        if hasattr(employee, "roleid"):
-            employee.roleid = group
-            employee.save(update_fields=["roleid"])
-
-        return Response({"detail": f"Role updated to {new_role}."}, status=status.HTTP_200_OK)
+        emp_ser = self.get_serializer(instance, data=payload, partial=True)
+        emp_ser.is_valid(raise_exception=True)
+        emp_ser.save(user=user)
+        return Response(emp_ser.data, status=status.HTTP_200_OK)
 
 # -----------------------------------------------------------------------------
 # Service type view -- allows for CRUD
