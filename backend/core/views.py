@@ -216,142 +216,112 @@ class CustomerViewSet(viewsets.ModelViewSet):
 # -----------------------------------------------------------------------------
 # Employee View -- Allows for CRUD --
 # -----------------------------------------------------------------------------
+
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related("addressid").all()
     serializer_class = EmployeeSerializer
-    permission_classes = [isAdmin, DjangoModelPermissions]
+    # Don't set class-level permission_classes if you're overriding get_permissions()
 
-    # Only admin and supervisors can view or edit employee data.
+    # Only admin and supervisors can view ALL employee data; others see only their own.
     def get_queryset(self):
         user = self.request.user
-        # If the user is not authenticated it will not allow access.
         if not (user and user.is_authenticated):
             return Employee.objects.none()
-        
-        # If its a staff return all employee -- Only admin and supervisor can see all employee data.
+
         if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
             return Employee.objects.select_related("addressid").all()
-        
-        # If its an employee, return employees data.
-        return Employee.objects.select_related("addressid").filter(user_id = user.id)
+
+        # For Employees, return only their own record
+        return Employee.objects.select_related("addressid").filter(user_id=user.id)
+
+    # Permit reads for any authenticated user; writes require admin via your custom permission.
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticated()]
+        # Write operations:
+        # If you have a custom isAdmin, use it; otherwise enforce via perform_* below.
+        # return [isAdmin(), DjangoModelPermissions()]
+        return [DjangoModelPermissions()]  # and we’ll hard-check admin/supervisor in perform_*.
 
     # Only admin and supervisors can create employee data.
     def perform_create(self, serializer):
         user = self.request.user
-        # If the user is not authenticated it will not allow access.
         if not (user and user.is_authenticated):
             raise PermissionDenied("You do not have permission to perform this action.")
-        
         if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
             raise PermissionDenied("You do not have permission to perform this action.")
-
         serializer.save()
-    
+
     # Only admin and supervisors can update employee data.
     def perform_update(self, serializer):
         user = self.request.user
-        # If the user is not authenticated it will not allow access.
         if not (user and user.is_authenticated):
             raise PermissionDenied("You do not have permission to perform this action.")
-        
         if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
             raise PermissionDenied("You do not have permission to perform this action.")
-
         serializer.save()
-    
+
     # Only admin and supervisors can delete employee data.
     def perform_destroy(self, instance):
         user = self.request.user
-        # If the user is not authenticated it will not allow access.
         if not (user and user.is_authenticated):
             raise PermissionDenied("You do not have permission to perform this action.")
-        
         if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
             raise PermissionDenied("You do not have permission to perform this action.")
-        
         return super().perform_destroy(instance)
 
-    def get_permissions(self):
-        # Allows authenticated user to view employee data
-        if self.request.method in permissions.SAFE_METHODS:
-            return [IsAuthenticated()]
-        
-        # Allows admin to edit employee data.
-        return [isAdmin(), DjangoModelPermissions()]
+    # GET/PATCH /core/employees/me/
+    @action(detail=False, methods=["get", "patch"], url_path="me", permission_classes=[IsAuthenticated])
+    def me(self, request):
+        # Adjust if your FK name differs (assuming Employee.user -> CustomUser)
+        instance = get_object_or_404(Employee, user=request.user)
 
-    # Allows admin and supervisors to change employee role using /{employee_id}/role endpoint. Admin can assign any role, but supervisors cannot assign Admin role.
-    class EmployeeViewSet(viewsets.ModelViewSet):
-        # existing code ...
+        if request.method == "GET":
+            data = self.get_serializer(instance).data
+            return Response(data, status=status.HTTP_200_OK)
 
-        @action(
-            detail=True,
-            methods=["patch"],
-            url_path="role",
-            permission_classes=[IsAuthenticated]
-        )
-        def change_role(self, request, pk=None):
-            user = request.user
-            employee = self.get_object()
-            target_user = employee.user
+        # PATCH
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-            # ✅ Who is allowed to change roles?
-            is_admin = user.groups.filter(name="Admin").exists()
-            is_supervisor = user.groups.filter(name="Supervisor").exists()
+    # PATCH /core/employees/{id}/role/
+    @action(detail=True, methods=["patch"], url_path="role", permission_classes=[isAdmin])
+    def change_role(self, request, pk=None):
+        user = request.user
+        employee = self.get_object()
+        target_user = employee.user 
 
-            if not (is_admin or is_supervisor):
-                return Response(
-                    {"detail": "You do not have permission to change roles."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+        is_admin = user.groups.filter(name="Admin").exists()
 
-            new_role = request.data.get("role")  # "Staff", "Supervisor", "Admin"
-            if new_role not in ["Staff", "Supervisor", "Admin"]:
-                return Response(
-                    {"detail": "Invalid role."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+        if not is_admin:
+            return Response(
+                {"detail": "You do not have permission to change roles."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-            #Supervisors cannot assign Admin
-            if is_supervisor and new_role == "Admin":
-                return Response(
-                    {"detail": "Supervisors cannot assign Admin role."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+        new_role = request.data.get("role")  # "Staff", "Supervisor", "Admin"
+        if new_role not in ["Staff", "Supervisor", "Admin"]:
+            return Response({"detail": "Invalid role."}, status=status.HTTP_400_BAD_REQUEST)
 
-            #Apply role via auth_group
+        # Apply role via auth_group
+        try:
             group = Group.objects.get(name=new_role)
+        except Group.DoesNotExist:
+            return Response({"detail": f"Group '{new_role}' does not exist."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-            target_user.groups.clear()
-            target_user.groups.add(group)
+        target_user.groups.clear()
+        target_user.groups.add(group)
 
-            #Keep Employee.RoleId in sync
+        # Keep Employee.roleid in sync if you have that FK to Group
+        if hasattr(employee, "roleid"):
             employee.roleid = group
             employee.save(update_fields=["roleid"])
 
-            return Response(
-                {"detail": f"Role updated to {new_role}."},
-                status=status.HTTP_200_OK
-            )
-    
-    # Allows employee to retrieve or update their own data using /me endpoint. Admin and supervisors can also use this endpoint to retrieve or update their own data.
-    @action(detail = False, methods = ['get', 'patch', 'delete'])
-    def me(self, request):
-        instance = get_object_or_404(Employee, user=request.user)
+        return Response({"detail": f"Role updated to {new_role}."}, status=status.HTTP_200_OK)
 
-        # Getting employee data.
-        if request.method.lower() == 'get':
-            data = self.get_serializer(instance).data
-            return Response(data)
-        
-        # Patch employee data
-        serializers = self.get_serializer(instance, data=request.data, partial=True)
-
-        serializers.is_valid(raise_exception = True)
-
-        serializers.save(user=request.user)
-
-        return Response(serializers.data, status=status.HTTP_200_OK)
-    
 # -----------------------------------------------------------------------------
 # Service type view -- allows for CRUD
 # -----------------------------------------------------------------------------

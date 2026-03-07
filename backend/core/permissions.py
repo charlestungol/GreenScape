@@ -68,4 +68,4 @@ class IsOwnerOrStaff(BasePermission):
             return True
 
         # Delegate to IsOwnerOrAdmin for writes (and also for non-Staff reads)
-        return IsOwnerOrAdmin().has_object_permission(request, view, obj)
+        return isAdmin().has_object_permission(request, view, obj)

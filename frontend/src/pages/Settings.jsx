@@ -108,7 +108,7 @@ const Settings = () => {
               postal_code: clean(data.address.postalcode) || "",
             }
           : null,
-        role, // ✅ keep role in UI state
+        role,
       });
     } catch (err) {
       console.error("Error fetching user info:", err);

@@ -23,18 +23,22 @@ from rest_framework_simplejwt.tokens import RefreshToken
 throttle_classes = [ScopedRateThrottle]
 User = get_user_model()
 
+# Helper functions for setting and clearing JWT cookies. 
+# These ensure that the cookie settings (httponly, secure, samesite, domain) are consistent between setting and clearing cookies, which is crucial for them to work properly in browsers.
 def _jwt_cookie_settings():
     # Centralized cookie settings so set_cookie/delete_cookie always match.
-    
+
+    # These should be set in settings.py under REST_AUTH, but we provide defaults here for safety.
     httponly = settings.REST_AUTH.get("JWT_AUTH_HTTPONLY", True)
+    # Cookie names for access and refresh tokens.
     cookie_access = settings.REST_AUTH.get("JWT_AUTH_COOKIE", "access")
     cookie_refresh = settings.REST_AUTH.get("JWT_AUTH_REFRESH_COOKIE", "refresh")
 
-    # You added these in settings.py (good!)
+    # SameSite and Secure settings for cookies.
     samesite = getattr(settings, "JWT_AUTH_COOKIE_SAMESITE", "Lax")
     secure = getattr(settings, "JWT_AUTH_COOKIE_SECURE", False)
 
-    # Optional: domain. Usually None for localhost.
+    # Use the same domain as session cookies, or None for default.
     domain = getattr(settings, "SESSION_COOKIE_DOMAIN", None)
 
     return {
@@ -50,13 +54,16 @@ def _jwt_cookie_settings():
     }
 
 
+# These functions are used in the login/logout views to set and clear the JWT tokens in cookies. 
+# They ensure that the cookies are set with the correct attributes so that they work properly across different browsers and contexts.
 def set_jwt_cookies(response, access_token: str, refresh_token: str):
     cfg = _jwt_cookie_settings()
     response.set_cookie(cfg["cookie_access"], access_token, **cfg["cookie_kwargs"])
     response.set_cookie(cfg["cookie_refresh"], refresh_token, **cfg["cookie_kwargs"])
     return response
 
-
+# When logging out, we need to clear the JWT cookies. 
+# This function deletes the cookies using the same path/domain/samesite/secure settings that were used to set them, which is necessary for the browser to properly remove them.
 def clear_jwt_cookies(response):
     cfg = _jwt_cookie_settings()
     # delete_cookie must match path/domain/samesite/secure used to set cookie
@@ -64,49 +71,62 @@ def clear_jwt_cookies(response):
     response.delete_cookie(cfg["cookie_refresh"], path=cfg["cookie_kwargs"]["path"], domain=cfg["cookie_kwargs"]["domain"])
     return response
 
+# The ClientLoginViewSet and EmployeeLoginViewSet handle the login process for clients and employees, respectively. 
+# They validate the user's credentials, check if the email is verified, and then generate JWT tokens for authenticated sessions. 
+# The tokens are returned in the response body and also set as cookies for convenience. 
+# The ClientRegisterViewSet and EmployeeRegisterViewSet handle user registration, creating new user accounts and sending verification emails. 
+# The ChangeEmailViewSet and ChangePasswordViewSet allow authenticated users to change their email or password, with appropriate validation and security checks. 
+# The ResendVerificationView allows users to request a new verification email if they haven't received or acted on the original one.
 class ClientLoginViewSet(viewsets.ViewSet):
     throttle_scope = "login"
     permission_classes = [permissions.AllowAny]
     serializer_class = ClientLoginSerializer
 
+    # The create method handles the login process. It validates the user's credentials using the ClientLoginSerializer, checks if the account is active and if the email is verified, and then generates JWT tokens for the session. The response includes user information and a flag indicating whether the profile is ready (i.e., if the related Customer profile exists). The tokens are also set as cookies for authentication in subsequent requests.
     def create(self, request):
+
+        # Serilizer will validate the email/password and return the user if valid. If invalid, it raises a ValidationError which we catch to return a generic "No user found" message, avoiding leaking information about which part of the credentials was incorrect.
         serializer = self.serializer_class(data=request.data, context={"request": request})
         try:
             serializer.is_valid(raise_exception=True)
         except exceptions.ValidationError:
             return Response({"detail": "No user found."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # At this point, the serializer has validated the credentials and we have a user object. We now check if the account is active and if the email is verified before allowing login. This ensures that only users who have completed email verification can log in, which is important for security and account integrity.
         user = serializer.validated_data["user"]
 
+        # If the account is not active, we return a 403 Forbidden response with a message prompting the user to verify their email. This prevents inactive accounts from logging in while still providing guidance on how to activate their account.
         if not user.is_active:
             return Response(
                 {"detail": "Account not active. Please verify your email."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        # Check if the email is verified. We look for an EmailAddress record that matches the user's email and is marked as verified. If no such record exists, we trigger sending a verification email and return a 403 response prompting the user to check their email. This ensures that only users with verified emails can log in, which helps prevent abuse and ensures that we have a valid contact method for the user.
         email_verified = EmailAddress.objects.filter(
             user=user, email__iexact=user.email, verified=True
         ).exists()
 
+        # If the email is not verified, we add the email address to the EmailAddress model (if it doesn't already exist) and send a confirmation email. We then return a 403 Forbidden response with a message prompting the user to check their email for verification. This flow ensures that users are guided through the email verification process if they attempt to log in without having verified their email, improving user experience while maintaining security.
         if not email_verified:
             EmailAddress.objects.add_email(request, user, user.email, confirm=True)
             return Response(
                 {"detail": "Email address not verified. Please check your email."},
                 status=status.HTTP_403_FORBIDDEN
             )
-
+        
+        # Since the ClientLoginSerializer should only authenticate users with role="client", we can safely assume that the related Customer profile exists. However, we add a check just in case to avoid potential errors.
         cust = getattr(user, "customer", None)
+        # If the customer profile is missing, this indicates a data integrity issue (a user with role=client should always have a related Customer). We return a 404 error to indicate that the expected resource (customer profile) was not found, which is more informative than a generic server error.
         if not cust:
             return Response({"detail": "Customer profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        # At this point, we have a valid user with an active account and a verified email. We can now generate JWT tokens for the session. We use the RefreshToken class from SimpleJWT to create a refresh token for the user, and then derive the access token from it. Both tokens are converted to strings for use in the response and cookies.
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 
         payload = {
-            # Optional: you can remove these once cookies work everywhere
-            "access": access_token,
-            "refresh": refresh_token,
             "user": {
                 "id": user.id,
                 "email": user.email,
@@ -117,6 +137,52 @@ class ClientLoginViewSet(viewsets.ViewSet):
             },
             "profile_ready": True,
         }
+
+        # We return the user's information
+        resp = Response(payload, status=status.HTTP_200_OK)
+        return set_jwt_cookies(resp, access_token, refresh_token)
+
+# The EmployeeLoginViewSet is similar to the ClientLoginViewSet but is designed for employee users. 
+# It validates the credentials, checks if the account is active and if the email is verified, and then generates JWT tokens for authenticated sessions. 
+# The response includes user information and a flag indicating whether the profile is ready (i.e., if the related Employee profile exists). 
+# The tokens are also set as cookies for authentication in subsequent requests. 
+# The main difference from the ClientLoginViewSet is that it looks for an Employee profile instead of a Customer profile, and it does not assume that the Employee profile must exist (since there may be cases where an employee account is created before the employee details are filled in).
+class EmployeeLoginViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = EmployeeLoginSerializer
+    throttle_scope = "login"
+
+    def create(self, request):
+        serializer = self.serializer_class(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        user = serializer.validated_data["user"]
+
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        emp = getattr(user, "employee", None)
+
+        payload = {
+            # Access and refresh tokens are included in the response body for convenience, but the frontend should primarily rely on the cookies for authentication. This is because cookies will be sent automatically with each request, while tokens in the body would require manual handling on the frontend.
+            "access": access_token,
+            "refresh": refresh_token,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "role": user.role,
+                "employee_number": user.employee_number,
+            },
+            "profile_ready": bool(emp),
+        }
+
+        if emp:
+            payload["user"].update({
+                "employee_id": emp.employeeid,
+                "first_name": emp.firstname,
+                "last_name": emp.lastname,
+            })
 
         resp = Response(payload, status=status.HTTP_200_OK)
         return set_jwt_cookies(resp, access_token, refresh_token)
@@ -142,50 +208,8 @@ class ClientRegisterViewSet(viewsets.ModelViewSet):
             )
 
         return Response (
-            {"detail": "Registration recieved. Please check your email to confirm your account."}, status = 201
+            {"detail": "Registration received. Please check your email to confirm your account."}, status = 201
         )
-    
-
-
-class EmployeeLoginViewSet(viewsets.ViewSet):
-    permission_classes = [permissions.AllowAny]
-    serializer_class = EmployeeLoginSerializer
-    throttle_scope = "login"
-
-    def create(self, request):
-        serializer = self.serializer_class(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
-
-        user = serializer.validated_data["user"]
-
-        refresh = RefreshToken.for_user(user)
-        access_token = str(refresh.access_token)
-        refresh_token = str(refresh)
-
-        emp = getattr(user, "employee", None)
-
-        payload = {
-            # Optional: you can remove these once cookies work everywhere
-            "access": access_token,
-            "refresh": refresh_token,
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "role": user.role,
-                "employee_number": user.employee_number,
-            },
-            "profile_ready": bool(emp),
-        }
-
-        if emp:
-            payload["user"].update({
-                "employee_id": emp.employeeid,
-                "first_name": emp.firstname,
-                "last_name": emp.lastname,
-            })
-
-        resp = Response(payload, status=status.HTTP_200_OK)
-        return set_jwt_cookies(resp, access_token, refresh_token)
 
 
 class EmployeeRegisterViewSet(viewsets.ModelViewSet):
