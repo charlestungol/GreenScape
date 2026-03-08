@@ -60,7 +60,7 @@ class Servicetype(models.Model):
 # Service model
 class Service(models.Model):
     serviceid = models.AutoField(db_column='ServiceId', primary_key=True) 
-    servicetypeid = models.IntegerField(db_column='ServiceTypeId') 
+    servicetype = models.ForeignKey(Servicetype, db_column='ServiceTypeId', on_delete=models.PROTECT, null=True, blank=True) 
     title = models.CharField(db_column='Title', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')
     description = models.CharField(db_column='Description', max_length=50, db_collation='SQL_Latin1_General_CP1_CI_AS')
     baseprice = models.DecimalField(db_column='BasePrice', max_digits=10, decimal_places=2)
@@ -68,6 +68,10 @@ class Service(models.Model):
     class Meta:
         managed = True
         db_table = 'Service'
+        constraints = [
+                    models.UniqueConstraint(fields=['servicetype', 'title'], name='uq_service_type_title'),
+                ]
+
 
 class ServiceImage(models.Model):
     service = models.ForeignKey(
@@ -141,10 +145,10 @@ class Employee(models.Model):
     )
     employeeid = models.AutoField(db_column="EmployeeId", primary_key=True)
     addressid = models.OneToOneField(Address, db_column="AddressId", null=True, blank=True, on_delete=models.DO_NOTHING)
-    firstname = models.CharField(db_column="FirstName", max_length=20)
-    lastname = models.CharField(db_column="LastName", max_length=20)
-    phonenumber = models.CharField(db_column="PhoneNumber", max_length=10)
-    staffstatus = models.CharField(db_column="StaffStatus", max_length=20)
+    firstname = models.CharField(db_column="FirstName", max_length=20, null=True, blank=True)
+    lastname = models.CharField(db_column="LastName", max_length=20,null=True, blank=True)
+    phonenumber = models.CharField(db_column="PhoneNumber", max_length=10, null=True, blank=True)
+    staffstatus = models.CharField(db_column="StaffStatus", max_length=20, null=True, blank=True)
     roleid = models.ForeignKey(Group, models.DO_NOTHING, db_column='RoleId')  # Field name made lowercase.
     class Meta:
         managed = True

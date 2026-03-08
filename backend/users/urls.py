@@ -1,6 +1,5 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .jwt_views import LogoutView, LogoutAllView
 from .views import (
     ClientRegisterViewSet,
     ClientLoginViewSet,
@@ -10,7 +9,8 @@ from .views import (
     ChangeEmailViewSet,
     ResendVerificationView,
     EmailVerifiedRedirectView,
-
+    LogoutView,
+    LogoutAllView,
 )
 
 router = DefaultRouter()

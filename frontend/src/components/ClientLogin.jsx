@@ -5,6 +5,7 @@ import Logo from '../assets/img/Logo.png';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AxiosInstance from '../components/AxiosInstance';
+import { Axios } from 'axios';
 
 const ClientLogin = () => {
   const navigate = useNavigate();
@@ -23,10 +24,17 @@ const ClientLogin = () => {
   }
 
   try {
+    // Remove stale access token
+    localStorage.removeItem("access");
+
+    // Just to make sure CSRF is seeded
+    await AxiosInstance.get("/csrf/").catch(() => {})
+
     const response = await AxiosInstance.post('login/client/', {
       email: email,
       password: password
     });
+    
 
     console.log("Client login success:", response.data);
     console.log("Full response structure:", JSON.stringify(response.data, null, 2));
@@ -42,8 +50,7 @@ const ClientLogin = () => {
     const userRole = response.data.user?.role || response.data.role || "client";
 
     // Prefer SimpleJWT naming if present
-    const access = response.data.access || response.data.token || null;
-    const refresh = response.data.refresh || null;
+    const access = response.data?.access || {};
 
     
     console.log("Extracted values:");
@@ -57,12 +64,16 @@ const ClientLogin = () => {
       setError("Login failed: No user ID received");
       return;
     }
+
+    if (!access || typeof access != "string") {
+      setError("Login succeeded but no access token received.");
+      return;
+    }
     
     // Store data
     localStorage.setItem("user_id", userId);
     // Save tokens (Bearer)
     localStorage.setItem("access", access);
-    if (refresh) localStorage.setItem("refresh", refresh);
     localStorage.setItem("role", userRole);
     localStorage.setItem("first_name", userFirstName);
     
