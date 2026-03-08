@@ -2,12 +2,15 @@ from rest_framework import viewsets, permissions, views, status
 from rest_framework.response import Response
 from rest_framework import exceptions
 from django.db import transaction
+from django.utils.decorators import method_decorator
 from django.conf import settings
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from rest_framework.throttling import ScopedRateThrottle
 from django.contrib import messages
 from django.shortcuts import redirect
 from rest_framework.views import APIView
 from rest_framework import status
+from rest_framework_simplejwt.views  import TokenRefreshView
 from rest_framework.permissions import IsAuthenticated
 from .serializers import (
     ClientLoginSerializer,
@@ -30,12 +33,12 @@ User = get_user_model()
 # These ensure that the cookie settings (httponly, secure, samesite, domain) are consistent between setting and clearing cookies, which is crucial for them to work properly in browsers.
 def _jwt_cookie_settings():
     # Centralized cookie settings so set_cookie/delete_cookie always match.
-
+    cfg = getattr(settings, "REST_AUTH", {})
     # These should be set in settings.py under REST_AUTH, but we provide defaults here for safety.
-    httponly = settings.REST_AUTH.get("JWT_AUTH_HTTPONLY", True)
-    # Cookie names for access and refresh tokens.
+    httponly = cfg.get("JWT_AUTH_HTTPONLY", True)
+    # Cookie names for refresh tokens.
     cookie_access = settings.REST_AUTH.get("JWT_AUTH_COOKIE", "access")
-    cookie_refresh = settings.REST_AUTH.get("JWT_AUTH_REFRESH_COOKIE", "refresh")
+    cookie_refresh = cfg.get("JWT_AUTH_REFRESH_COOKIE", "refresh")
 
     # SameSite and Secure settings for cookies.
     samesite = getattr(settings, "JWT_AUTH_COOKIE_SAMESITE", "Lax")
@@ -45,7 +48,6 @@ def _jwt_cookie_settings():
     domain = getattr(settings, "SESSION_COOKIE_DOMAIN", None)
 
     return {
-        "cookie_access": cookie_access,
         "cookie_refresh": cookie_refresh,
         "cookie_kwargs": {
             "httponly": httponly,
@@ -59,18 +61,16 @@ def _jwt_cookie_settings():
 
 # These functions are used in the login/logout views to set and clear the JWT tokens in cookies. 
 # They ensure that the cookies are set with the correct attributes so that they work properly across different browsers and contexts.
-def set_jwt_cookies(response, access_token: str, refresh_token: str):
+def set_refresh_cookie(response: str, refresh_token: str):
     cfg = _jwt_cookie_settings()
-    response.set_cookie(cfg["cookie_access"], access_token, **cfg["cookie_kwargs"])
     response.set_cookie(cfg["cookie_refresh"], refresh_token, **cfg["cookie_kwargs"])
     return response
 
 # When logging out, we need to clear the JWT cookies. 
 # This function deletes the cookies using the same path/domain/samesite/secure settings that were used to set them, which is necessary for the browser to properly remove them.
-def clear_jwt_cookies(response):
+def clear_auth_cookies(response):
     cfg = _jwt_cookie_settings()
     # delete_cookie must match path/domain/samesite/secure used to set cookie
-    response.delete_cookie(cfg["cookie_access"], path=cfg["cookie_kwargs"]["path"], domain=cfg["cookie_kwargs"]["domain"])
     response.delete_cookie(cfg["cookie_refresh"], path=cfg["cookie_kwargs"]["path"], domain=cfg["cookie_kwargs"]["domain"])
     return response
 
@@ -80,9 +80,11 @@ def clear_jwt_cookies(response):
 # The ClientRegisterViewSet and EmployeeRegisterViewSet handle user registration, creating new user accounts and sending verification emails. 
 # The ChangeEmailViewSet and ChangePasswordViewSet allow authenticated users to change their email or password, with appropriate validation and security checks. 
 # The ResendVerificationView allows users to request a new verification email if they haven't received or acted on the original one.
+@method_decorator(ensure_csrf_cookie, name="dispatch")
 class ClientLoginViewSet(viewsets.ViewSet):
     throttle_scope = "login"
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
     serializer_class = ClientLoginSerializer
 
     # The create method handles the login process. It validates the user's credentials using the ClientLoginSerializer, checks if the account is active and if the email is verified, and then generates JWT tokens for the session. The response includes user information and a flag indicating whether the profile is ready (i.e., if the related Customer profile exists). The tokens are also set as cookies for authentication in subsequent requests.
@@ -130,6 +132,7 @@ class ClientLoginViewSet(viewsets.ViewSet):
         refresh_token = str(refresh)
 
         payload = {
+            "access": access_token,
             "user": {
                 "id": user.id,
                 "email": user.email,
@@ -143,15 +146,17 @@ class ClientLoginViewSet(viewsets.ViewSet):
 
         # We return the user's information
         resp = Response(payload, status=status.HTTP_200_OK)
-        return set_jwt_cookies(resp, access_token, refresh_token)
+        return set_refresh_cookie(resp, refresh_token)
 
 # The EmployeeLoginViewSet is similar to the ClientLoginViewSet but is designed for employee users. 
 # It validates the credentials, checks if the account is active and if the email is verified, and then generates JWT tokens for authenticated sessions. 
 # The response includes user information and a flag indicating whether the profile is ready (i.e., if the related Employee profile exists). 
 # The tokens are also set as cookies for authentication in subsequent requests. 
 # The main difference from the ClientLoginViewSet is that it looks for an Employee profile instead of a Customer profile, and it does not assume that the Employee profile must exist (since there may be cases where an employee account is created before the employee details are filled in).
+@method_decorator(ensure_csrf_cookie, name="dispatch")
 class EmployeeLoginViewSet(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
     serializer_class = EmployeeLoginSerializer
     throttle_scope = "login"
 
@@ -168,9 +173,7 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
         emp = getattr(user, "employee", None)
 
         payload = {
-            # Access and refresh tokens are included in the response body for convenience, but the frontend should primarily rely on the cookies for authentication. This is because cookies will be sent automatically with each request, while tokens in the body would require manual handling on the frontend.
             "access": access_token,
-            "refresh": refresh_token,
             "user": {
                 "id": user.id,
                 "email": user.email,
@@ -188,7 +191,7 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
             })
 
         resp = Response(payload, status=status.HTTP_200_OK)
-        return set_jwt_cookies(resp, access_token, refresh_token)
+        return set_refresh_cookie(resp, refresh_token)
 
     
 class ClientRegisterViewSet(viewsets.ModelViewSet):
@@ -327,13 +330,14 @@ def EmailVerifiedRedirectView(request):
 # cookies to ensure the user is logged out on the client side as well. 
 # The view requires the user to be authenticated to access it.
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     # The post method handles the logout process. It first defines the cookie names for access and refresh tokens based on the REST_AUTH settings.
     def post(self, request):
+        cfg = _jwt_cookie_settings()
+
         # Cookie names from your REST_AUTH settings
-        ACCESS_COOKIE_NAME = "access"
-        REFRESH_COOKIE_NAME = "refresh"
+        REFRESH_COOKIE_NAME = cfg["refresh"]
 
         # Default response
         response = Response({"detail": "Successfully logged out"}, status=status.HTTP_200_OK)
@@ -351,21 +355,7 @@ class LogoutView(APIView):
                 response = Response({"detail": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Always delete cookies client-side
-        # Match the same cookie attributes you used when setting them
-        response.delete_cookie(
-            ACCESS_COOKIE_NAME,
-            path="/",
-            samesite="Lax",
-            secure=False,      # True in production
-            httponly=True
-        )
-        response.delete_cookie(
-            REFRESH_COOKIE_NAME,
-            path="/",
-            samesite="Lax",
-            secure=False,      # True in production
-            httponly=True
-        )
+        clear_auth_cookies(response)
 
         return response
 
@@ -377,3 +367,27 @@ class LogoutAllView(APIView):
         tokens.blacklist()
 
         return Response({"detail": "Logged out from all sessions"}, status=200)
+    
+class CookieTokenRefreshView(views.APIView):
+    permission_class = [permissions.AllowAny]
+
+    @method_decorator(csrf_protect)
+    def post(self, request):
+        cfg = _jwt_cookie_settings()
+        cookie_name = cfg["cookie_refresh"]
+        refresh_cookie = request.COOKIES.get(cookie_name)
+        if not refresh_cookie:
+            return Response({"detail" : "No  refreesh cookie"}, status=401)
+        
+        # Inject refrest into request.data so SimpleJWT can process it
+        mutable = request.data.copy()
+        mutable["refresh"] = refresh_cookie
+        request._full_data = mutable
+
+        view = TokenRefreshView.as_view()
+        resp = view(request._request)
+        if resp.status_code == 200 and "refresh" in resp.data:
+            # Rotate and set a new refresh cookie
+            new_refresh = resp.data.pop("refresh")
+            set_refresh_cookie(resp, new_refresh)
+        return resp

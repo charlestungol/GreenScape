@@ -83,8 +83,11 @@ EMAIL_SSL_KEYFILE = os.getenv("EMAIL_SSL_KEYFILE") or None
 # Configure Simple JWT settings
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
     "BLACKLIST_AFTER_ROTATION": True,
+    "ALGORITHM": "HS256",
 }
 
 # Cookies settings for JWT
@@ -102,6 +105,7 @@ SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = False  # True in production (HTTPS)
 
 # --- CSRF cookies ---
+CSRF_COOKIE_NAME = "csrftoken"
 CSRF_COOKIE_HTTPONLY = False   # Must be readable by JS for X-CSRFToken header
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SECURE = False    # True in production
@@ -192,7 +196,6 @@ WSGI_APPLICATION = 'auth.wsgi.application'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         ),
     
