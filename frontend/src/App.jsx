@@ -23,6 +23,7 @@ import EmployeeManagement from "./pages/employee/EmployeeManagement";
 import EmployeeTimesheets from "./pages/Employee/EmployeeTimesheets";
 import ServiceSchedule from "./pages/Employee/ServiceSchedule";
 import FinancesBoard from "./pages/Employee/FinancesBoard";
+import ClientView from "./pages/Employee/ClientView";
 
 // Account
 import EmployeeAccount from "./pages/Employee/EmployeeAccount";
@@ -138,7 +139,14 @@ function App() {
             </RouteProtection>
           }
         />
-
+        <Route
+          path="/employee/client-view"
+          element={
+            <RouteProtection allowedRole="employee">
+              <ClientView />
+            </RouteProtection>
+          }
+        />
         {/* Employee Account (profile + change password + logout) */}
         <Route
           path="/employee/account"
