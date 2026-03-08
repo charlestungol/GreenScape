@@ -193,42 +193,58 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
         resp = Response(payload, status=status.HTTP_200_OK)
         return set_refresh_cookie(resp, refresh_token)
 
-    
+# Client registreation viewset. Design to allow a user to register using ClientRegister Serializer.
 class ClientRegisterViewSet(viewsets.ModelViewSet):
+    # We add a throttle scope so a bot will not be allowed to conitnuenly bombard our signup page.
     throttle_scope = "register"
+    # Allow anyone to register an employee account.
     permission_classes = [permissions.AllowAny]
+    # Select all users obvject
     queryset = User.objects.all()
     serializer_class = ClientRegisterSerializer
 
+    # Method of registering
     def create(self, request):
+        # Serialize the data given
         serializer = self.get_serializer(data=request.data)
+        # Check if the data provided is valid data.
         serializer.is_valid(raise_exception=True)
-
+        # Use transaction atomic to wrap the code in a signle database transaction.
         with transaction.atomic():
+            # Saved the user.
             user = serializer.save()
+            # Send a email verification using alluth
             EmailAddress.objects.add_email(
                 request,
                 user,
                 user.email,
                 confirm=True
             )
-
+        # Provide user with response.
         return Response (
             {"detail": "Registration received. Please check your email to confirm your account."}, status = 201
         )
 
-
+# Similar to customer register this one register a new employee to the system.
 class EmployeeRegisterViewSet(viewsets.ModelViewSet):
+    # We again provide a trottle incase someone is able to access it and just  make it more secure in general.
     throttle_scope = "register"
+    # We allow anyone for now but will change to allow to admin only.
     permission_classes = [permissions.AllowAny]
     queryset = User.objects.all()
     serializer_class = EmployeeRegisterSerializer
 
+    #Create the user
     def create(self, request):
+        # Serialize the data given
         serializer = self.get_serializer(data=request.data)
+        # Check if the data given is valid.
         if serializer.is_valid(raise_exception=True):
+            # Wrap code with transaction.atomic to make it a signle database transaction.
             with transaction.atomic():
+                # Save user
                 user = serializer.save()
+                # Send verification through email.
                 EmailAddress.objects.add_email(
                 request,
                 user,

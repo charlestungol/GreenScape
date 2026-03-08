@@ -60,7 +60,7 @@ class Servicetype(models.Model):
 # Service model
 class Service(models.Model):
     serviceid = models.AutoField(db_column='ServiceId', primary_key=True) 
-    servicetypeid = models.IntegerField(db_column='ServiceTypeId') 
+    servicetype = models.ForeignKey(Servicetype, db_column='ServiceTypeId', on_delete=models.PROTECT, null=True, blank=True) 
     title = models.CharField(db_column='Title', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')
     description = models.CharField(db_column='Description', max_length=50, db_collation='SQL_Latin1_General_CP1_CI_AS')
     baseprice = models.DecimalField(db_column='BasePrice', max_digits=10, decimal_places=2)
@@ -68,6 +68,10 @@ class Service(models.Model):
     class Meta:
         managed = True
         db_table = 'Service'
+        constraints = [
+                    models.UniqueConstraint(fields=['servicetype', 'title'], name='uq_service_type_title'),
+                ]
+
 
 class ServiceImage(models.Model):
     service = models.ForeignKey(
