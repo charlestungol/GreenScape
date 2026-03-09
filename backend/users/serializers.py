@@ -1,13 +1,16 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate, password_validation
+from django.contrib.auth.models import Group
 from django.core import exceptions
 from allauth.account.models import EmailAddress
 from core.serializers import AddressSerializer
-from core.models import Address, Customer
+from core.models import Address, Customer, Employee
 from django.db import transaction
 
 # Get the User model
 User = get_user_model()
+
+ALLOWED_GROUPS = ["Admin", "Manager", "Supervisor","Employee"]
 
 # Function to normalize email by stripping whitespace and converting to lowercase
 def normalize_email(value: str) -> str:
@@ -22,48 +25,32 @@ class ClientLoginSerializer(serializers.Serializer):
 
     # Validation method to authenticate the user and check various conditions
     def validate(self, data):
-        # Normalize the email and get the password from the input data
-        email = normalize_email(data["email"])
-        #get the password from the input data
-        password = data["password"]
+        # Normalize the email by stripping whitespace and converting to lowercase
+        email = normalize_email(data.get("email"))
+        password = data.get("password")
 
         # Check if email and password are provided, if not raise a validation error
         if not email or not password:
             raise serializers.ValidationError("Email and password are required.")
-        
-        # Authenticate the user using the provided email and password
-        user = User.objects.filter(email__iexact=email).first()
-
-        if user and user.check_password(password):
-            is_verified = EmailAddress.objects.filter(user=user, email=user.email, verified=True).exists()
-        if not is_verified:
-            EmailAddress.objects.add_email(
-                self.context.get("request"),
-                user,
-                user.email,
-                confirm=True
-            )
-            raise serializers.ValidationError("Email not verified. Please check your inbox.")
-        
-        if not getattr(user, "is_active", True):
-            raise serializers.ValidationError("Account is inactive. Contact support")
-        if user.role != "client":
-            raise serializers.ValidationError("Not a client account")
-        
-        authed = authenticate(
+    
+        user = authenticate(
             request=self.context.get("request"),
             email=email,
             password=password
         )
-        # If authentication fails, raise a validation error indicating invalid credentials
-        if not authed:
-            raise serializers.ValidationError("Invalid credentials")
 
-        if getattr(authed, "role", None) != "client":
-            raise serializers.ValidationError("Not a client account")
-        
-        data["user"] = authed
+        if not user:
+            raise serializers.ValidationError("Invalid email or password")
 
+        if user.role != "client":
+            raise serializers.ValidationError("This is not a client account")
+
+        # Check if the user's email address is verified using the EmailAddress model from allauth
+        email_verified = EmailAddress.objects.filter(user=user, email__iexact=user.email, verified=True).exists()
+        if not email_verified:
+            raise serializers.ValidationError("Email not verified. Please check your inbox.")
+
+        data["user"] = user
         return data
 
 
@@ -127,22 +114,33 @@ class EmployeeLoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
+        # Validate the employee's credentials and ensure they have the correct role and employee number.
         employee_number = data["employee_number"]
+        # Normalize the email by stripping whitespace and converting to lowercase
         email = data["email"]
+        # Get the password from the input data
         password = data["password"]
 
+        # Check if email, password, and employee number are provided, if not raise a validation error
+        if not email or not password or not employee_number:
+            raise serializers.ValidationError("Email, password, and employee number are required.")
+    
         user = authenticate(
             request=self.context.get("request"),
             email=email,
             password=password
         )
-
+        
         if not user:
             raise serializers.ValidationError("Invalid email or password")
 
         if user.role != "employee":
             raise serializers.ValidationError("This is not an employee account")
 
+        is_verified = EmailAddress.objects.filter(user=user, email__iexact=user.email, verified=True).exists()
+        if not is_verified:
+            raise serializers.ValidationError("Email not verified. Please check your inbox.")
+        
         if not user.employee_number:
             raise serializers.ValidationError("Employee number missing for this account")
 
@@ -153,19 +151,57 @@ class EmployeeLoginSerializer(serializers.Serializer):
         return data
 
 
-
+# Create a user, and add an employee to db
 class EmployeeRegisterSerializer(serializers.ModelSerializer):
+    group = serializers.ChoiceField(write_only=True, required=True, choices=ALLOWED_GROUPS)
+    first_name = serializers.CharField(write_only=True, required=True, max_length=50)
+    last_name = serializers.CharField(write_only=True, required=True, max_length=50)
+    employee_number = serializers.CharField(write_only=True, required=True, max_length=50)
+    staff_status = serializers.BooleanField(write_only=True, required=False, allow_null=True, default=False)
+
     class Meta:
         model = User
-        fields = ["id", "email", "password", "first_name", "last_name", "employee_number"]
+        fields = ["id", "email", "password", "first_name", "last_name", "employee_number", "staff_status", "group"]
         extra_kwargs = {"password": {"write_only": True}}
 
+    def validate_email(self, value):
+        return normalize_email(value)
+    
+    def validate_password(self, value):
+        try:
+            password_validation.validate_password(value)
+        except exceptions.ValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
+        return value
+    
+    @transaction.atomic
     def create(self, validated_data):
+        first_name = validated_data.pop("first_name")
+        last_name = validated_data.pop("last_name")
+        employee_number = validated_data.pop("employee_number")
+        staff_status = validated_data.pop("staff_status", False)
+        group_name = validated_data.pop("group")
+        phone_number = validated_data.pop("phone", "")
+
         user = User.objects.create_user(
             **validated_data,
+            is_active = False,
             is_staff=True,
             role="employee"
         )
+        grp = Group.objects.get(name=group_name)
+        user.groups.add(grp)
+
+        Employee.objects.create(
+            user=user,
+            addressid=None,
+            employeenumber=employee_number,
+            firstname=first_name,
+            lastname=last_name,
+            phonenumber=phone_number,
+            staffstatus=staff_status
+        )
+
         return user
 
 
