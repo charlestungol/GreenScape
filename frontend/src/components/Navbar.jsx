@@ -15,7 +15,6 @@ import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
-import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 
 import Logo from "../assets/img/Logo.png";
@@ -59,22 +58,36 @@ const menuConfig = {
       icon: <SettingsIcon sx={{ color: "#06632b" }} />,
     },
   ],
-
   employee: [
     {
       label: "Dashboard",
-      path: "/employeeHome",
+      path: "/employee/dashboard",
       icon: <DashboardIcon sx={{ color: "#06632b" }} />,
     },
     {
-      label: "Client",
-      path: "/client",
+      label: "My Schedule",
+      path: "/employee/my-schedule",
+      icon: <CalendarMonthIcon sx={{ color: "#06632b" }} />,
+    },
+    {
+      label: "Employee Management",
+      path: "/employee/employee-management",
       icon: <PeopleOutlineIcon sx={{ color: "#06632b" }} />,
     },
     {
-      label: "Settings",
-      path: "/settings",
+      label: "Service Schedule",
+      path: "/employee/service-schedule",
+      icon: <WaterDropIcon sx={{ color: "#06632b" }} />,
+    },
+    {
+      label: "Finances Board",
+      path: "/employee/finances",
       icon: <SettingsIcon sx={{ color: "#06632b" }} />,
+    },
+    {
+      label: "Account",
+      path: "/employee/account",
+      icon: <AccountCircleIcon sx={{ color: "#06632b" }} />,
     }
   ],
 };
@@ -88,52 +101,67 @@ export default function Navbar({ content }) {
 
   const path = location.pathname;
 
-  const firstName = localStorage.getItem("first_name") || "User";
-  const role = localStorage.getItem("role") || "client";
-
-<<<<<<< Updated upstream
-  const menuItems = menuConfig[role];
-=======
-  const routes = {
-    // client routes (keep)
-    dashboard: role === "employee" ? "/employeeHome" : "/home",
-    services: "/services",
-    booking: "/booking",
-    settings: "/settings",
-
-    // employee routes (new)
-    employeeDashboard: "/employee/dashboard",
-    mySchedule: "/employee/my-schedule",
-    employeeManagement: "/employee/employee-management",
-    serviceSchedule: "/employee/service-schedule",
-    finances: "/employee/finances",
-    account: "/employee/account",
+  // Safe localStorage access with error handling
+  const getLocalStorageItem = (key, defaultValue) => {
+    try {
+      return localStorage.getItem(key) || defaultValue;
+    } catch (error) {
+      console.error(`Error accessing localStorage for key ${key}:`, error);
+      return defaultValue;
+    }
   };
->>>>>>> Stashed changes
+
+  const firstName = getLocalStorageItem("first_name", "User");
+  const role = getLocalStorageItem("role", "client");
+
+  const isEmployee = role === "employee";
 
   /* =========================
      LOGOUT
   ========================= */
   const handleLogout = async () => {
-    const token = localStorage.getItem("token");
+    const token = getLocalStorageItem("token", null);
 
-    try {
-      await fetch("http://127.0.0.1:8000/api/logout/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Token ${token}`,
-        },
-      });
-    } catch (error) {
-      console.log("Logout error:", error);
+    if (token) {
+      try {
+        const response = await fetch("http://127.0.0.1:8000/api/logout/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Token ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          console.warn("Logout API call failed with status:", response.status);
+        }
+      } catch (error) {
+        console.error("Logout error:", error);
+        // Still proceed with local logout even if API fails
+      }
     }
 
-    localStorage.clear();
+    // Clear localStorage safely
+    try {
+      localStorage.clear();
+    } catch (error) {
+      console.error("Error clearing localStorage:", error);
+      // If clear fails, try removing individual items
+      const keysToRemove = ["token", "first_name", "role", "user_id", "email"];
+      keysToRemove.forEach(key => {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          console.error(`Error removing ${key}:`, e);
+        }
+      });
+    }
+
     navigate("/");
   };
 
-  const isEmployee = role === "employee";
+  // Get menu items based on role
+  const menuItems = isEmployee ? menuConfig.employee : menuConfig.client;
 
   return (
     <ThemeProvider theme={theme}>
@@ -158,7 +186,15 @@ export default function Navbar({ content }) {
 
           {/* LOGO */}
           <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-            <img src={Logo} alt="Logo" style={{ width: "200px" }} />
+            <img 
+              src={Logo} 
+              alt="Logo" 
+              style={{ width: "200px" }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "fallback-logo.png"; // Add a fallback image
+              }}
+            />
           </Box>
 
           {/* PROFILE */}
@@ -172,6 +208,10 @@ export default function Navbar({ content }) {
                 borderRadius: "50%",
                 border: "2px solid #06632b",
                 objectFit: "cover",
+              }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = "fallback-profile.jpg"; // Add a fallback image
               }}
             />
           </Box>
@@ -190,170 +230,37 @@ export default function Navbar({ content }) {
           {/* MENU */}
           <Box sx={{ overflow: "auto" }}>
             <List>
-<<<<<<< Updated upstream
               {menuItems.map((item) => (
-                <ListItem disablePadding key={item.path}>
+                <ListItem key={item.path} disablePadding>
                   <ListItemButton
                     component={Link}
                     to={item.path}
                     selected={path === item.path}
+                    sx={{
+                      '&.Mui-selected': {
+                        backgroundColor: 'rgba(6, 99, 43, 0.1)',
+                        '&:hover': {
+                          backgroundColor: 'rgba(6, 99, 43, 0.2)',
+                        },
+                      },
+                    }}
                   >
                     <ListItemIcon>{item.icon}</ListItemIcon>
                     <ListItemText primary={item.label} />
                   </ListItemButton>
                 </ListItem>
               ))}
-=======
-              {isEmployee ? (
-                <>
-                  {/* Employee Dashboard */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.employeeDashboard}
-                      selected={path === routes.employeeDashboard}
-                    >
-                      <ListItemIcon>
-                        <DashboardIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Dashboard" />
-                    </ListItemButton>
-                  </ListItem>
-
-                  {/* My Schedule */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.mySchedule}
-                      selected={path === routes.mySchedule}
-                    >
-                      <ListItemIcon>
-                        <CalendarMonthIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="My Schedule" />
-                    </ListItemButton>
-                  </ListItem>
-
-                  {/* Employee Management */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.employeeManagement}
-                      selected={path === routes.employeeManagement}
-                    >
-                      <ListItemIcon>
-                        <PeopleOutlineIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Employee Management" />
-                    </ListItemButton>
-                  </ListItem>
-
-                  {/* Service Schedule */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.serviceSchedule}
-                      selected={path === routes.serviceSchedule}
-                    >
-                      <ListItemIcon>
-                        <WaterDropIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Service Schedule" />
-                    </ListItemButton>
-                  </ListItem>
-
-                  {/* Finances Board */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.finances}
-                      selected={path === routes.finances}
-                    >
-                      <ListItemIcon>
-                        <SettingsIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Finances Board" />
-                    </ListItemButton>
-                  </ListItem>
->>>>>>> Stashed changes
-
-                  {/* ✅ Account (profile/change password/logout page) */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.account}
-                      selected={path === routes.account}
-                    >
-                      <ListItemIcon>
-                        <AccountCircleIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Account" />
-                    </ListItemButton>
-                  </ListItem>
-                </>
-              ) : (
-                <>
-                  {/* Client Dashboard */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.dashboard}
-                      selected={path === routes.dashboard}
-                    >
-                      <ListItemIcon>
-                        <DashboardIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Dashboard" />
-                    </ListItemButton>
-                  </ListItem>
-
-                  {/* Services */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.services}
-                      selected={path === routes.services}
-                    >
-                      <ListItemIcon>
-                        <WaterDropIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Services" />
-                    </ListItemButton>
-                  </ListItem>
-
-                  {/* Booking */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.booking}
-                      selected={path === routes.booking}
-                    >
-                      <ListItemIcon>
-                        <CalendarMonthIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Booking" />
-                    </ListItemButton>
-                  </ListItem>
-
-                  {/* Settings */}
-                  <ListItem disablePadding>
-                    <ListItemButton
-                      component={Link}
-                      to={routes.settings}
-                      selected={path === routes.settings}
-                    >
-                      <ListItemIcon>
-                        <SettingsIcon sx={{ color: "#06632b" }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Settings" />
-                    </ListItemButton>
-                  </ListItem>
-                </>
-              )}
-
+              
               {/* LOGOUT (shared for both roles) */}
               <ListItem disablePadding>
-                <ListItemButton onClick={handleLogout}>
+                <ListItemButton 
+                  onClick={handleLogout}
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: 'rgba(6, 99, 43, 0.1)',
+                    },
+                  }}
+                >
                   <ListItemIcon>
                     <LogoutIcon sx={{ color: "#06632b" }} />
                   </ListItemIcon>
@@ -369,7 +276,11 @@ export default function Navbar({ content }) {
         ========================= */}
         <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
           <Toolbar />
-          {content}
+          {content || (
+            <Typography variant="h6" color="textSecondary">
+              Select an option from the menu to get started
+            </Typography>
+          )}
         </Box>
       </Box>
     </ThemeProvider>
