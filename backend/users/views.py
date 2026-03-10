@@ -207,6 +207,7 @@ class ClientRegisterViewSet(viewsets.ModelViewSet):
     throttle_scope = "register"
     # Allow anyone to register an employee account.
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
     # Select all users obvject
     queryset = User.objects.all()
     serializer_class = ClientRegisterSerializer
@@ -237,6 +238,7 @@ class ClientRegisterViewSet(viewsets.ModelViewSet):
 class EmployeeRegisterViewSet(viewsets.ModelViewSet):
     # We again provide a trottle incase someone is able to access it and just  make it more secure in general.
     throttle_scope = "register"
+    authentication_classes = []
     # We allow anyone for now but will change to allow to admin only.
     permission_classes = [permissions.AllowAny]
     queryset = User.objects.all()
