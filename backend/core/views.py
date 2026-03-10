@@ -988,10 +988,9 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
 # - GET  /{id}/bytes to stream the image inline (no download dialog)
 # -----------------------------------------------------------------------------
 class UserImageViewSet(viewsets.ModelViewSet):
-    queryset = UserImage.objects.select_related("user").all()
     serializer_class = UserImageSerializer
     parser_classes = [MultiPartParser, FormParser]  # for upload
-    permission_classes = [DjangoModelPermissions]
+    permission_classes = [IsAuthenticated, IsOwnerOrAdmin]
 
     # Check users permission
     def get_permissions(self):
@@ -1015,10 +1014,18 @@ class UserImageViewSet(viewsets.ModelViewSet):
     
     
     def perform_create(self, serializer):
-        """
-        Force the created image to belong to the authenticated user.
-        This prevents clients from forging another user's id in the payload.
-        """
+        # Force the created image to belong to the authenticated user.
+        # This prevents clients from forging another user's id in the payload.
+
         if not self.request.user or not self.request.user.is_authenticated:
             raise permissions.PermissionDenied("Authentication required.")
         serializer.save(user=self.request.user)
+
+    # Upload image  to user
+    def create(self, request, *args, **kwargs):
+        file_obj = request.FILES.get("image")
+        user_id = self.request.user
+        filename = request.data.pop("filename", file_obj.name if file_obj else "image")
+        
+        if not file_obj:
+            return Response({"detail": "No image file provided."}, status=status.HTTP_400_BAD_REQUEST)
