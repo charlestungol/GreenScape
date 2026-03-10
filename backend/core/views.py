@@ -29,6 +29,12 @@ from rest_framework.response import Response
 # ---------------------------------------------------
 from core.supabase_client import supabase
 
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SERVICE_IMAGES_BUCKET = os.getenv("SUPABASE_BUCKET_SERVICE_IMAGES", "service-images")
+USER_IMAGES_BUCKET    = os.getenv("SUPABASE_BUCKET_USER_IMAGES", "profiles")
+
+
+
 # ---------------------------------------------------
 # Project: Models
 # ---------------------------------------------------
@@ -65,6 +71,7 @@ from .serializers import (
     ServiceTypeSerializer,
     SiteSerializer,
     ZoneSerializer,
+    UserImageSerializer
 )
 
 # ---------------------------------------------------
@@ -841,8 +848,6 @@ class ZoneViewSet(viewsets.ModelViewSet):
 # - list/retrieve give metadata (no raw bytes)
 # - POST /upload to attach a file to a service
 # - GET  /{id}/bytes to stream the image inline (no download dialog)
-BUCKET = os.getenv("SUPABASE_BUCKET_SERVICE_IMAGES", "service-images")
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 # -----------------------------------------------------------------------------
 class ServiceImageViewSet(viewsets.ModelViewSet):
     queryset = ServiceImage.objects.select_related("service").all()
@@ -899,7 +904,7 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
         storage_path = f"{service_id}/{uuid.uuid4().hex}{ext}"
 
         try:
-            supabase().storage.from_(BUCKET).upload(
+            supabase().storage.from_(SERVICE_IMAGES_BUCKET).upload(
                 path=storage_path,
                 file=raw,
                 file_options={
@@ -913,7 +918,7 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
 
         obj = ServiceImage.objects.create(
             service_id=int(service_id),
-            bucket=BUCKET,
+            bucket=SERVICE_IMAGES_BUCKET,
             storage_path=storage_path,
             content_type=content_type,           
             filename=filename,
@@ -942,7 +947,7 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
         _, ext = os.path.splitext(file_obj.name)
         ext = ext.lower() or ".bin"
         new_path = f"{obj.serviceid_id}/{uuid.uuid4().hex}{ext}"
-        up = supabase().storage.from_(BUCKET).upload(
+        up = supabase().storage.from_(SERVICE_IMAGES_BUCKET).upload(
             path=new_path,
             file=raw,
             file_options={
@@ -960,17 +965,49 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
         obj.size_bytes = len(raw)
         obj.filename = getattr(file_obj, "name", obj.filename)
         obj.save(update_fields=["storage_path", "content_type", "size_bytes", "filename"])
-        supabase().storage.from_(BUCKET).remove(path=old_path)
+        supabase().storage.from_(SERVICE_IMAGES_BUCKET).remove(path=old_path)
 
         return Response(self.get_serializer(obj, context={"request": request}).data, status=status.HTTP_200_OK)
     
     def destroy(self, request, *args, **kwargs):
         obj = self.get_object()
-        supabase().storage.from_(BUCKET).remove(path=obj.storage_path)
+        supabase().storage.from_(SERVICE_IMAGES_BUCKET).remove(path=obj.storage_path)
         return super().destroy(request, *args, **kwargs)
     
     @action(detail=True, methods=["get"], url_name="bytes")
     def get_bytes(self, request, pk=None):
         obj = self.get_object()
-        public_url = f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{obj.storage_path}"
+        public_url = f"{SUPABASE_URL}/storage/v1/object/public/{SERVICE_IMAGES_BUCKET}/{obj.storage_path}"
         return HttpResponseRedirect(public_url)
+
+# -----------------------------------------------------------------------------
+#User profile Image ViewSet
+# - list/retrieve give metadata (no raw bytes)
+# - POST /upload to attach a file to a service
+# - GET  /{id}/bytes to stream the image inline (no download dialog)
+# -----------------------------------------------------------------------------
+class UserImageViewSet(viewsets.ModelViewSet):
+    queryset = UserImageSerializer.objects.select_related("user").all()
+    serializer_class = UserImageSerializer
+    parser_classes = [MultiPartParser, FormParser]  # for upload
+    permission_classes = [DjangoModelPermissions]
+
+    # Check users permission
+    def get_permissions(self):
+        # Allows view for authenticated user only
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticatedOrReadOnly()]
+        # Allows owner/admin to view or edit data.
+        return [IsOwnerOrAdmin]
+    
+    # Get data
+    def get_queryset(self):
+        # Use super meaning admin to get a query set as qs
+        qs = super().get_queryset()
+        # Get service Id from the service image db
+        user_id = self.request.query_params.get("user")
+        # Filter from the service the service for that image
+        if user_id:
+            qs = qs.filter(user_id=user_id)
+        # Return the query.
+        return qs

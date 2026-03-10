@@ -99,19 +99,33 @@ class ServiceImage(models.Model):
         managed = True
         db_table = "ServiceImage"
 
-# Old Service image model
+class UserImage(models.Model):
+    userimageid = models.AutoField(primary_key=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null = True,
+        blank = False,
+        related_name="images",
+    )
+    bucket = models.CharField(max_length=100, default="profiles")
+    storage_path =  models.CharField(max_length=512)
+    content_type = models.CharField(max_length=100)
+    file_name =  models.CharField(max_length=100)
+    size_byte = models.PositiveBigIntegerField(null=True, blank = True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
-# class Serviceimage(models.Model):
-#     serviceimageid = models.AutoField(db_column='ServiceImageId', primary_key=True)  # Field name made lowercase.
-#     serviceid = models.ForeignKey(Service, models.DO_NOTHING, db_column='ServiceId')  # Field name made lowercase.
-#     contenttype = models.CharField(db_column='ContentType', max_length=100, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-#     filename = models.CharField(db_column='FileName', max_length=50, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-#     imagedata = models.BinaryField(db_column='ImageData')  # Field name made lowercase.
-#     createdat = models.DateTimeField(db_column='CreatedAt')  # Field name made lowercase.
-
-#     class Meta:
-#         managed = False
-#         db_table = 'ServiceImage'
+    class Meta:
+        managed = True
+        db_table = "users_userimage"
+        indexes = [
+            models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["bucket", "storage_path"])
+        ]
+    
+    def __str__(self):
+        base = self.file_name or self.storage_path
+        return f"UserImage#{self.userimageid} for {self.user_id} → {base}"
 
 # ---------------------------------------
 # Customer Service
