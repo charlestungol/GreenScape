@@ -82,7 +82,7 @@ const menuConfig = {
   ],
   employee: [
     { label: "Dashboard", path: "/employeeHome", icon: <DashboardIcon sx={{ color: "#1c3d37" }} /> },
-    { label: "Client", path: "/client", icon: <PeopleOutlineIcon sx={{ color: "#1c3d37" }} /> },
+    { label: "Clients", path: "/employee/client-view", icon: <PeopleOutlineIcon sx={{ color: "#1c3d37" }} /> },
     { label: "Settings", path: "/settings", icon: <SettingsIcon sx={{ color: "#1c3d37" }} /> },
   ],
 };
