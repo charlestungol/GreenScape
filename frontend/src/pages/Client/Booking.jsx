@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import '../clientCss/Booking.css';
+import '../../components/clientCss/Booking.css';
 
 const Booking = () => {
   const [date, setDate] = useState(new Date());

@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
+import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import List from "@mui/material/List";
 import Typography from "@mui/material/Typography";
@@ -8,6 +9,10 @@ import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
+import IconButton from "@mui/material/IconButton";
+import MenuIcon from "@mui/icons-material/Menu";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
@@ -17,18 +22,27 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 
 import Logo from "../assets/img/Logo.png";
-import DefaultProfilePic from "../assets/img/Profile.jpg";
+import DefaultProfilePic from "../assets/img/Profile.webp";
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
-// Modern theme with Inter font
+
 const theme = createTheme({
   typography: {
     fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontWeightRegular: 400,
     fontWeightMedium: 500,
     fontWeightBold: 600,
+  },
+  breakpoints: {
+    values: {
+      xs: 0,
+      sm: 600,
+      md: 900,
+      lg: 1200,
+      xl: 1536,
+    },
   },
   components: {
     MuiDrawer: {
@@ -89,44 +103,36 @@ export default function Navbar({ content }) {
   const location = useLocation();
   const navigate = useNavigate();
   const path = location.pathname;
+  const muiTheme = useTheme();
+  // Fix: Use muiTheme.breakpoints.down('md') instead of theme.breakpoints
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
+  console.log("Is mobile view:", isMobile);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   // Function to get user data from localStorage
   const getUserData = () => {
     const userId = localStorage.getItem("user_id");
     
-    console.log("=== NAVBAR INIT ===");
-    console.log("User ID from localStorage:", userId);
-    
     let firstName = "User";
     let role = "client";
     
-    // Try user-specific storage first
     if (userId) {
       const userFirstName = localStorage.getItem(`user_${userId}_first_name`);
       const userRole = localStorage.getItem(`user_${userId}_role`);
       
-      console.log(`User-specific data (user_${userId}_):`);
-      console.log(`- first_name: ${userFirstName}`);
-      console.log(`- role: ${userRole}`);
-      
-      // Use user-specific data if available
       if (userFirstName) firstName = userFirstName;
       if (userRole) role = userRole;
       
-      // Load saved budget and expenses from user-specific storage
       const savedBudget = localStorage.getItem(`user_${userId}_budget`);
       const savedExpenses = localStorage.getItem(`user_${userId}_expenses`);
       
       if (savedBudget) {
         localStorage.setItem("userBudget", savedBudget);
-        console.log(`Restored budget for user ${userId}: ${savedBudget}`);
       }
       if (savedExpenses) {
         localStorage.setItem("userExpenses", savedExpenses);
-        console.log(`Restored expenses for user ${userId}`);
       }
       
-      // Load any other saved user data
       const savedServices = localStorage.getItem(`user_${userId}_services`);
       const savedBookings = localStorage.getItem(`user_${userId}_bookings`);
       const savedSettings = localStorage.getItem(`user_${userId}_settings`);
@@ -142,7 +148,6 @@ export default function Navbar({ content }) {
       }
     }
     
-    // Fallback to global storage if user-specific data not found
     if (firstName === "User") {
       const globalFirstName = localStorage.getItem("first_name");
       if (globalFirstName) firstName = globalFirstName;
@@ -153,32 +158,22 @@ export default function Navbar({ content }) {
       if (globalRole) role = globalRole;
     }
     
-    console.log("Final user data:", { firstName, role });
     return { firstName, role };
   };
 
-  // State for user data - initialized directly
   const [userData, setUserData] = useState(getUserData());
 
-  // Optional: Debug log after initial render
   React.useEffect(() => {
     console.log("UserData state initialized:", userData);
   }, []);
 
   const menuItems = menuConfig[userData.role] || menuConfig.client;
 
-  /* =========================
-     LOGOUT - Save user data and clear authentication only
-  ========================= */
   const handleLogout = async () => {
     const token = localStorage.getItem("token");
     const userId = localStorage.getItem("user_id");
     
-    console.log("Logging out user_id:", userId);
-    
-    // 1. Save ALL user data before clearing authentication
     if (userId) {
-      // Define all data keys that belong to the user
       const userDataKeys = [
         "userBudget",
         "userExpenses",
@@ -189,33 +184,14 @@ export default function Navbar({ content }) {
         "role"
       ];
       
-      // Save each piece of data with user-specific key
       userDataKeys.forEach(key => {
         const value = localStorage.getItem(key);
         if (value) {
           localStorage.setItem(`user_${userId}_${key}`, value);
-          console.log(`Saved user_${userId}_${key}:`, value ? "✓" : "empty");
-        }
-      });
-      
-      // Also save any other keys that start with 'user' (like userPreferences, etc.)
-      const allKeys = Object.keys(localStorage);
-      const userSpecificKeys = allKeys.filter(key => 
-        key.startsWith('user') && 
-        !key.startsWith(`user_${userId}_`) && // Skip already saved
-        !key.includes('_') // Skip keys that already have underscores
-      );
-      
-      userSpecificKeys.forEach(key => {
-        const value = localStorage.getItem(key);
-        if (value) {
-          localStorage.setItem(`user_${userId}_${key}`, value);
-          console.log(`Saved user_${userId}_${key} from ${key}`);
         }
       });
     }
     
-    // Call logout API
     if (token) {
       try {
         await fetch("http://127.0.0.1:8000/api/logout/", {
@@ -240,10 +216,8 @@ export default function Navbar({ content }) {
     
     authKeysToClear.forEach(key => {
       localStorage.removeItem(key);
-      console.log(`Cleared auth key: ${key}`);
     });
     
-    // Clear current session user data (it's already saved in user-specific storage)
     const userDataKeysToClear = [
       "userBudget",
       "userExpenses",
@@ -254,27 +228,222 @@ export default function Navbar({ content }) {
     
     userDataKeysToClear.forEach(key => {
       localStorage.removeItem(key);
-      console.log(`Cleared session data: ${key}`);
     });
     
-    // Clear sessionStorage
     sessionStorage.clear();
-    
-    // Reset component state
     setUserData({ firstName: "User", role: "client" });
     
-    console.log("Logout complete. User data saved with prefix:", `user_${userId}_`);
-    
-    // Navigate to login
     navigate("/", { replace: true });
   };
+
+  const [profileImage, setProfileImage] = useState(() => {
+    const savedImage = localStorage.getItem('profileImage');
+    return savedImage || DefaultProfilePic;
+  });
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedImage = localStorage.getItem('profileImage');
+      setProfileImage(savedImage || DefaultProfilePic);
+    };
+
+    const interval = setInterval(handleStorageChange, 1000);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const handleDrawerClose = () => {
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+  };
+
+  // Drawer content
+  const drawer = (
+    <>
+      <Toolbar />
+      
+      {/* LOGO */}
+      <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+        <img src={Logo} alt="Logo" style={{ width: isMobile ? "150px" : "200px" }} />
+      </Box>
+
+      {/* PROFILE */}
+      <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+        <Link to="/client-profile" onClick={handleDrawerClose} style={{ textDecoration: 'none' }}>
+          <img
+            src={profileImage}
+            alt="Profile"
+            style={{
+              width: isMobile ? "100px" : "150px",
+              height: isMobile ? "100px" : "150px",
+              borderRadius: "50%",
+              border: "2px solid #1c3d37",
+              objectFit: "cover",
+              cursor: "pointer",
+            }}
+          />
+        </Link>
+      </Box>
+
+      {/* WELCOME MESSAGE */}
+      <Typography
+        variant="h6"
+        sx={{
+          mb: 4,
+          textAlign: "center",
+          fontWeight: 500,
+          fontSize: isMobile ? "1rem" : "1.2rem",
+          color: "#1c3d37",
+          letterSpacing: '-0.01em',
+        }}
+      >
+        Welcome, {userData.firstName}!
+      </Typography>
+
+      {/* MENU */}
+      <Box sx={{ overflow: "auto", px: 2 }}>
+        <List>
+          {menuItems.map((item) => (
+            <ListItem disablePadding key={item.path} sx={{ mb: 0.5 }}>
+              <ListItemButton
+                component={Link}
+                to={item.path}
+                selected={path === item.path}
+                onClick={handleDrawerClose}
+                sx={{
+                  py: 1,
+                  px: 2,
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={item.label}
+                />
+              </ListItemButton>
+            </ListItem>
+          ))}
+
+          {/* LOGOUT DIVIDER */}
+          <Box sx={{ 
+            my: 2, 
+            borderTop: '1px solid rgba(28, 61, 55, 0.12)' 
+          }} />
+
+          {/* LOGOUT */}
+          <ListItem disablePadding>
+            <ListItemButton 
+              onClick={() => {
+                handleLogout();
+                handleDrawerClose();
+              }}
+              sx={{
+                py: 1,
+                px: 2,
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 68, 68, 0.04)',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <LogoutIcon sx={{ color: '#9e2c2c' }} />
+              </ListItemIcon>
+              <ListItemText 
+                primary="LOGOUT"
+                sx={{
+                  '& .MuiListItemText-primary': {
+                    color: '#9e2c2c !important',
+                    fontWeight: 500,
+                  }
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Box>
+    </>
+  );
 
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ display: "flex" }}>
+        {/* Mobile App Bar */}
+        <AppBar
+          position="fixed"
+          sx={{
+            display: { xs: 'block', sm: 'block', md: 'none' }, 
+            backgroundColor: '#F8F8F8',
+            color: '#1c3d37',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            zIndex: (theme) => theme.zIndex.drawer + 1,
+          }}
+        >
+          <Toolbar>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+              <img src={Logo} alt="Logo" style={{ height: '40px' }} />
+            </Typography>
+            {/* Mobile profile icon */}
+            <Link to="/client-profile" onClick={handleDrawerClose}>
+              <img
+                src={profileImage}
+                alt="Profile"
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  border: '2px solid #1c3d37',
+                  objectFit: 'cover',
+                  cursor: 'pointer',
+                }}
+              />
+            </Link>
+          </Toolbar>
+        </AppBar>
+
+        {/* Mobile Drawer */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true,
+          }}
+          sx={{
+            display: { xs: 'block', sm: 'block', md: 'none' },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              backgroundColor: "#F8F8F8",
+            },
+          }}
+        >
+          {drawer}
+        </Drawer>
+
+        {/* Desktop Drawer */}
         <Drawer
           variant="permanent"
           sx={{
+            display: { xs: 'none', sm: 'none', md: 'block' }, 
             width: drawerWidth,
             flexShrink: 0,
             [`& .MuiDrawer-paper`]: {
@@ -284,114 +453,21 @@ export default function Navbar({ content }) {
             },
           }}
         >
-          <Toolbar />
-
-          {/* LOGO */}
-          <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-            <img src={Logo} alt="Logo" style={{ width: "200px" }} />
-          </Box>
-
-          {/* PROFILE */}
-          <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-            <img
-              src={DefaultProfilePic}
-              alt="Profile"
-              style={{
-                width: "150px",
-                height: "150px",
-                borderRadius: "50%",
-                border: "2px solid #1c3d37",
-                objectFit: "cover",
-              }}
-            />
-          </Box>
-
-          {/* WELCOME MESSAGE */}
-          <Typography
-            variant="h6"
-            sx={{
-              mb: 4,
-              textAlign: "center",
-              fontWeight: 500,
-              fontSize: "1.2rem",
-              color: "#1c3d37",
-              letterSpacing: '-0.01em',
-            }}
-          >
-            Welcome, {userData.firstName}!
-          </Typography>
-
-          {/* MENU */}
-          <Box sx={{ overflow: "auto", px: 2 }}>
-            <List>
-              {menuItems.map((item) => (
-                <ListItem disablePadding key={item.path} sx={{ mb: 0.5 }}>
-                  <ListItemButton
-                    component={Link}
-                    to={item.path}
-                    selected={path === item.path}
-                    sx={{
-                      py: 1,
-                      px: 2,
-                    }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 40 }}>
-                      {item.icon}
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={item.label}
-                      slotProps={{
-                        primary: {
-                          fontSize: '0.95rem',
-                          letterSpacing: '-0.01em',
-                        }
-                      }}
-                    />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-
-              {/* LOGOUT DIVIDER */}
-              <Box sx={{ 
-                my: 2, 
-                borderTop: '1px solid rgba(28, 61, 55, 0.12)' 
-              }} />
-
-              {/* LOGOUT */}
-              <ListItem disablePadding>
-                <ListItemButton 
-                  onClick={handleLogout}
-                  sx={{
-                    py: 1,
-                    px: 2,
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 68, 68, 0.04)',
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 40 }}>
-                    <LogoutIcon sx={{ color: '#9e2c2c' }} />
-                  </ListItemIcon>
-                  <ListItemText className="logoutBtn"
-                    primary="LOGOUT"
-                    slotProps={{
-                      primary: {
-                        sx: {
-                          color: '#9e2c2c !important',
-                          fontWeight: 500,
-                        }
-                      }
-                    }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            </List>
-          </Box>
+          {drawer}
         </Drawer>
 
         {/* MAIN CONTENT */}
-        <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-          <Toolbar />
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            p: { xs: 2, md: 3 },
+            width: { xs: '100%', md: `calc(100% - ${drawerWidth}px)` },
+            mt: { xs: '64px', md: 0 },
+            minHeight: '100vh',
+          }}
+        >
+          <Toolbar sx={{ display: { xs: 'block', md: 'none' } }} />
           {content}
         </Box>
       </Box>

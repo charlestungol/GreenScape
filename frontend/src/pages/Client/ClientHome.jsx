@@ -1,14 +1,13 @@
-import "../clientCss/Dashboard.css";
-import Budget from "../dashboard/Budget.jsx";
-import Expenses from "../dashboard/Expenses.jsx";
-import FinishedServices from "../dashboard/FinishedServices.jsx";
-import Quote from "../dashboard/Quote.jsx";
-import RunningServices from "../dashboard/RunningServices.jsx";
-import Time from '../dashboard/Timeboard.jsx';
-import Remain from '../dashboard/RemainingBudget.jsx';
-import Progress from '../dashboard/Progress.jsx';
-import Analytics from "../dashboard/Analytics.jsx";
-import Maps from "../dashboard/Maps.jsx";
+import "../../components/clientCss/Dashboard.css";
+import Budget from "../../dashboard/Budget.jsx";
+import Expenses from "../../dashboard/Expenses.jsx";
+import FinishedServices from "../../dashboard/FinishedServices.jsx";
+import Quote from "../../dashboard/Quote.jsx";
+import RunningServices from "../../dashboard/RunningServices.jsx";
+import Time from '../../dashboard/Timeboard.jsx';
+import Remain from '../../dashboard/RemainingBudget.jsx';
+import Analytics from "../../dashboard/Analytics.jsx";
+import Maps from "../../dashboard/Maps.jsx";
 
 const Home = () => {
   return (
@@ -31,7 +30,6 @@ const Home = () => {
             </div>
             <div className="rightColumn">
               <Analytics/>
-              {/* <Progress/> */}
               <div className="topServicesRow">
                 <RunningServices/>
                 <FinishedServices/>

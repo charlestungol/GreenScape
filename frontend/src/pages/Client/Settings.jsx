@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
-import AxiosInstance from "../components/AxiosInstance";
-import "../clientCss/Settings.css";
+import { useState, useEffect, useRef } from "react"; 
+import AxiosInstance from "../../components/AxiosInstance";
+import "../../components/clientCss/Settings.css";
 
 const Settings = () => {
   const [overlayOpen, setOverlayOpen] = useState(false);
+  const [overlayType, setOverlayType] = useState("");
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [message, setMessage] = useState("");
   const [msgType, setMsgType] = useState("");
-  
   
   const [userInfo, setUserInfo] = useState({
     email: "",
@@ -29,9 +30,47 @@ const Settings = () => {
   const [userMsgType, setUserMsgType] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Ref for overlay content
+  const overlayContentRef = useRef(null);
+
   useEffect(() => {
     fetchUserInfo();
   }, []);
+
+  // Handle click outside overlay
+  const handleOverlayClick = (e) => {
+    if (overlayContentRef.current && !overlayContentRef.current.contains(e.target)) {
+      closeOverlay();
+    }
+  };
+
+  // Handle ESC key
+  useEffect(() => {
+    const handleEscKey = (e) => {
+      if (e.key === 'Escape' && overlayOpen) {
+        closeOverlay();
+      }
+    };
+
+    if (overlayOpen) {
+      document.addEventListener('keydown', handleEscKey);
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+      document.body.style.overflow = 'unset';
+    };
+  }, [overlayOpen]);
+
+  const closeOverlay = () => {
+    setOverlayOpen(false);
+    setOverlayType("");
+    setMessage("");
+    setOldPassword("");
+    setNewPassword("");
+    setNewEmail("");
+  };
 
   const fetchUserInfo = async () => {
     setIsLoading(true);
@@ -41,7 +80,6 @@ const Settings = () => {
         headers: { Authorization: `Token ${token}` }
       });
       
-      // Handle the nested response structure
       const userData = response.data.user;
       const customerData = response.data.customer;
       const addressData = customerData?.addressid || {};
@@ -96,7 +134,6 @@ const Settings = () => {
     try {
       const token = localStorage.getItem("token");
       
-      // Prepare data for backend
       const payload = {
         user: {
           email: userInfo.email,
@@ -124,10 +161,8 @@ const Settings = () => {
       setUserMessage("Profile updated successfully!");
       setEditMode(false);
       
-      // Refresh user data
       await fetchUserInfo();
       
-      // Clear success message after 3 seconds
       setTimeout(() => setUserMessage(""), 3000);
     } catch (err) {
       setUserMsgType("error");
@@ -135,7 +170,6 @@ const Settings = () => {
         const errors = err.response.data;
         let formatted = "Update failed:\n";
         
-        // Format error messages
         const formatErrors = (obj, prefix = '') => {
           Object.keys(obj).forEach(key => {
             const value = obj[key];
@@ -196,12 +230,8 @@ const Settings = () => {
       setMsgType("success");
       setMessage("Password changed successfully!");
 
-      // Close modal after success
       setTimeout(() => {
-        setOverlayOpen(false);
-        setOldPassword("");
-        setNewPassword("");
-        setMessage("");
+        closeOverlay();
       }, 1500);
     } catch (err) {
       setMsgType("error");
@@ -226,10 +256,111 @@ const Settings = () => {
     }
   };
 
+  const handleChangeEmail = async () => {
+    setMessage("");
+    setMsgType("");
+    setIsLoading(true);
+
+    if (!newEmail) {
+      setMsgType("error");
+      setMessage("New email is required.");
+      setIsLoading(false);
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      setMsgType("error");
+      setMessage("Please enter a valid email address.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+
+      // Using the same profile update endpoint since change-email might not exist
+      const payload = {
+        user: {
+          email: newEmail,
+          first_name: userInfo.first_name,
+          last_name: userInfo.last_name
+        },
+        customer: {
+          phonenumber: userInfo.phone,
+          address: userInfo.address
+        }
+      };
+
+      await AxiosInstance.put(
+        "client/profile/update/",
+        payload,
+        { 
+          headers: { 
+            Authorization: `Token ${token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
+      );
+
+      setMsgType("success");
+      setMessage("Email changed successfully!");
+
+      // Update the userInfo state with new email
+      setUserInfo(prev => ({
+        ...prev,
+        email: newEmail
+      }));
+
+      setTimeout(() => {
+        closeOverlay();
+      }, 1500);
+    } catch (err) {
+      setMsgType("error");
+      if (err.response?.data) {
+        const errors = err.response.data;
+        let formatted = "Email change failed:\n";
+        
+        if (typeof errors === 'object') {
+          Object.keys(errors).forEach(key => {
+            const value = errors[key];
+            if (typeof value === 'object') {
+              // Handle nested errors (like user.email)
+              Object.keys(value).forEach(nestedKey => {
+                formatted += `${nestedKey.replace(/_/g, ' ').toUpperCase()}: ${Array.isArray(value[nestedKey]) ? value[nestedKey][0] : value[nestedKey]}\n`;
+              });
+            } else {
+              formatted += `${key.replace(/_/g, ' ').toUpperCase()}: ${Array.isArray(value) ? value[0] : value}\n`;
+            }
+          });
+        } else {
+          formatted += errors;
+        }
+        
+        setMessage(formatted);
+      } else {
+        setMessage("An error occurred. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleCancel = () => {
     fetchUserInfo();
     setEditMode(false);
     setUserMessage("");
+  };
+
+  const openPasswordOverlay = () => {
+    setOverlayType("password");
+    setOverlayOpen(true);
+  };
+
+  const openEmailOverlay = () => {
+    setOverlayType("email");
+    setOverlayOpen(true);
   };
 
   return (
@@ -273,7 +404,8 @@ const Settings = () => {
               <div className="loadingState">Loading profile information...</div>
             ) : (
               <div className="infoGrid">
-                <div className="infoItem">
+                {/* Email Field - Added back */}
+                <div className="infoItem fullWidth">
                   <label className="infoLabel">Email Address</label>
                   {editMode ? (
                     <input
@@ -437,12 +569,19 @@ const Settings = () => {
             )}
           </div>
 
-          {/* Password Section */}
-          <div className="settingsSection">
+          {/* Security Section */}
+          <div className="securitySettingsSection">
             <h2 className="sectionTitle">Security</h2>
+            <button
+              className="changeBtn"
+              onClick={openEmailOverlay}
+              disabled={isLoading}
+            >
+              CHANGE EMAIL
+            </button>
             <button 
               className="changeBtn"
-              onClick={() => setOverlayOpen(true)}
+              onClick={openPasswordOverlay}
               disabled={isLoading}
             >
               CHANGE PASSWORD
@@ -450,40 +589,64 @@ const Settings = () => {
           </div>
         </div>
 
-        {/* Change Password Overlay */}
+        {/* Change Password/Email Overlay */}
         {overlayOpen && (
-          <div className="overlay">
-            <div className="overlayContent">
-              <h2 className="overlayTitle">Change Password</h2>
+          <div 
+            className="overlay" 
+            onClick={handleOverlayClick}
+          >
+            <div 
+              className="overlayContent" 
+              ref={overlayContentRef}
+            >
+              <h2 className="overlayTitle">
+                {overlayType === "password" ? "Change Password" : "Change Email"}
+              </h2>
 
-              <div className="inputGroup">
-                <label>Old Password</label>
-                <input
-                  type="password"
-                  placeholder="Enter old password"
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  disabled={isLoading}
-                />
-              </div>
+              {overlayType === "password" ? (
+                <>
+                  <div className="inputGroup">
+                    <label>Old Password</label>
+                    <input
+                      type="password"
+                      placeholder="Enter old password"
+                      value={oldPassword}
+                      onChange={(e) => setOldPassword(e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
 
-              <div className="inputGroup">
-                <label>New Password</label>
-                <input
-                  type="password"
-                  placeholder="Enter new password (min. 6 characters)"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  disabled={isLoading}
-                />
-              </div>
+                  <div className="inputGroup">
+                    <label>New Password</label>
+                    <input
+                      type="password"
+                      placeholder="Enter new password (min. 6 characters)"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="inputGroup">
+                  <label>New Email Address</label>
+                  <input
+                    type="email"
+                    placeholder="Enter new email address"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    disabled={isLoading}
+                  />
+                  <p className="inputHint">Your current email: {userInfo.email}</p>
+                </div>
+              )}
 
               <button 
                 className="updateBtn"
-                onClick={handleChangePassword}
+                onClick={overlayType === "password" ? handleChangePassword : handleChangeEmail}
                 disabled={isLoading}
               >
-                {isLoading ? "UPDATING..." : "UPDATE PASSWORD"}
+                {isLoading ? "UPDATING..." : `UPDATE ${overlayType === "password" ? "PASSWORD" : "EMAIL"}`}
               </button>
 
               {message && (
@@ -494,12 +657,7 @@ const Settings = () => {
                 </div>
               )}
 
-              <p className="closeModal" onClick={() => {
-                setOverlayOpen(false);
-                setMessage("");
-                setOldPassword("");
-                setNewPassword("");
-              }}>
+              <p className="closeModal" onClick={closeOverlay}>
                 CLOSE
               </p>
             </div>

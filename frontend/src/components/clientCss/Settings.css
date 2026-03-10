@@ -1,5 +1,3 @@
-/* clientCss/Settings.css */
-
 /* ===== VARIABLES ===== */
 :root {
   --primary-dark: #1c3d37;
@@ -35,16 +33,14 @@
 }
 
 /* ===== HEADER ===== */
-.titleWrapper {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-dark);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  padding-bottom: 0.75rem;
-  border-bottom: 4px solid var(--primary);
-  display: inline-block;
-  margin-bottom: 0.5rem;
+.titleWrapper{
+ border:solid 2px  #06632b;
+ color: #06632b;
+ padding: 20px;
+ font-size: 25px;
+ font-weight:bold;
+ border-radius: 20px;
+ width: 96%;
 }
 
 /* ===== SECTIONS ===== */
@@ -55,6 +51,26 @@
   box-shadow: var(--shadow-sm);
   border: 1px solid rgba(44, 110, 73, 0.08);
   transition: var(--transition);
+}
+
+.securitySettingsSection {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(44, 110, 73, 0.08);
+  transition: var(--transition);
+  text-align: center;
+}
+
+.securitySettingsSection .sectionTitle{
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: start;
 }
 
 .settingsSection:hover {
@@ -154,7 +170,6 @@
 .editBtn,
 .saveBtn,
 .cancelBtn,
-.changeBtn,
 .updateBtn {
   padding: 0.6rem 1.5rem;
   font-size: 0.85rem;
@@ -165,6 +180,19 @@
   cursor: pointer;
   transition: var(--transition);
   border: 2px solid;
+}
+
+.changeBtn{
+  padding: 0.6rem 1.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 40px;
+  cursor: pointer;
+  transition: var(--transition);
+  border: 2px solid;
+  margin: 10px;
 }
 
 .editBtn {

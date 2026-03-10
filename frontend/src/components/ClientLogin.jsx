@@ -31,22 +31,11 @@ const ClientLogin = () => {
     console.log("Client login success:", response.data);
     console.log("Full response structure:", JSON.stringify(response.data, null, 2));
     
-    // DEBUG: Check the exact structure
-    console.log("response.data:", response.data);
-    console.log("response.data.user:", response.data.user);
-    console.log("response.data.user.first_name:", response.data.user?.first_name);
-    
     // Store user ID - check different possible locations
     const userId = response.data.user?.id || response.data.user_id || response.data.id;
     const userFirstName = response.data.user?.first_name || response.data.first_name || "";
     const userRole = response.data.user?.role || response.data.role || "client";
     const token = response.data.token || response.data.key;
-    
-    console.log("Extracted values:");
-    console.log("userId:", userId);
-    console.log("userFirstName:", userFirstName);
-    console.log("userRole:", userRole);
-    console.log("token:", token);
     
     if (!userId) {
       console.error("No user_id found in response!");
@@ -63,12 +52,6 @@ const ClientLogin = () => {
     // Also store with user-specific prefix for safety
     localStorage.setItem(`user_${userId}_first_name`, userFirstName);
     localStorage.setItem(`user_${userId}_role`, userRole);
-    
-    // Verify storage
-    console.log("Storage verification:");
-    console.log("Stored user_id:", localStorage.getItem("user_id"));
-    console.log("Stored first_name:", localStorage.getItem("first_name"));
-    console.log("Stored role:", localStorage.getItem("role"));
     
     navigate('/home');
 

@@ -1,10 +1,11 @@
 import './App.css';
 import { Routes, Route } from 'react-router-dom';
 import NavbarWrapper from './components/NavbarWrapper';
-import Home from './pages/ClientHome';
-import Services from './pages/Services';
-import Booking from './pages/Booking';
-import Settings from './pages/Settings';
+import Home from './pages/Client/ClientHome';
+import ClientProfile from './pages/Client/ClientProfile';
+import Services from './pages/Client/Services';
+import Booking from './pages/Client/Booking';
+import Settings from './pages/Client/Settings';
 import Landing from './pages/LandingPage';
 import EmployeeRegister from './pages/EmployeeRegister';
 import ClientLogin from './components/ClientLogin';
@@ -12,10 +13,10 @@ import EmployeeLogin from './components/EmployeeLogin';
 import EmployeeHome from './pages/EmployeeHome';
 import ClientRegister from './pages/ClientRegister';
 import RouteProtection from "./components/RouteProtection";
-import IrrigationInstallation from './services-info/Irrigation';
-import LandscapeLighting from './services-info/Landscape';
-import MaintenanceManagement from './services-info/Maintenance';
-import StormWaterManangement from './services-info/Stormwater';
+import IrrigationInstallation from './components/services-info/Irrigation';
+import LandscapeLighting from './components/services-info/Landscape';
+import MaintenanceManagement from './components/services-info/Maintenance';
+import StormWaterManangement from './components/services-info/Stormwater';
 
 
 function App() {
@@ -35,6 +36,7 @@ function App() {
         <Route path="/services" element={<RouteProtection><Services /></RouteProtection>} />
         <Route path="/booking" element={<RouteProtection><Booking /></RouteProtection>} />
         <Route path="/settings" element={<RouteProtection><Settings /></RouteProtection>} />
+        <Route path="/client-profile" element={<RouteProtection><ClientProfile/></RouteProtection>}></Route>
         
         {/* Service Detail Pages*/}
         <Route path="/irrigation-installation" element={<RouteProtection><IrrigationInstallation /></RouteProtection>} />

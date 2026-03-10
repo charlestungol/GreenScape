@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom"; 
-import "../clientCss/Dashboard.css";
+import "../components/clientCss/Dashboard.css";
 import AddLocationAltIcon from "@mui/icons-material/AddLocationAlt";
 import CloseIcon from "@mui/icons-material/Close";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle"; 
