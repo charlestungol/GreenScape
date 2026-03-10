@@ -10,7 +10,7 @@ const Register = () => {
 
   const [email, setEmail] = useState('');
   const [employeeNumber, setEmployeeNumber] = useState('');
-  const [group, setGroup] = useState('staff');
+  const [group, setGroup] = useState('Staff');
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -48,7 +48,7 @@ const Register = () => {
 
       setEmail('');
       setEmployeeNumber('');
-      setGroup('staff');
+      setGroup('Staff');
       setPassword('');
       setConfirmPassword('');
 
@@ -106,9 +106,9 @@ const Register = () => {
             borderRadius: "8px"
           }}
         >
-          <option value="admin">Admin</option>
-          <option value="supervisor">Supervisor</option>
-          <option value="staff">Staff</option>
+          <option value="Admin">Admin</option>
+          <option value="Supervisor">Supervisor</option>
+          <option value="Staff">Staff</option>
         </select>
 
         <input
