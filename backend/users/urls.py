@@ -11,6 +11,8 @@ from .views import (
     EmailVerifiedRedirectView,
     LogoutView,
     LogoutAllView,
+    GoogleSignInView,
+    CompleteCustomerProfileViewset
 )
 
 router = DefaultRouter()
@@ -27,6 +29,8 @@ urlpatterns = [
     path('accounts/', include("allauth.urls")),
     path('resend-verification/', ResendVerificationView.as_view(), name = 'resend-verification'),
     path("email-verified/", EmailVerifiedRedirectView, name="email_verified"),
+    path("auth/google/", GoogleSignInView.as_view(), name="google-signin"),
+    path("customers/complete-profile/", CompleteCustomerProfileViewset.as_view(), name="complete-profile"),
 ]
 
 urlpatterns += router.urls

@@ -1,19 +1,38 @@
-from rest_framework import serializers
-from django.contrib.auth import get_user_model, authenticate, password_validation
-from django.contrib.auth.models import Group
+
+# ---------------------------------------------------
+# Django Core & Authentication
+# ---------------------------------------------------
+from django.contrib.auth import authenticate, get_user_model, password_validation
 from django.core import exceptions
-from allauth.account.models import EmailAddress
-from core.serializers import AddressSerializer
-from core.models import Address, Customer, Employee
+from django.contrib.auth.models import Group
 from django.db import transaction
+
+
+# ---------------------------------------------------
+# Django Allauth
+# ---------------------------------------------------
+from allauth.account.models import EmailAddress
+
+
+# ---------------------------------------------------
+# Django REST Framework
+# ---------------------------------------------------
+from rest_framework import serializers
+
+
+# ---------------------------------------------------
+# Project App Imports
+# ---------------------------------------------------
+from core.models import Address, Customer
+from core.serializers import AddressSerializer
 from core.management.validators import (
     validate_phone,
     validate_name,
     validate_max_length,
     prevent_control_characters,
     strip_string,
-
 )
+
 
 # Get the User model
 User = get_user_model()
@@ -68,7 +87,7 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(required=True, write_only = True, validators=[strip_string, prevent_control_characters, validate_name])
     last_name = serializers.CharField(required=True, write_only = True, validators=[strip_string, prevent_control_characters, validate_name])
     phone = serializers.CharField(required=True, write_only = True, validators=[strip_string, prevent_control_characters, validate_phone])
-    address = AddressSerializer(required=True, validators=[prevent_control_characters])
+    address = AddressSerializer(required=True, write_only = True)
     password = serializers.CharField(write_only=True, validators=[strip_string, validate_max_length(16)])
 
     class Meta:
@@ -77,7 +96,12 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate_email(self, value):
-        return normalize_email(value)
+        email = normalize_email(value or "")
+        if not email:
+            raise serializers.ValidationError("Email is required.")
+        if User.objects.filter(email_iexact=email).exists():
+            raise serializers.ValidationError("An account with this email already exists.")
+        return email
     
     def validate_password(self, value):
         try:
@@ -211,6 +235,40 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
         user.groups.add(grp)
 
         return user
+    
+class CompleteProfileSerializer(serializers.Serializer):
+    first_name = serializers.CharField(required=True, validators=[strip_string, prevent_control_characters, validate_name])
+    last_name = serializers.CharField(required=True, validators=[strip_string, prevent_control_characters, validate_name])
+    phone = serializers.CharField(required=True, validators=[strip_string, prevent_control_characters, validate_phone])
+    address = AddressSerializer(required=True)
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        if not user or not user.is_authenticated:
+            raise serializers.ValidationError("Authentication required.")
+        if hasattr(user, "cusomer") and user.customer is not None:
+            raise serializers.ValidationError("Customer profile  already exists.")
+        return attrs
+    
+    @transaction.atomic
+    def create(self, validated_data):
+        user = self.context["request"].user
+        addr_data = validated_data.pop("address")
+        first_name = validated_data.pop("first_name").strip()
+        last_name = validated_data.pop("last_name").strip()
+        phone = validated_data.pop("phone").strip()
+
+        address = Address.objects.create(**addr_data)
+        customer = Customer.objects.create(
+            user = user,
+            firstname = first_name,
+            lastname = last_name,
+            phonenumber=phone,
+            addressid = address,
+        )
+
+        return customer
+
 
 class ChangeEmailSerializer(serializers.Serializer):
     new_email = serializers.EmailField(required=True, validators=[strip_string, validate_max_length(254)])

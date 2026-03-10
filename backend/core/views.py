@@ -1,54 +1,82 @@
-import os, uuid, mimetypes
-from django.http import HttpResponseRedirect
-from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
-from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.response import Response
-from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
-from django.shortcuts import get_object_or_404
-from django.db import transaction
-from django.contrib.auth.models import Group
 
+# ---------------------------------------------------
+# Standard Library
+# ---------------------------------------------------
+import mimetypes
+import os
+import uuid
+
+# ---------------------------------------------------
+# Django
+# ---------------------------------------------------
+from django.contrib.auth.models import Group
+from django.db import transaction
+from django.http import HttpResponseRedirect
+from django.shortcuts import get_object_or_404
+
+# ---------------------------------------------------
+# Django REST Framework
+# ---------------------------------------------------
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
+from rest_framework.response import Response
+
+# ---------------------------------------------------
+# Third-Party / Services
+# ---------------------------------------------------
 from core.supabase_client import supabase
+
+# ---------------------------------------------------
+# Project: Models
+# ---------------------------------------------------
 from .models import (
     Address,
-    Customer,
-    Employee,
-    Service,
-    Customerservice,
-    ServiceImage,
-    Site,
-    Zone,
-    Servicetype,
     Booking,
+    Customer,
+    Customerservice,
+    Employee,
     Invoice,
     Quotes,
     Schedule,
-);
+    Service,
+    ServiceImage,
+    Servicetype,
+    Site,
+    Zone,
+)
+
+# ---------------------------------------------------
+# Project: Serializers
+# ---------------------------------------------------
 from .serializers import (
     AddressSerializer,
-    CustomerSerializer,
-    EmployeeSerializer,
-    ServiceSerializer,
-    CustomerServiceSerializer,
-    ServiceImageSerializer,
-    SiteSerializer,
-    ZoneSerializer,
-    ServiceTypeSerializer,
     BookingSerializer,
+    CustomerSerializer,
+    CustomerServiceSerializer,
+    EmployeeSerializer,
     InvoiceSerializer,
     QuoteSerializer,
     ScheduleSerializer,
-);
+    ServiceImageSerializer,
+    ServiceSerializer,
+    ServiceTypeSerializer,
+    SiteSerializer,
+    ZoneSerializer,
+)
 
-# Security -- Methods for permissions of roles.
+# ---------------------------------------------------
+# Project: Permissions
+# ---------------------------------------------------
 from .permissions import (
+    IsAuthenticatedOrReadOnly,
     IsOwnerOrAdmin,
     IsOwnerOrStaff,
-    isAdmin,
-    IsAuthenticatedOrReadOnly
+    isAdmin,  # if this is a function, consider renaming to `is_admin` for PEP8
 )
+
 
 
 # -----------------------------------------------------------------------------

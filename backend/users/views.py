@@ -1,30 +1,42 @@
-from rest_framework import viewsets, permissions, views, status
-from rest_framework.response import Response
-from rest_framework import exceptions
-from django.db import transaction
-from django.utils.decorators import method_decorator
+# --- Django core ---
 from django.conf import settings
-from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
-from rest_framework.throttling import ScopedRateThrottle
 from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.shortcuts import redirect
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+
+# --- Django Allauth ---
+from allauth.account.models import EmailAddress
+
+# --- Django REST Framework ---
+from rest_framework import exceptions, permissions, status, views, viewsets
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
-from rest_framework import status
-from rest_framework_simplejwt.views  import TokenRefreshView
-from rest_framework.permissions import IsAuthenticated
+
+# --- SimpleJWT ---
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+
+# --- Google Identity (for Google Sign-in / Sign-up) ---
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+
+# --- Project (local) ---
 from .serializers import (
+    ChangeEmailSerializer,
+    ChangePasswordSerializer,
     ClientLoginSerializer,
     ClientRegisterSerializer,
     EmployeeLoginSerializer,
     EmployeeRegisterSerializer,
-    ChangePasswordSerializer,
-    ChangeEmailSerializer,
+    CompleteProfileSerializer
 )
-from .models import *
-from core.models import Employee
-from django.contrib.auth import get_user_model
-from allauth.account.models import EmailAddress
-from rest_framework_simplejwt.tokens import RefreshToken
+
+
 
 throttle_classes = [ScopedRateThrottle]
 User = get_user_model()
@@ -34,23 +46,19 @@ User = get_user_model()
 def _jwt_cookie_settings():
     # Centralized cookie settings so set_cookie/delete_cookie always match.
     cfg = getattr(settings, "REST_AUTH", {})
-    # These should be set in settings.py under REST_AUTH, but we provide defaults here for safety.
-    httponly = cfg.get("JWT_AUTH_HTTPONLY", True)
-    # Cookie names for refresh tokens.
-    cookie_access = settings.REST_AUTH.get("JWT_AUTH_COOKIE", "access")
+    #Cookie refresh
     cookie_refresh = cfg.get("JWT_AUTH_REFRESH_COOKIE", "refresh")
-
-    # SameSite and Secure settings for cookies.
+    #Check if the site of the refresh token.
     samesite = getattr(settings, "JWT_AUTH_COOKIE_SAMESITE", "Lax")
-    secure = getattr(settings, "JWT_AUTH_COOKIE_SECURE", False)
-
-    # Use the same domain as session cookies, or None for default.
+    #Check if the cookie is secured
+    secure = cfg.get("JWT_AUTH_COOKI_SECURE", not settings.DEBUG)
+    #domain
     domain = getattr(settings, "SESSION_COOKIE_DOMAIN", None)
 
     return {
         "cookie_refresh": cookie_refresh,
         "cookie_kwargs": {
-            "httponly": httponly,
+            "httponly": cfg.get("JWT_AUTH_HTTPONLY", True),
             "secure": secure,
             "samesite": samesite,
             "path": "/",
@@ -253,10 +261,19 @@ class EmployeeRegisterViewSet(viewsets.ModelViewSet):
                 )
             return Response(EmployeeRegisterSerializer(user).data, status=201)
         return Response({"detail": f"Registration failed. Please check your input. {self.get_serializer(user).data}"}, status=400)
-    
 
+class CompleteCustomerProfileViewset(APIView):
+    permissions_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = CompleteProfileSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception = True)
+        customer = serializer.save()
+        return Response ({"detail" : "Profile completed"} , status = status.HTTP_201_CREATED,)
+
+# Check all the account of both employee and customer.
 class UserViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAdminUser]
     queryset = User.objects.all()
     serializer_class = EmployeeRegisterSerializer
 
@@ -353,7 +370,7 @@ class LogoutView(APIView):
         cfg = _jwt_cookie_settings()
 
         # Cookie names from your REST_AUTH settings
-        REFRESH_COOKIE_NAME = cfg["refresh"]
+        REFRESH_COOKIE_NAME = cfg["cookie_refresh"]
 
         # Default response
         response = Response({"detail": "Successfully logged out"}, status=status.HTTP_200_OK)
@@ -383,9 +400,10 @@ class LogoutAllView(APIView):
         tokens.blacklist()
 
         return Response({"detail": "Logged out from all sessions"}, status=200)
-    
+
+# Helper to refresh the token in the Cookie
 class CookieTokenRefreshView(views.APIView):
-    permission_class = [permissions.AllowAny]
+    permission_classes = [permissions.AllowAny]
 
     @method_decorator(csrf_protect)
     def post(self, request):
@@ -395,15 +413,100 @@ class CookieTokenRefreshView(views.APIView):
         if not refresh_cookie:
             return Response({"detail" : "No  refreesh cookie"}, status=401)
         
-        # Inject refrest into request.data so SimpleJWT can process it
-        mutable = request.data.copy()
-        mutable["refresh"] = refresh_cookie
-        request._full_data = mutable
-
-        view = TokenRefreshView.as_view()
-        resp = view(request._request)
-        if resp.status_code == 200 and "refresh" in resp.data:
-            # Rotate and set a new refresh cookie
-            new_refresh = resp.data.pop("refresh")
+        serializer = TokenRefreshSerializer(data ={"refresh" : refresh_cookie})
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception:
+            return Response({"detail" : "Invalid refresh token"}, status=401)
+        
+        data = serializer.validated_data
+        resp = Response(data, status=200)
+        new_refresh = data.get("refresh")
+        if new_refresh:
             set_refresh_cookie(resp, new_refresh)
+            resp.data.pop("refresh", None)
         return resp
+    
+
+class GoogleSignInView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_scope = "login"
+    throttle_classes = [ScopedRateThrottle]
+
+    @transaction.atomic
+    def post(self, request):
+        credential = request.data.get("credential")
+        if not credential:
+            return Response({"detail": "Missing credential"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            payload = id_token.verify_oauth2_token(
+                credential,
+                google_requests.Request(),
+                settings.GOOGLE_CLIENT_ID,
+            )
+            if payload.get("iss") not in ["accounts.google.com", "https://accounts.google.com"]:
+                return Response({"detail": "Invalid issuer"}, status=status.HTTP_400_BAD_REQUEST)
+            if not payload.get("email_verified"):
+                return Response({"detail": "Google email not verified"}, status=status.HTTP_400_BAD_REQUEST)
+        except ValueError as e:
+            return Response({"detail": "Invalid token", "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        email = (payload.get("email") or "").lower()
+        sub = payload.get("sub")
+        picture = payload.get("picture") or ""
+        if not email or not sub:
+            return Response({"detail": "Invalid Google payload"}, status=status.HTTP_400_BAD_REQUEST)
+
+        created = False
+        try:
+            user = User.objects.select_for_update().get(email=email)
+            # Prevent hijack: if already linked to different sub, block
+            if hasattr(user, "google_sub") and user.google_sub and user.google_sub != sub:
+                return Response({"detail": "Account conflict for this email."}, status=status.HTTP_409_CONFLICT)
+        except User.DoesNotExist:
+            # Create a minimal customer/client account
+            random_pwd = User.objects.make_random_password()
+            user_kwargs = {"email": email, "password": random_pwd}
+            # If your CustomUser has a role field, default to "client"
+            if hasattr(User, "_meta") and any(f.name == "role" for f in User._meta.get_fields()):
+                user_kwargs["role"] = "client"
+            user = User.objects.create_user(**user_kwargs)
+            created = True
+
+        # Link Google account & avatar
+        updated = False
+        if hasattr(user, "google_sub") and not user.google_sub:
+            user.google_sub = sub
+            updated = True
+        if picture and hasattr(user, "avatar_url") and not getattr(user, "avatar_url", None):
+            user.avatar_url = picture
+            updated = True
+
+        # Ensure active (email verification is handled by Google for this flow)
+        if not user.is_active:
+            user.is_active = True
+            updated = True
+
+        if updated:
+            user.save()
+
+        # Issue tokens: refresh in HttpOnly cookie, access in body
+        refresh = RefreshToken.for_user(user)
+        access = str(refresh.access_token)
+
+        customer = getattr(user, "customer", None)
+
+        resp = Response({
+            "access": access,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "role": getattr(user, "role", "client"),
+                "customer_profile_ready" : bool(customer),
+            },
+            "created": created,
+        }, status=status.HTTP_200_OK)
+
+        return set_refresh_cookie(resp, str(refresh))

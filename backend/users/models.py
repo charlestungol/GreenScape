@@ -38,8 +38,16 @@ class CustomUser(AbstractUser):
     first_name = None
     last_name = None
 
+    # User email
     email = models.EmailField(max_length=200, unique=True)
+
+    # Employee Number
     employee_number = models.CharField(max_length=50, null=True, blank=True)
+    
+    # Assign Google Account to user
+    google_sub = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    avatar_url = models.URLField(null=True, blank=True)
+
 
     role = models.CharField(
         max_length=20,

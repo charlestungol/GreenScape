@@ -114,6 +114,9 @@ CSRF_COOKIE_SECURE = False    # True in production
 JWT_AUTH_COOKIE_SAMESITE = "Lax"
 JWT_AUTH_COOKIE_SECURE = False  # True in production
 
+# --- Google OAuth ---
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+
 # Application definition
 
 INSTALLED_APPS = [
