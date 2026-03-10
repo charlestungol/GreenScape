@@ -52,6 +52,7 @@ from .models import (
     Servicetype,
     Site,
     Zone,
+    UserImage
 )
 
 # ---------------------------------------------------
@@ -987,7 +988,7 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
 # - GET  /{id}/bytes to stream the image inline (no download dialog)
 # -----------------------------------------------------------------------------
 class UserImageViewSet(viewsets.ModelViewSet):
-    queryset = UserImageSerializer.objects.select_related("user").all()
+    queryset = UserImage.objects.select_related("user").all()
     serializer_class = UserImageSerializer
     parser_classes = [MultiPartParser, FormParser]  # for upload
     permission_classes = [DjangoModelPermissions]
@@ -1002,12 +1003,22 @@ class UserImageViewSet(viewsets.ModelViewSet):
     
     # Get data
     def get_queryset(self):
-        # Use super meaning admin to get a query set as qs
-        qs = super().get_queryset()
-        # Get service Id from the service image db
-        user_id = self.request.query_params.get("user")
-        # Filter from the service the service for that image
-        if user_id:
-            qs = qs.filter(user_id=user_id)
-        # Return the query.
+        user = self.request.user
+        qs = UserImage.object.select_related("user").all()
+
+        if not user or not user.is_authenticated:
+            return qs.none()
+        
+        qs = qs.filter(user_id = user.id)
+
         return qs
+    
+    
+    def perform_create(self, serializer):
+        """
+        Force the created image to belong to the authenticated user.
+        This prevents clients from forging another user's id in the payload.
+        """
+        if not self.request.user or not self.request.user.is_authenticated:
+            raise permissions.PermissionDenied("Authentication required.")
+        serializer.save(user=self.request.user)
