@@ -1,12 +1,12 @@
-import "../clientCss/Dashboard.css";
+import "../App.css";
 
-function GaugeProgress({ percentage = 85, dayValue = 2 }) {
+function RunningServices({ percentage = 85, dayValue = 2 }) {
   const radius = 70;
   const circumference = Math.PI * radius; 
   const offset = circumference - (percentage / 100) * circumference;
 
   return (
-    <div className="progressWrapper">
+    <div className="runningWrapper clickable">
       <div className="ringWrapper">
         <br/>
         <svg width="160" height="90">
@@ -32,7 +32,7 @@ function GaugeProgress({ percentage = 85, dayValue = 2 }) {
             r={radius}
             strokeWidth="50"
             fill="none"
-            stroke="#00bfa5"
+            stroke="#1c3d37"
             strokeDasharray={circumference}
             strokeDashoffset={offset}
             strokeLinecap="round"
@@ -50,4 +50,4 @@ function GaugeProgress({ percentage = 85, dayValue = 2 }) {
   );
 }
 
-export default GaugeProgress;
+export default RunningServices;

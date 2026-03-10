@@ -7,12 +7,14 @@ import { useNavigate } from "react-router-dom";
 import AxiosInstance from '../components/AxiosInstance'; 
 
 const Register = () => {
+
   const [email, setEmail] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [employeeNumber, setEmployeeNumber] = useState('');
+  const [group, setGroup] = useState('Staff');
+
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -22,7 +24,7 @@ const Register = () => {
     setError('');
     setSuccess('');
 
-    if (!email || !password || !confirmPassword || !firstName || !lastName || !employeeNumber){
+    if (!email || !password || !confirmPassword || !employeeNumber || !group){
       setError('Please fill in all fields.');
       return;
     }
@@ -36,18 +38,17 @@ const Register = () => {
       const response = await AxiosInstance.post('register/employee/', {
         email,
         password,
-        first_name: firstName,
-        last_name: lastName,
-        employee_number: employeeNumber
+        employee_number: employeeNumber,
+        group
       });
 
       console.log(response.data);
+
       setSuccess('Employee account created successfully! Redirecting...');
 
       setEmail('');
       setEmployeeNumber('');
-      setFirstName('');
-      setLastName('');
+      setGroup('Staff');
       setPassword('');
       setConfirmPassword('');
 
@@ -56,7 +57,9 @@ const Register = () => {
       }, 1200);
 
     } catch (err) {
+
       console.error(err.response || err);
+
       if (err.response) {
         setError(JSON.stringify(err.response.data));
       } else {
@@ -67,29 +70,17 @@ const Register = () => {
 
   return (
     <div className="myBackground">
+
       <video autoPlay muted loop className="backgroundVideo">
         <source src={BackgroundVideo} type="video/mp4" />
         Your browser does not support the video tag.
       </video>
 
       <div className="loginForm">
+
         <div className="landingContent">
           <img src={Logo} alt="Logo" className="landingLogo" />
         </div>
-
-        <input
-          type="text"
-          placeholder="First Name"
-          value={firstName}
-          onChange={e => setFirstName(e.target.value)}
-        />
-
-        <input
-          type="text"
-          placeholder="Last Name"
-          value={lastName}
-          onChange={e => setLastName(e.target.value)}
-        />
 
         <input
           type="text"
@@ -105,6 +96,21 @@ const Register = () => {
           onChange={e => setEmail(e.target.value)}
         />
 
+        <select
+          value={group}
+          onChange={(e) => setGroup(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "12px",
+            marginBottom: "10px",
+            borderRadius: "8px"
+          }}
+        >
+          <option value="Admin">Admin</option>
+          <option value="Supervisor">Supervisor</option>
+          <option value="Staff">Staff</option>
+        </select>
+
         <input
           type="password"
           placeholder="Password"
@@ -119,7 +125,9 @@ const Register = () => {
           onChange={e => setConfirmPassword(e.target.value)}
         />
 
-        <button onClick={handleRegister}>Create Employee Account</button>
+        <button onClick={handleRegister}>
+          Create Employee Account
+        </button>
 
         {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
         {success && <p style={{ color: 'green', marginTop: '10px' }}>{success}</p>}

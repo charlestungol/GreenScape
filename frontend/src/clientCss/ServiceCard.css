@@ -1,0 +1,40 @@
+.card-container {
+    border: solid 2px #06632b;
+    border-radius: 20px;
+    padding: 25px 20px 20px 20px;
+    width: 210px; 
+    height: 250px; 
+    margin: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; 
+    align-items: center;
+
+    &:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(6, 99, 43, 0.2);
+        background-color: #f8fff8;
+    }
+}
+
+.card-icon {
+    font-size: 48px; 
+    color: #06632b;
+    margin-top: 10px;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-title {
+    color: #06632b;
+    font-weight: bold;
+    font-size: 18px;
+    margin: 0;
+    padding: 10px 0 5px 0;
+    text-align: center;
+    width: 100%;
+}

@@ -9,8 +9,10 @@ import { useNavigate } from "react-router-dom";
 
 const ClientRegister = () => {
   const [email, setEmail] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [address, setAddress] = useState({street: '', city:'',province:'',postalcode:''});
+  const [phonenumber, setPhoneNum] = useState('');
+  const [firstname, setFirstName] = useState('');
+  const [lastname, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -23,7 +25,7 @@ const ClientRegister = () => {
   setError('');
   setSuccess('');
 
-  if (!email || !password || !confirmPassword || !firstName || !lastName) {
+  if (!email || !password || !confirmPassword || !firstname || !lastname) {
     setError('Please fill in all fields.');
     return;
   }
@@ -37,8 +39,16 @@ const ClientRegister = () => {
     const response = await AxiosInstance.post('register/client/', {
       email,
       password,
-      first_name: firstName,
-      last_name: lastName
+      first_name: firstname,
+      last_name: lastname,
+      phone: phonenumber,
+      address:{
+        street: address.street,
+        city: address.city,
+        province: address.province,
+        postalcode: address.postalcode,
+      },
+      phoneNum: phonenumber
     });
 
     console.log(response.data);
@@ -48,6 +58,8 @@ const ClientRegister = () => {
     setPassword('');
     setFirstName('');
     setLastName('');
+    setAddress('');
+    setPhoneNum('');
     setConfirmPassword('');
 
     setTimeout(() => {
@@ -72,53 +84,101 @@ const ClientRegister = () => {
         Your browser does not support the video tag.
       </video>
 
-      <div className="loginForm">
-        <div className="landingContent">
-          <img src={Logo} alt="Logo" className="landingLogo" />
-        </div>
+<div className="registerForm">
+  <div className="regFormLogo">
+    <img src={Logo} alt="Logo"/>
+  </div>
 
-        <input
-          type="text"
-          placeholder="First Name"
-          value={firstName}
-          onChange={e => setFirstName(e.target.value)}
-        />
+  {/* LEFT COLUMN */}
+  <div className="formLeft">
+    <input
+      type="text"
+      placeholder="First Name"
+      value={firstname}
+      onChange={e => setFirstName(e.target.value)}
+    />
 
-        <input
-          type="text"
-          placeholder="Last Name"
-          value={lastName}
-          onChange={e => setLastName(e.target.value)}
-        />
+    <input
+      type="text"
+      placeholder="Last Name"
+      value={lastname}
+      onChange={e => setLastName(e.target.value)}
+    />
 
-        <input
-          type="text"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-        />
+    <input
+      type="text"
+      placeholder="Email"
+      value={email}
+      onChange={e => setEmail(e.target.value)}
+    />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        />
+    <input
+      type="text"
+      placeholder="Phone Number"
+      value={phonenumber}
+      onChange={e => setPhoneNum(e.target.value)}
+    />
 
-        <input
-          type="password"
-          placeholder="Confirm Password"
-          value={confirmPassword}
-          onChange={e => setConfirmPassword(e.target.value)}
-        />
+    <input
+      type="password"
+      placeholder="Password"
+      value={password}
+      onChange={e => setPassword(e.target.value)}
+    />
 
-        <button onClick={handleRegister}>Create Client Account</button>
+    <input
+      type="password"
+      placeholder="Confirm Password"
+      value={confirmPassword}
+      onChange={e => setConfirmPassword(e.target.value)}
+    />
+  </div>
 
-        {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
-        {success && <p style={{ color: 'green', marginTop: '10px' }}>{success}</p>}
+  {/* ADDRESS SECTION */}
+  <div className="addressSection">
+    <input
+      type="text"
+      placeholder="Street"
+      value={address.street}
+      onChange={e =>
+        setAddress({ ...address, street: e.target.value })
+      }
+    />
 
+    <input
+      type="text"
+      placeholder="City"
+      value={address.city}
+      onChange={e =>
+        setAddress({ ...address, city: e.target.value })
+      }
+    />
 
-      </div>
+    <input
+      type="text"
+      placeholder="Province"
+      value={address.province}
+      onChange={e =>
+        setAddress({ ...address, province: e.target.value })
+      }
+    />
+
+    <input
+      type="text"
+      placeholder="Postal Code"
+      value={address.postalcode}
+      onChange={e =>
+        setAddress({ ...address, postalcode: e.target.value })
+      }
+    />
+  </div>
+
+  <button onClick={handleRegister}>Create Client Account</button>
+
+  {error && <p className="errorMsg">{error}</p>}
+  {success && <p className="successMsg">{success}</p>}
+</div>
+
     </div>
   );
 };

@@ -16,36 +16,56 @@ const EmployeeLogin = () => {
   const [error, setError] = useState('');
 
   const handleLogin = async () => {
-    setError('');
+  setError('');
 
-    if (!employeeNumber || !email || !password) {
-      setError("Please fill in all fields.");
-      return;
+  if (!employeeNumber || !email || !password) {
+    setError("Please fill in all fields.");
+    return;
+  }
+
+  try {
+    const response = await AxiosInstance.post('login/employee/', {
+      employee_number: employeeNumber,
+      email: email,
+      password: password
+    });
+
+    console.log("Employee login success:", response.data);
+    console.log("Full response structure:", JSON.stringify(response.data, null, 2));
+    
+    // Extract data carefully
+    const userId = response.data.user?.id || response.data.user_id || response.data.id;
+    const userFirstName = response.data.user?.first_name || response.data.first_name || "Employee";
+    const userRole = response.data.user?.role || response.data.role || "employee";
+    const access = response.data?.access || {}
+    
+    console.log("Employee extracted values:");
+    console.log("userId:", userId);
+    console.log("userFirstName:", userFirstName);
+    console.log("userRole:", userRole);
+    
+    // Store data
+    localStorage.setItem("user_id", userId);
+    localStorage.setItem("access", access);
+    localStorage.setItem("role", userRole);
+    localStorage.setItem("first_name", userFirstName);
+    
+    // User-specific storage
+    localStorage.setItem(`user_${userId}_first_name`, userFirstName);
+    localStorage.setItem(`user_${userId}_role`, userRole);
+    
+    navigate('/employeeHome');
+
+  } catch (err) {
+    console.error(err.response || err);
+
+    if (err.response) {
+      setError(JSON.stringify(err.response.data));
+    } else {
+      setError("Something went wrong. Please try again.");
     }
-
-    try {
-      const response = await AxiosInstance.post('login/employee/', {
-        employee_number: employeeNumber,
-        email: email,
-        password: password
-      });
-
-      console.log("Login success:", response.data);
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("role", response.data.user.role);
-      localStorage.setItem("first_name", response.data.user.first_name);
-      navigate('/employeeHome');
-
-    } catch (err) {
-      console.error(err.response || err);
-
-      if (err.response) {
-        setError(JSON.stringify(err.response.data));
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
-    }
-  };
+  }
+};
 
   return (
     <div className="myBackground">

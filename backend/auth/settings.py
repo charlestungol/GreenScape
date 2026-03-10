@@ -10,23 +10,112 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!e=(2vv(vp6z!d8aoe!%6o_4=_92l4(t5xw04#)-4n5w_*rdxf'
+# SECURITY WARNING: keep the secret key used in production secret! Need to put in .env file for production
+SECRET_KEY = os.getenv("SECRET_KEY", "")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = []
 
+# Email / account settings (django-allauth)
+SITE_ID = 1
+
+# Use email as the only credential for login
+ACCOUNT_AUTHENTICATION_METHOD = "email"
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None 
+
+# Email verification flow
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"   
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True         # Verify immediately when visiting the confirmation link
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = "/email-verified/"
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = "http://localhost:5173"
+
+# Optional: either remove or list plain field names (no asterisks). Often you can omit this and control via serializers/forms.
+# ACCOUNT_SIGNUP_FIELDS = ["first_name", "last_name"]
+
+# When user click verifiy email link, the email will be verified immediately without asking user to click another confirm button.
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+
+if DEBUG:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+else:
+    EMAIL_BACKEND = os.getenv(
+        "EMAIL_BACKEND",
+        "django.core.mail.backends.smtp.EmailBackend"
+    )
+EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "25"))
+
+# Booleans: accept 'true'/'false' (case-insensitive)
+def env_bool(name: str, default: bool = False) -> bool:
+    return os.getenv(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
+
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", False)
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
+
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "webmaster@localhost")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
+
+# Optional
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10") or "0") or None
+EMAIL_SSL_CERTFILE = os.getenv("EMAIL_SSL_CERTFILE") or None
+EMAIL_SSL_KEYFILE = os.getenv("EMAIL_SSL_KEYFILE") or None
+
+# Configure Simple JWT settings
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "BLACKLIST_AFTER_ROTATION": True,
+    "ALGORITHM": "HS256",
+}
+
+# Cookies settings for JWT
+CORS_ALLOW_CREDENTIALS = True
+
+# If using cookies, ensure the frontend is included in CSRF_TRUSTED_ORIGINS
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+# --- Session cookies ---
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = False  # True in production (HTTPS)
+
+# --- CSRF cookies ---
+CSRF_COOKIE_NAME = "csrftoken"
+CSRF_COOKIE_HTTPONLY = False   # Must be readable by JS for X-CSRFToken header
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SECURE = False    # True in production
+
+# --- JWT cookies ---
+JWT_AUTH_COOKIE_SAMESITE = "Lax"
+JWT_AUTH_COOKIE_SECURE = False  # True in production
+
+# --- Google OAuth ---
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 
 # Application definition
 
@@ -37,11 +126,33 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
     'rest_framework',
     'corsheaders',
     'users',
-    'knox'
+    'core',
+    'rest_framework_simplejwt.token_blacklist',
 ]
+
+LOGGING = {
+    "version": 1,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "loggers": {
+        "django.core.mail": {"handlers": ["console"], "level": "DEBUG"},
+        "allauth": {"handlers": ["console"], "level": "INFO"},
+        "allauth.account": {"handlers": ["console"], "level": "INFO"},
+    },
+}
+
+
+# # IMPORTANT REMOVE AFTER DEVELOPMENT
+# PYTHONHTTPSVERIFY=0 
+# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -52,16 +163,19 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware'
 ]
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
+    "http://127.0.0.1:5173",
 ]
 
 AUTH_USER_MODEL ='users.CustomUser'
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
 ROOT_URLCONF = 'auth.urls'
@@ -84,17 +198,61 @@ TEMPLATES = [
 WSGI_APPLICATION = 'auth.wsgi.application'
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': ('knox.auth.TokenAuthentication',),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        ),
+    
+    "DEFAULT_PERMISSION_CLASSES": (
+            "rest_framework.permissions.IsAuthenticated",
+            "rest_framework.permissions.DjangoModelPermissions",
+        ),
+
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle", 
+    ],
+
+    "DEFAULT_THROTTLE_RATES": {
+        # Login endpoint is accessible to unauthenticated users → protect it heavily
+        "anon": "30/minute",       # UMA: 5 unauthenticated requests per minute per IP
+        "user": "60/minute",      # Authenticated user actions
+        "login": "30/minute",       # Login endpoint (if separate throttle needed)
+        "register": "5/hour",    # Registration endpoint (if separate throttle needed)
+    },
+
+    "DEFAULT_PAGINATION_CLASS":
+        "rest_framework.pagination.PageNumberPagination",
+        "PAGE_SIZE": 10,
+
 }
 
+REST_AUTH = {
+    
+    "USE_JWT": True,            
+    "TOKEN_MODEL": None,
+    "TOKEN_SERIALIZER": None,
+
+    # If using cookies:
+    "JWT_AUTH_COOKIE": "access",
+    "JWT_AUTH_REFRESH_COOKIE": "refresh",
+    "JWT_AUTH_HTTPONLY": True,
+
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'mssql',
+        'NAME': 'GreenScape',
+        'HOST' : 'localhost',
+        'OPTIONS' : {
+            'driver' : 'ODBC Driver 17 for SQL Server',
+            'trusted_connection' : 'yes',
+            'TrustServerCertificate': 'yes',
+        },
     }
 }
 

@@ -5,6 +5,7 @@ import Logo from '../assets/img/Logo.png';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AxiosInstance from '../components/AxiosInstance';
+import { Axios } from 'axios';
 
 const ClientLogin = () => {
   const navigate = useNavigate();
@@ -15,37 +16,89 @@ const ClientLogin = () => {
   const [error, setError] = useState('');
 
   const handleLogin = async () => {
-    setError('');
+  setError('');
 
-    if (!email || !password) {
-      setError("Please fill in all fields.");
+  if (!email || !password) {
+    setError("Please fill in all fields.");
+    return;
+  }
+
+  try {
+    // Remove stale access token
+    localStorage.removeItem("access");
+
+    // Just to make sure CSRF is seeded
+    await AxiosInstance.get("/csrf/").catch(() => {})
+
+    const response = await AxiosInstance.post('login/client/', {
+      email: email,
+      password: password
+    });
+    
+
+    console.log("Client login success:", response.data);
+    console.log("Full response structure:", JSON.stringify(response.data, null, 2));
+    
+    // DEBUG: Check the exact structure
+    console.log("response.data:", response.data);
+    console.log("response.data.user:", response.data.user);
+    console.log("response.data.user.first_name:", response.data.user?.first_name);
+    
+    // Store user ID - check different possible locations
+    const userId = response.data.user?.id || response.data.user_id || response.data.id;
+    const userFirstName = response.data.user?.first_name || response.data.first_name || "";
+    const userRole = response.data.user?.role || response.data.role || "client";
+
+    // Prefer SimpleJWT naming if present
+    const access = response.data?.access || {};
+
+    
+    console.log("Extracted values:");
+    console.log("userId:", userId);
+    console.log("userFirstName:", userFirstName);
+    console.log("userRole:", userRole);
+    console.log("access:", access);
+    
+    if (!userId) {
+      console.error("No user_id found in response!");
+      setError("Login failed: No user ID received");
       return;
     }
 
-    try {
-      const response = await AxiosInstance.post('login/client/', {
-        email: email,
-        password: password
-      });
-
-      console.log("Client login success:", response.data);
-      console.log("LOGIN RESPONSE:", response.data);
-      
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("role", response.data.user.role);
-      localStorage.setItem("first_name", response.data.user.first_name);
-      navigate('/home');
-
-    } catch (err) {
-      console.error(err.response || err);
-
-      if (err.response) {
-        setError(JSON.stringify(err.response.data));
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
+    if (!access || typeof access != "string") {
+      setError("Login succeeded but no access token received.");
+      return;
     }
-  };
+    
+    // Store data
+    localStorage.setItem("user_id", userId);
+    // Save tokens (Bearer)
+    localStorage.setItem("access", access);
+    localStorage.setItem("role", userRole);
+    localStorage.setItem("first_name", userFirstName);
+    
+    // Also store with user-specific prefix for safety
+    localStorage.setItem(`user_${userId}_first_name`, userFirstName);
+    localStorage.setItem(`user_${userId}_role`, userRole);
+    
+    // Verify storage
+    console.log("Storage verification:");
+    console.log("Stored user_id:", localStorage.getItem("user_id"));
+    console.log("Stored first_name:", localStorage.getItem("first_name"));
+    console.log("Stored role:", localStorage.getItem("role"));
+    
+    navigate('/home');
+
+  } catch (err) {
+    console.error("Login error:", err.response || err);
+
+    if (err.response) {
+      setError(JSON.stringify(err.response.data));
+    } else {
+      setError("Something went wrong. Please try again.");
+    }
+  }
+};
 
   return (
     <div className="myBackground">
@@ -79,7 +132,7 @@ const ClientLogin = () => {
           Sign Up
         </button>
 
-        {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
+        <p className='errorMsg' >{error}</p>
 
       </div>
     </div>
