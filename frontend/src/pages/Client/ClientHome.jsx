@@ -13,7 +13,7 @@ const Home = () => {
   return (
     <div className="mainArea">
       <div className="dashboardContainer">
-        <div className="dashboardWrapper">
+        <div>
           <div className="titleWrapper">
             CLIENT DASHBOARD
           </div>

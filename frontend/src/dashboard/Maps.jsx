@@ -47,13 +47,13 @@ const fetchAddress = async (lat, lng, setSelectedAddress) => {
 
 /* ================= MAIN COMPONENT ================= */
 function Maps() {
-  const navigate = useNavigate(); // Initialize navigation
+  const navigate = useNavigate();
   const [showMap, setShowMap] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [selectedAddress, setSelectedAddress] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isConfirming, setIsConfirming] = useState(false); // Loading state
-  const [showSuccess, setShowSuccess] = useState(false); // Success message
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const defaultCenter = [51.0447, -114.0719]; // Calgary
 
@@ -90,21 +90,14 @@ function Maps() {
     
     setIsConfirming(true);
     
-    // Simulate API call to save location
     try {
-      // You can save the location to your backend here
-      // await saveUserLocation(selectedPosition, selectedAddress);
-      
-      // Show success message
       setShowSuccess(true);
       
-      // Wait 1.5 seconds then navigate to services page
       setTimeout(() => {
         setShowMap(false);
         setShowSuccess(false);
         setIsConfirming(false);
         
-        // Navigate to services page with the location data
         navigate("/services", {
           state: {
             location: {
@@ -124,9 +117,8 @@ function Maps() {
 
   /* ================= CLOSE MAP ================= */
   const handleCloseMap = () => {
-    if (isConfirming) return; // Prevent closing while confirming
+    if (isConfirming) return;
     
-    // Reset all states when closing
     setShowMap(false);
     setSelectedPosition(null);
     setSelectedAddress("");
@@ -148,66 +140,31 @@ function Maps() {
         <div className="overlayMap">
           <div className="overlayMapContent">
             {/* Header with Title and Close Button */}
-            <div style={{ 
-              display: "flex", 
-              justifyContent: "space-between", 
-              alignItems: "center",
-              marginBottom: "15px"
-            }}>
-              <h3 style={{ margin: 0 }}>Select Service Location</h3>
+            <div className="map-header">
+              <h3 className="map-title">Select Service Location</h3>
               <button
                 onClick={handleCloseMap}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "5px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "50%",
-                  transition: "all 0.2s ease"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "#f0f0f0";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                }}
+                className="close-button"
                 disabled={isConfirming}
               >
-                <CloseIcon style={{ fontSize: 24, color: "#666" }} />
+                <CloseIcon className="close-icon" />
               </button>
             </div>
 
             {/* SEARCH BAR */}
-            <div style={{ display: "flex", gap: "8px", marginBottom: "15px" }}>
+            <div className="search-container">
               <input
                 type="text"
                 placeholder="Search address..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                style={{ 
-                  flex: 1, 
-                  padding: "10px",
-                  borderRadius: "8px",
-                  border: "2px solid #ddd",
-                  fontSize: "14px"
-                }}
+                className="search-input"
                 disabled={isConfirming}
               />
               <button 
-                className="closeMapBtn" 
+                className="search-button" 
                 onClick={handleSearch}
-                style={{ 
-                  padding: "10px 20px",
-                  background: "#1c3d37",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: "pointer"
-                }}
                 disabled={isConfirming}
               >
                 Search
@@ -218,14 +175,7 @@ function Maps() {
             <MapContainer
               center={defaultCenter}
               zoom={13}
-              style={{
-                height: "320px",
-                width: "100%",
-                borderRadius: "10px",
-                marginBottom: "15px",
-                opacity: isConfirming ? 0.7 : 1,
-                pointerEvents: isConfirming ? "none" : "auto"
-              }}
+              className={`map-container ${isConfirming ? 'disabled' : ''}`}
             >
               <TileLayer
                 attribution="&copy; OpenStreetMap contributors"
@@ -246,13 +196,8 @@ function Maps() {
 
             {/* SELECTED LOCATION DISPLAY */}
             {selectedAddress && (
-              <div style={{
-                padding: "12px",
-                background: "#e8f5e9",
-                borderRadius: "8px",
-                marginBottom: "15px"
-              }}>
-                <p className="mapLocation" style={{ margin: 0, color: "#2e7d32" }}>
+              <div className="location-display">
+                <p className="location-text">
                   📍 {selectedAddress}
                 </p>
               </div>
@@ -260,41 +205,16 @@ function Maps() {
 
             {/* SUCCESS MESSAGE */}
             {showSuccess && (
-              <div style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                padding: "12px",
-                background: "#4caf50",
-                color: "white",
-                borderRadius: "8px",
-                marginBottom: "15px",
-                animation: "fadeIn 0.3s ease"
-              }}>
+              <div className="success-message">
                 <CheckCircleIcon />
                 <span>Location confirmed! Redirecting to services...</span>
               </div>
             )}
 
             {/* ACTION BUTTONS */}
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div className="action-buttons">
               <button
-                style={{
-                  flex: 2,
-                  padding: "12px",
-                  background: selectedPosition && !isConfirming ? "#1c3d37" : "#ccc",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: selectedPosition && !isConfirming ? "pointer" : "not-allowed",
-                  transition: "all 0.2s ease",
-                  opacity: isConfirming ? 0.7 : 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px"
-                }}
+                className={`confirm-button ${(!selectedPosition || isConfirming) ? 'disabled' : ''}`}
                 disabled={!selectedPosition || isConfirming}
                 onClick={handleConfirmLocation}
               >
@@ -312,17 +232,7 @@ function Maps() {
               </button>
 
               <button
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  background: "#f5f5f5",
-                  color: "#666",
-                  border: "2px solid #ddd",
-                  borderRadius: "8px",
-                  cursor: isConfirming ? "not-allowed" : "pointer",
-                  transition: "all 0.2s ease",
-                  opacity: isConfirming ? 0.5 : 1
-                }}
+                className={`reset-button ${isConfirming ? 'disabled' : ''}`}
                 onClick={() => {
                   setSelectedPosition(null);
                   setSelectedAddress("");
@@ -334,18 +244,10 @@ function Maps() {
             </div>
 
             {/* Close link at bottom */}
-            <div style={{ textAlign: "center", marginTop: "15px" }}>
+            <div className="close-link-container">
               <button
                 onClick={handleCloseMap}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "#666",
-                  textDecoration: "underline",
-                  cursor: isConfirming ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  opacity: isConfirming ? 0.5 : 1
-                }}
+                className={`close-link ${isConfirming ? 'disabled' : ''}`}
                 disabled={isConfirming}
               >
                 Close without saving

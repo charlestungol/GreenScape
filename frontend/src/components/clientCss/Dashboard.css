@@ -1,31 +1,69 @@
-/* ===========
-   DASHBOARD
-=============*/
+/* ============================================
+   DASHBOARD LAYOUT & BASE STYLES
+   ============================================ */
 
 body:has(.dashboardContainer),
 html:has(.dashboardContainer) {
-  overflow: hidden !important;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .dashboardContainer {
-  height: 100vh;
+  min-height: 100dvh;
   overflow-y: auto !important;
   scrollbar-width: none !important;
 }
 
-
-.secondLayerBoard p{
-font-weight: bold;
+.firstLayerBoard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0 auto;
 }
 
-.titleWrapper{
- border:solid 2px  #06632b;
- color: #06632b;
- padding: 20px;
- font-size: 25px;
- font-weight:bold;
- border-radius: 20px;
- width: 96%;
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-left: 10px;
+}
+
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-right: 10px;
+}
+
+.topServicesRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.timeRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 200px;
+  gap: 5px;
+}
+
+.MuiToolbar-root.MuiToolbar-gutters.MuiToolbar-regular {
+  display: none;
+}
+
+.secondLayerBoard p {
+  font-weight: bold;
+}
+
+.titleWrapper {
+  border: solid 2px #06632b;
+  color: #06632b;
+  padding: 20px;
+  font-size: 25px;
+  font-weight: bold;
+  border-radius: 20px;
+  width: 96%;
 }
 
 .clickable {
@@ -35,108 +73,350 @@ font-weight: bold;
 
 .clickable:hover {
   transform: translateY(-4px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* ===========
-   BUDGET
-=============*/
+/* ============================================
+   WRAPPER COMPONENTS
+   ============================================ */
 
-.budgetAmount {
-  font-size: 24px;
-  margin-bottom: 10px;
+.remainingWrapper,
+.budgetWrapper,
+.expensesWrapper {
+  border: 2px solid #ddd;
+  height: 80px;
+  padding: 20px;
+  border-radius: 12px;
+  width: 335px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  margin: 0 0 4px 0;
 }
 
-/* Overlay Styles */
+.budgetWrapper:hover,
+.expensesWrapper:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.runningWrapper,
+.finishedWrapper {
+  border: 2px solid #ddd;
+  height: 150px;
+  margin-top: 10px;
+  padding: 20px;
+  border-radius: 12px;
+  width: 335px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.finishedWrapper:hover,
+.runningWrapper:hover {
+  box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+.runningWrapper p,
+.finishedWrapper p,
+.budgetWrapper p,
+.expensesWrapper p,
+.remainingWrapper p {
+  font-size: 20px;
+  color: #1c3d37;
+  text-align: center;
+  margin-top: 0;
+}
+
+/* =========
+   BUDGET 
+   ========= */
+
+.addBudgetMainBtn {
+  padding: 10px 20px;
+  width: 100%;
+  background-color: #1c3d37;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 15px;
+  transition: all 0.3s;
+  margin-top: 5px;
+}
+
+.addBudgetMainBtn:hover {
+  background-color: #1c3d37;
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(6, 99, 43, 0.3);
+}
+
+/* Budget Overlay */
 .budgetOverlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  animation: fadeIn 0.3s ease;
 }
 
-.budgetInputArea {
-  background-color: white;
-  padding: 30px;
-  border-radius: 15px;
-  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
-  min-width: 300px;
-  max-width: 400px;
+.budgetForm {
+  background: white;
+  padding: 25px;
+  width: 350px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   text-align: center;
+  border: 1px solid #1c3d37;
 }
 
-.budgetInputArea h3 {
-  margin-top: 0;
-  margin-bottom: 20px;
-  color: #333;
+.budgetFormTitle {
+  margin: 0 0 20px 0;
+  color: #1c3d37;
+  font-size: 1.5rem;
+  font-weight: 600;
 }
 
-.budgetInputArea input {
+.budgetForm input {
   padding: 12px;
   width: 100%;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
   border: 2px solid #ddd;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 16px;
   box-sizing: border-box;
   transition: border-color 0.3s;
 }
 
-.budgetInputArea input:focus {
-  border-color: #06632b;
+.budgetForm input:focus {
+  border-color: #1c3d37;
   outline: none;
 }
 
-.budgetInputArea button {
+.budgetForm input::placeholder {
+  color: #999;
+}
+
+/* Budget Info Display */
+.budgetInfo {
+  background: #f5f5f5;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 15px 0;
+  text-align: left;
+}
+
+.budgetInfo p {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.budgetInfo strong {
+  color: #1c3d37;
+  font-size: 16px;
+}
+
+/* Budget Progress Bar */
+.budgetProgressContainer {
+  margin: 15px 0;
+}
+
+.budgetProgressLabel {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  font-size: 13px;
+  color: #666;
+}
+
+.budgetProgressBar {
+  width: 100%;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.budgetProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #1c3d37, #2e8b57);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.budgetProgressFill.warning {
+  background: linear-gradient(90deg, #ff9800, #ffb74d);
+}
+
+.budgetProgressFill.danger {
+  background: linear-gradient(90deg, #d32f2f, #ff6b6b);
+}
+
+/* Budget Actions */
+.budgetActions {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0 10px;
+}
+
+.budgetButton {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.budgetButton.edit {
+  background-color: #1c3d37;
+  color: white;
+}
+
+.budgetButton.edit:hover {
+  background-color: #022510;
+}
+
+.budgetButton.reset {
+  background-color: #f5f5f5;
+  color: #555;
+  border: 2px solid #ddd;
+}
+
+.budgetButton.reset:hover {
+  background-color: #e0e0e0;
+}
+
+.budgetButton.delete {
+  background-color: #ffebee;
+  color: #d32f2f;
+  border: 1px solid #ffcdd2;
+}
+
+.budgetButton.delete:hover {
+  background-color: #ffcdd2;
+}
+
+/* Budget Empty State */
+.budgetEmptyState {
+  text-align: center;
+  padding: 20px;
+  background: #fafbfa;
+  border-radius: 8px;
+  margin: 15px 0;
+}
+
+.budgetEmptyMessage {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.budgetFormButtons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.budgetFormButton {
   padding: 12px 24px;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: 8px;
   border: none;
   font-size: 16px;
   font-weight: bold;
   transition: all 0.3s;
-  margin:0 0 10px 5px;
+  flex: 1;
 }
 
-.budgetInputArea button:last-of-type:hover {
-  background-color: #ddd;
+.budgetFormButton.add {
+  background-color: #1c3d37;
+  color: white;
 }
 
-.buttonGroup {
-  display: flex;
-  justify-content: center;
+.budgetFormButton.add:hover {
+  background-color: #022510;
+}
+
+.budgetFormButton.cancel {
+  background-color: #f5f5f5;
+  color: #555;
+  border: 2px solid #ddd;
+}
+
+.budgetFormButton.cancel:hover {
+  background-color: #e0e0e0;
+}
+
+/* Budget Summary */
+.budgetSummary {
+  padding-top: 15px;
+  border-top: 2px solid #eee;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.budgetSummaryAmount {
+  font-size: 20px;
+  font-weight: bold;
+  color: #1c3d37;
+  margin-bottom: 5px;
+}
+
+.budgetSummarySpent {
+  font-size: 14px;
+  color: #d32f2f;
+  margin-bottom: 5px;
+}
+
+.budgetSummaryRemaining {
+  font-size: 14px;
+  color: #2e8b57;
+}
+
+/* Budget Stats */
+.budgetStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 10px;
 }
 
-/* ===========
-   EXPENSES
-=============*/
-
-/* Main Expenses Card */
-.expensesWrapper {
-  border: 2px solid #ddd;
-  height: 80px;
-  margin-top: 10px;
-  padding: 20px;
-  border-radius: 12px;
-  width: 335px;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+.budgetStatCard {
+  background: #f5f5f5;
+  padding: 10px;
+  border-radius: 6px;
   text-align: center;
-  background-color: white;
-  cursor: default;
-  transition: all 0.3s ease;
 }
 
-.expensesWrapper:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+.budgetStatLabel {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 4px;
+  text-transform: uppercase;
 }
+
+.budgetStatValue {
+  font-size: 16px;
+  font-weight: bold;
+  color: #1c3d37;
+}
+
+/* ============================================
+   EXPENSES SECTION
+   ============================================ */
 
 .expensesTitle {
   font-size: 20px;
@@ -151,7 +431,6 @@ font-weight: bold;
   font-size: 28px;
 }
 
-/* Add Expense Button */
 .addExpenseMainBtn {
   padding: 10px 20px;
   width: 100%;
@@ -172,20 +451,19 @@ font-weight: bold;
   box-shadow: 0 3px 8px rgba(6, 99, 43, 0.3);
 }
 
-/* =========================
-   ADD EXPENSE OVERLAY
-========================= */
+/* Expense Overlay */
 .expenseOverlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 999;
+  animation: fadeIn 0.3s ease;
 }
 
 .expenseForm {
@@ -193,7 +471,7 @@ font-weight: bold;
   padding: 25px;
   width: 350px;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   text-align: center;
   border: 1px solid #1c3d37;
 }
@@ -227,7 +505,7 @@ font-weight: bold;
   color: #999;
 }
 
-/* Category Selection */
+/* Category Chips */
 .categoryChips {
   display: flex;
   flex-wrap: wrap;
@@ -296,7 +574,7 @@ font-weight: bold;
   background-color: #e0e0e0;
 }
 
-/* Empty State */
+/* Expense List */
 .expenseEmptyState {
   text-align: center;
   padding: 40px 20px;
@@ -308,7 +586,6 @@ font-weight: bold;
   margin-bottom: 20px;
 }
 
-/* Expense List */
 .expenseListContainer {
   margin-bottom: 20px;
 }
@@ -379,7 +656,6 @@ font-weight: bold;
   background-color: #ffcdd2;
 }
 
-/* Total Summary */
 .expenseTotalSummary {
   padding-top: 20px;
   border-top: 2px solid #eee;
@@ -399,7 +675,6 @@ font-weight: bold;
   color: #666;
 }
 
-/* Close Button */
 .expenseCloseButton {
   display: block;
   margin: 20px auto 0 auto;
@@ -418,96 +693,12 @@ font-weight: bold;
   background-color: #054e22;
 }
 
-/* ===================================
-   RESPONSIVE ADJUSTMENTS
-=================================== */
+/* ============================================
+   RUNNING & FINISHED SERVICES
+   ============================================ */
 
-@media (max-width: 768px) {
-  .expensesWrapper {
-    width: 100%;
-    max-width: 335px;
-  }
-  
-  .expenseForm {
-    width: 90%;
-    max-width: 350px;
-  }
-  
-  .expenseHistoryContent {
-    width: 95%;
-    padding: 20px;
-  }
-  
-  .expenseListItem {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  
-  .expenseItemMeta {
-    flex-wrap: wrap;
-  }
-}
-
-/* Animation */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0px);
-  }
-}
-
-.expenseOverlay,
-.expenseHistoryOverlay {
-  animation: fadeIn 0.3s ease;
-}
-
-/* ===========
-   WRAPPER
-=============*/
-
- .remainingWrapper,.budgetWrapper , .expensesWrapper {
-  border: 2px solid #ddd;
-  height: 80px;
-  margin-top: 10px;
-  padding: 20px;
-  border-radius: 12px;
-  width: 335px;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
-  text-align: center;
-}
-
-
- .runningWrapper, .finishedWrapper {
-  border: 2px solid #ddd;
-  height: 160px;
-  margin-top: 10px;
-  padding: 20px;
-  border-radius: 12px;
-  width: 335px;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
-  text-align: center;
-}
-
-/* WRAPPER PARAGRAPH */
-
-.runningWrapper p, .finishedWrapper p, .budgetWrapper p , .expensesWrapper p, .remainingWrapper p{
-  font-size: 20px;
-  color:#1c3d37 ;
-  text-align: center;
-  margin-top:0;
-}
-
-
-.finishedWrapper:hover,.runningWrapper:hover {
-  box-shadow: 0px 3px 8px rgba(0,0,0,0.15);
-}
-
-.finishedList, .runningList {
+.finishedList,
+.runningList {
   margin-top: 15px;
 }
 
@@ -516,15 +707,14 @@ font-weight: bold;
   font-size: 14px;
 }
 
-/* OVERLAY MODAL */
-
+/* Overlay Modal */
 .overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -536,11 +726,11 @@ font-weight: bold;
   padding: 25px;
   width: 300px;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   text-align: center;
 }
 
-.overlayContent h2{
+.overlayContent h2 {
   color: #06632b;
 }
 
@@ -563,104 +753,311 @@ font-weight: bold;
   cursor: pointer;
 }
 
-/* ===========
-     QUOTE
-=============*/
+.closeBtn:hover {
+  background-color: #054e22;
+}
 
-.quoteWrapper{
+/* ============================================
+   QUOTE SECTION
+   ============================================ */
+
+.quoteWrapper {
   border: 2px solid #ddd;
-  margin-top: 10px;
   padding: 20px;
   border-radius: 12px;
   width: 335px;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
   text-align: center;
   height: 35px;
 }
-.quoteWrapper p{
+
+.quoteWrapper p {
   font-size: 20px;
   color: #1c3d37;
   text-align: center;
-  margin:0;
+  margin: 0;
 }
 
-/* ===========
-     MAPS
-=============*/
+/* ============================================
+   MAPS SECTION
+   ============================================ */
 
-.mapsWrapper{
+.mapsWrapper {
   border: 2px solid #ddd;
-  margin-top: 10px;
+  margin-top: 5px;
   border-radius: 12px;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
   text-align: center;
   width: 185px;
+  cursor: pointer;
+  display: inline-block;
 }
 
-.mapLocation{
+.mapLocation {
   font-size: 15px;
 }
 
-.mapButton{
+.mapButton {
   display: grid;
 }
 
-
-.mapSearch input{
+.mapSearch input {
   border-radius: 10px;
   margin: 0 10px 10px 0;
 }
 
-/* Dark background overlay */
+/* Map Overlay */
 .overlayMap {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.6);
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 999;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
 }
 
-/* Modal box */
 .overlayMapContent {
-  width: 90%;
-  max-width: 450px;
-  background: #ffffff;
+  background: white;
   padding: 20px;
-  border-radius: 12px;
-  text-align: center;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  animation: slideUp 0.3s ease;
 }
 
-/* Close button */
-.closeMapBtn {
-  margin-top: 15px;
-  padding: 8px 15px;
-  background: #06632b;
+/* Map Header */
+.map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.map-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+/* Close Button */
+.close-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+
+.close-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.close-icon {
+  font-size: 24px;
+  color: #666;
+}
+
+/* Search Container */
+.search-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.search-input {
+  padding: 10px;
+  border-radius: 8px;
+  border: 2px solid #ddd;
+  font-size: 14px;
+  width: 80%;
+  transition: border-color 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #1c3d37;
+}
+
+.search-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.search-button {
+  padding: 10px 20px;
+  background: #1c3d37;
   color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
+.search-button:hover:not(:disabled) {
+  background: #2a5a51;
+}
 
-/* ===========
-     TIME
-=============*/
+.search-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
 
-.timeWrapper{
+/* Map Container */
+.map-container {
+  height: 320px;
+  width: 100%;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  transition: opacity 0.2s ease;
+}
+
+.map-container.disabled {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Location Display */
+.location-display {
+  padding: 12px;
+  background: #e8f5e9;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  animation: fadeIn 0.3s ease;
+}
+
+.location-text {
+  margin: 0;
+  color: #2e7d32;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* Success Message */
+.success-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: #4caf50;
+  color: white;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.confirm-button {
+  flex: 2;
+  padding: 12px;
+  background: #1c3d37;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.confirm-button.disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.confirm-button:hover:not(:disabled) {
+  background: #2a5a51;
+}
+
+.reset-button {
+  flex: 1;
+  padding: 12px;
+  background: #f5f5f5;
+  color: #666;
   border: 2px solid #ddd;
-  margin-top: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.reset-button:hover:not(:disabled) {
+  background: #e8e8e8;
+}
+
+.reset-button.disabled,
+.confirm-button:disabled,
+.reset-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Close Link */
+.close-link-container {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.close-link {
+  background: transparent;
+  border: none;
+  color: #666;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.close-link:hover:not(:disabled) {
+  color: #333;
+}
+
+.close-link.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ============================================
+   TIME SECTION
+   ============================================ */
+
+.timeWrapper {
+  border: 2px solid #ddd;
+  margin-top: 5px;
   border-radius: 12px;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
   text-align: center;
   width: 185px;
 }
 
-.timeWrapper p{
+.timeWrapper p {
   font-size: 20px;
   color: #1c3d37;
   text-align: center;
@@ -676,16 +1073,16 @@ font-weight: bold;
   margin: 5px 0 0 0;
 }
 
-/* ===========
-   PROGRESS
-=============*/
+/* ============================================
+   PROGRESS/RING SECTION
+   ============================================ */
 
 .progressWrapper {
   border: 2px solid #ddd;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
   border-radius: 10px;
-  margin-top:10px;
-  height: 160px;
+  margin-top: 10px;
+  height: 140px;
   font-size: 20px;
   text-align: center;
   padding: 20px;
@@ -705,9 +1102,8 @@ font-weight: bold;
 }
 
 .ringWrapper p {
- margin:0;
+  margin: 0;
 }
-
 
 .ringText {
   position: absolute;
@@ -737,30 +1133,29 @@ font-weight: bold;
   transition: stroke-dashoffset 0.6s ease;
 }
 
-.detailText{
+.detailText {
   font-size: 14px;
   margin-top: 10px;
   color: #06632b;
 }
 
-/* ===========
-   ANALYTICS
-=============*/
+/* ============================================
+   ANALYTICS SECTION
+   ============================================ */
 
 .analyticsWrapper {
-  margin-top: 10px;
   background: white;
   transition: all 0.2s ease;
   position: relative;
   display: flex;
   flex-direction: column;
   border: 2px solid #ddd;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
   border-radius: 10px;
-  height:375px;
+  height: 365px;
   font-size: 20px;
   text-align: center;
-  padding:10px;
+  padding: 10px;
 }
 
 /* Header with toggle */
@@ -825,21 +1220,6 @@ font-weight: bold;
   transform: scale(1.002);
 }
 
-/* Overlay base styles */
-.overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 999;
-}
-
 /* Analytics Overlay */
 .analyticsOverlayContent {
   background: white;
@@ -847,15 +1227,15 @@ font-weight: bold;
   max-height: 85vh;
   padding: 35px;
   border-radius: 24px;
-  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
   border: none;
   animation: fadeIn 0.3s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
   overflow-y: auto;
-  -ms-overflow-style: none; 
-  scrollbar-width: none;     
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .analyticsOverlayContent::-webkit-scrollbar {
@@ -923,7 +1303,7 @@ font-weight: bold;
 .summaryCard:hover {
   transform: translateY(-2px);
   border-color: #c0d6cc;
-  box-shadow: 0 8px 16px rgba(0,0,0,0.02);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.02);
 }
 
 .summaryCard-header {
@@ -964,7 +1344,7 @@ font-weight: bold;
   color: #1c3d37;
 }
 
-/* Section Headers - Minimal */
+/* Section Headers */
 .sectionHeader {
   color: #1a3a32;
   font-size: 16px;
@@ -986,7 +1366,7 @@ font-weight: bold;
   display: inline-block;
 }
 
-/* Transactions List - Modern Cards */
+/* Transactions List */
 .transactionsList {
   display: flex;
   flex-direction: column;
@@ -1009,7 +1389,7 @@ font-weight: bold;
 .transactionItem:hover {
   background: white;
   border-color: #c0d6cc;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
 }
 
 .transactionDetails {
@@ -1045,7 +1425,8 @@ font-weight: bold;
   color: #8a9e98;
 }
 
-.transactionDate, .transactionTime {
+.transactionDate,
+.transactionTime {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1065,7 +1446,7 @@ font-weight: bold;
   opacity: 0.8;
 }
 
-/* Monthly Breakdown - Minimal */
+/* Monthly Breakdown */
 .monthlyBreakdown {
   margin-top: 16px;
   width: 100%;
@@ -1097,7 +1478,7 @@ font-weight: bold;
   color: #8a9e98;
 }
 
-/* Progress Bar - Minimal */
+/* Progress Bar */
 .progressBarContainer {
   width: 100%;
   height: 6px;
@@ -1151,10 +1532,10 @@ font-weight: bold;
   font-style: normal;
 }
 
-/* Analytics Close Button - Modern */
+/* Analytics Close Button */
 .analyticsCloseBtn {
   padding: 12px 28px;
-  margin-bottom:20px ;
+  margin-bottom: 20px;
   background: white;
   border: 1.5px solid #06632b;
   color: #06632b;
@@ -1178,18 +1559,6 @@ font-weight: bold;
 
 .analyticsCloseBtn:active {
   transform: translateY(0);
-}
-
-/* Animation */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 /* Custom Tooltip */
@@ -1227,46 +1596,245 @@ font-weight: bold;
   margin-right: 6px;
 }
 
-/* Responsive Design */
+/* ============================================
+   SETTINGS SECTION
+   ============================================ */
+
+.settingsWrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.settingsWrapper button {
+  background-color: white;
+  border: 2px solid #00c851;
+  padding: 20px;
+  border-radius: 20px;
+  font-weight: bold;
+  color: #06632b;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.settingsWrapper button:hover {
+  color: #00c851;
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0, 200, 81, 0.2);
+}
+
+/* Settings Overlay */
+.overlay.settings {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.overlayContent.settings {
+  background: white;
+  padding: 30px;
+  width: 350px;
+  border-radius: 12px;
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.4);
+  border: 1px solid #1f3d1f;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.overlayContent.settings h2 {
+  text-align: center;
+  color: #1c3d37;
+  margin: 0 0 10px 0;
+}
+
+.overlayContent.settings input {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #3e5f3e;
+  font-size: 14px;
+}
+
+.overlayContent.settings input:focus {
+  outline: none;
+  border-color: #06632b;
+}
+
+.overlayContent.settings button {
+  padding: 12px;
+  border-radius: 8px;
+  background: #1c3d37;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-weight: normal;
+  transition: all 0.3s ease;
+}
+
+.overlayContent.settings button:hover {
+  background-color: #06632b;
+  transform: translateY(-2px);
+}
+
+.closeModal {
+  margin-top: 10px;
+  text-align: center;
+  color: black;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.closeModal:hover {
+  color: red;
+}
+
+/* ============================================
+   SPINNER ANIMATION
+   ============================================ */
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
 @media (max-width: 768px) {
+  .expensesWrapper,
+  .budgetWrapper,
+  .remainingWrapper,
+  .runningWrapper,
+  .finishedWrapper,
+  .quoteWrapper {
+    width: 100%;
+    max-width: 335px;
+  }
+
+  .expenseForm,
+  .budgetForm {
+    width: 90%;
+    max-width: 350px;
+  }
+
+  .expenseListItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .expenseItemMeta {
+    flex-wrap: wrap;
+  }
+
   .analyticsWrapper {
     height: auto;
     min-height: 265px;
   }
-  
+
   .analyticsOverlayContent {
     width: 95%;
     padding: 24px;
-    justify-content: flex-start; /* On mobile, align to top for better scrolling */
+    justify-content: flex-start;
   }
-  
+
   .summaryGrid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
-  
+
   .analyticsHeader h2 {
     font-size: 20px;
   }
-  
+
   .transactionItem {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .transactionAmount {
     align-self: flex-end;
   }
-  
+
   .monthlyHeader {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
   }
-  
+
   .overlayChartContainer {
     height: 250px;
+  }
+
+  .search-container {
+    flex-direction: column;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  .search-button {
+    width: 100%;
+    margin-left: 0 !important;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .confirm-button,
+  .reset-button {
+    width: 100%;
+  }
+
+  .map-title {
+    font-size: 1.1rem;
+  }
+
+  .budgetStats {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1274,163 +1842,50 @@ font-weight: bold;
   .analyticsWrapper {
     padding: 12px;
   }
-  
+
   .analytics-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .summaryGrid {
     grid-template-columns: 1fr;
   }
-  
+
   .summaryCard {
     padding: 16px;
   }
-  
+
   .summaryValue {
     font-size: 20px;
   }
-  
+
   .analyticsCloseBtn {
     width: 100%;
     max-width: none;
   }
-  
+
   .chart-toggle-group {
     width: 100%;
   }
-  
+
   .chart-toggle-btn {
     flex: 1;
     justify-content: center;
   }
-  
+
   .overlayChartContainer {
     height: 200px;
   }
+
+  .timeRow {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .mapsWrapper,
+  .timeWrapper {
+    width: 100%;
+  }
 }
-
-.firstLayerBoard {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-}
-
-.leftColumn {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin-left:10px;
-}
-
-.rightColumn {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin-right: 10px;
-}
-
-.topServicesRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.timeRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  width: 200px;
-  gap: 5px;
-}
-
-.MuiToolbar-root.MuiToolbar-gutters.MuiToolbar-regular {
-  display: none;
-}
-
-/* ===========
-   SETTINGS
-=============*/
-
-.settingsWrapper{
-  display: flex;
-  justify-content: center;
-}
-
-.settingsWrapper button{
-  background-color: white;
-  border: 2px solid #00c851;
-  padding: 20px;
-  border-radius: 20px;
-  font-weight: bold;
-  color: #06632b;
-}
-
-button:hover{
-  color: #00c851;
-}
-
-
-.overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.75);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
-}
-
-.overlayContent {
-  background:white;
-  padding: 30px;
-  width: 350px;
-  border-radius: 12px;
-  box-shadow: 0 0 18px rgba(0,0,0,0.4);
-  border: 1px solid #1f3d1f;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.overlayContent h2 {
-  text-align: center;
-  color: #1c3d37;
-}
-
-.overlayContent input {
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #3e5f3e;
-}
-
-.overlayContent button {
-  padding: 12px;
-  border-radius: 8px;
-  background: #1c3d37;
-  border: none;
-  color: white;
-  cursor: pointer;
-  font-weight:normal;
-}
-
-.overlayContent button:hover {
- background-color: #06632b;
-}
-
-
-.closeModal {
-  margin-top: 10px;
-  text-align: center;
-  color: black;
-  cursor: pointer;
-}
-
-.closeModal:hover {
-  color: red;
-}
-
-
