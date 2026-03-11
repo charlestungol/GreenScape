@@ -981,51 +981,233 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/{SERVICE_IMAGES_BUCKET}/{obj.storage_path}"
         return HttpResponseRedirect(public_url)
 
+
 # -----------------------------------------------------------------------------
-#User profile Image ViewSet
-# - list/retrieve give metadata (no raw bytes)
-# - POST /upload to attach a file to a service
-# - GET  /{id}/bytes to stream the image inline (no download dialog)
+# User profile Image ViewSet (private bucket)
+# - POST   /core/user-images/                -> upload (owner)
+# - GET    /core/user-images/                -> list (owner; admins see all)
+# - GET    /core/user-images/{id}/           -> retrieve metadata
+# - GET    /core/user-images/{id}/bytes/     -> 302 redirect to signed URL (good for <img src>)
+# - GET    /core/user-images/{id}/url/       -> JSON with signed_url (good for SPA)
+# - POST   /core/user-images/{id}/replace/   -> replace file (keep metadata fresh)
+# - DELETE /core/user-images/{id}/           -> delete file + row
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# User profile Image ViewSet (private bucket)
+# - POST   /core/user-images/                -> upload (owner)
+# - GET    /core/user-images/                -> list (owner; admins see all)
+# - GET    /core/user-images/{id}/           -> retrieve metadata
+# - GET    /core/user-images/{id}/bytes/     -> 302 redirect to signed URL (good for <img src>)
+# - GET    /core/user-images/{id}/url/       -> JSON with signed_url (good for SPA)
+# - POST   /core/user-images/{id}/replace/   -> replace file (keep metadata fresh)
+# - DELETE /core/user-images/{id}/           -> delete file + row
 # -----------------------------------------------------------------------------
 class UserImageViewSet(viewsets.ModelViewSet):
+    queryset = UserImage.objects.select_related("user").all()
     serializer_class = UserImageSerializer
-    parser_classes = [MultiPartParser, FormParser]  # for upload
-    permission_classes = [IsAuthenticated, IsOwnerOrAdmin]
+    parser_classes = [MultiPartParser, FormParser]
 
-    # Check users permission
+    # Allow read for authenticated users (but queryset limits to owner/admin).
+    # Writes require owner/admin.
     def get_permissions(self):
-        # Allows view for authenticated user only
         if self.request.method in permissions.SAFE_METHODS:
             return [IsAuthenticatedOrReadOnly()]
-        # Allows owner/admin to view or edit data.
-        return [IsOwnerOrAdmin]
-    
-    # Get data
+        return [IsOwnerOrAdmin()]
+
     def get_queryset(self):
         user = self.request.user
-        qs = UserImage.object.select_related("user").all()
+        qs = UserImage.objects.select_related("user").all()
 
         if not user or not user.is_authenticated:
             return qs.none()
-        
-        qs = qs.filter(user_id = user.id)
 
-        return qs
-    
-    
-    def perform_create(self, serializer):
-        # Force the created image to belong to the authenticated user.
-        # This prevents clients from forging another user's id in the payload.
+        if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            return qs
 
-        if not self.request.user or not self.request.user.is_authenticated:
-            raise permissions.PermissionDenied("Authentication required.")
-        serializer.save(user=self.request.user)
+        return qs.filter(user_id=user.id)
 
-    # Upload image  to user
-    def create(self, request, *args, **kwargs):
+    # -----------------------------
+    # Helpers
+    # -----------------------------
+    def _validate_and_extract_file(self, request):
         file_obj = request.FILES.get("image")
-        user_id = self.request.user
-        filename = request.data.pop("filename", file_obj.name if file_obj else "image")
-        
+        filename = request.data.get("filename") or (file_obj.name if file_obj else "image")
+
         if not file_obj:
-            return Response({"detail": "No image file provided."}, status=status.HTTP_400_BAD_REQUEST)
+            raise PermissionDenied("No image file provided.")
+
+        raw = file_obj.read()
+        if len(raw) > 20 * 1024 * 1024:
+            raise PermissionDenied("Image file is too large (Max 20MB)")
+
+        content_type = (
+            getattr(file_obj, "content_type", None)
+            or mimetypes.guess_type(filename)[0]
+            or "application/octet-stream"
+        )
+        if content_type not in ["image/jpeg", "image/png", "image/webp"]:
+            raise PermissionDenied("Unsupported image type. Only JPEG, PNG, and WebP are allowed.")
+
+        return raw, filename, content_type
+
+    def _build_storage_path(self, user_id: int, filename: str) -> str:
+        _, ext = os.path.splitext(filename or "")
+        ext = ext.lower() or ".bin"
+        return f"{user_id}/{uuid.uuid4().hex}{ext}"
+
+    def _signed_url_for(self, path: str, expires: int = None) -> str:
+        """Create a short-lived signed URL for a private object; returns the URL as string."""
+        ttl = expires or int(os.getenv("SUPABASE_SIGNED_URL_TTL", "60"))  # default 60s
+        try:
+            # Supabase Python client response can differ by version/wrapper.
+            res = supabase().storage.from_(USER_IMAGES_BUCKET).create_signed_url(path, ttl)
+            # Common keys: 'signedURL', 'signed_url', or nested data
+            if isinstance(res, dict):
+                return res.get("signedURL") or res.get("signed_url") or res.get("data", {}).get("signedUrl") or res.get("data", {}).get("signedURL")
+            # If your wrapper returns a string directly:
+            if isinstance(res, str):
+                return res
+            raise RuntimeError("Unexpected response from create_signed_url")
+        except Exception as e:
+            raise RuntimeError(f"signed url failed: {str(e)}")
+
+    # -----------------------------
+    # Create (Upload)
+    # -----------------------------
+    def create(self, request, *args, **kwargs):
+        if not request.user or not request.user.is_authenticated:
+            return Response({"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        raw, filename, content_type = self._validate_and_extract_file(request)
+        storage_path = self._build_storage_path(request.user.id, filename)
+
+        try:
+            supabase().storage.from_(USER_IMAGES_BUCKET).upload(
+                path=storage_path,
+                file=raw,
+                file_options={
+                    "content-type": content_type,
+                    "cache-control": "86400",
+                    "upsert": "false",
+                },
+            )
+        except Exception as e:
+            return Response({"detail": f"upload failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        obj = UserImage.objects.create(
+            user=request.user,
+            bucket=USER_IMAGES_BUCKET,
+            storage_path=storage_path,
+            content_type=content_type,
+            filename=filename,
+            size_bytes=len(raw),
+        )
+
+        return Response(self.get_serializer(obj).data, status=status.HTTP_201_CREATED)
+
+    # -----------------------------
+    # Replace (Upload new file, delete old)
+    # -----------------------------
+    @action(detail=True, methods=["post"], url_path="replace")
+    def replace_file(self, request, pk=None):
+        obj = self.get_object()
+
+        # Additional check: owner or admin
+        user = request.user
+        is_admin = user and user.is_authenticated and user.groups.filter(name__in=["Admin", "Supervisor"]).exists()
+        if not is_admin and (not user or not user.is_authenticated or obj.user_id != user.id):
+            return Response({"detail": "You do not have permission to perform this action."},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        raw, filename, content_type = self._validate_and_extract_file(request)
+        new_path = self._build_storage_path(obj.user_id, filename)
+
+        up = supabase().storage.from_(USER_IMAGES_BUCKET).upload(
+            path=new_path,
+            file=raw,
+            file_options={
+                "content-type": content_type,
+                "cache-control": "86400",
+                "upsert": "false",
+            },
+        )
+        if isinstance(up, dict) and up.get("error"):
+            return Response({"detail": f"upload failed: {up['error']}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Best-effort remove of old blob
+        old_path = obj.storage_path
+        try:
+            # If your client requires a list: .remove([old_path])
+            supabase().storage.from_(USER_IMAGES_BUCKET).remove(path=old_path)
+        except Exception:
+            pass
+
+        obj.storage_path = new_path
+        obj.content_type = content_type
+        obj.size_bytes = len(raw)
+        obj.filename = filename
+        obj.save(update_fields=["storage_path", "content_type", "size_bytes", "filename"])
+
+        return Response(self.get_serializer(obj).data, status=status.HTTP_200_OK)
+
+    # -----------------------------
+    # Delete (Remove DB row and blob)
+    # -----------------------------
+    def destroy(self, request, *args, **kwargs):
+        obj = self.get_object()
+
+        user = request.user
+        is_admin = user and user.is_authenticated and user.groups.filter(name__in=["Admin", "Supervisor"]).exists()
+        if not is_admin and (not user or not user.is_authenticated or obj.user_id != user.id):
+            return Response({"detail": "You do not have permission to perform this action."},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            supabase().storage.from_(USER_IMAGES_BUCKET).remove(path=obj.storage_path)
+        except Exception:
+            pass
+
+        return super().destroy(request, *args, **kwargs)
+
+    # -----------------------------
+    # Get image: 302 redirect to signed URL (best for <img src>)
+    # -----------------------------
+    @action(detail=True, methods=["get"], url_path="bytes")
+    def get_bytes(self, request, pk=None):
+        obj = self.get_object()
+
+        # Enforce owner/admin to obtain a signed URL
+        user = request.user
+        is_admin = user and user.is_authenticated and user.groups.filter(name__in=["Admin", "Supervisor"]).exists()
+        if not is_admin and (not user or not user.is_authenticated or obj.user_id != user.id):
+            return Response({"detail": "You do not have permission to perform this action."},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            signed = self._signed_url_for(obj.storage_path)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 302 redirect to Supabase (bandwidth stays off your server)
+        return HttpResponseRedirect(signed)
+
+    # -----------------------------
+    # Get image: JSON with signed URL (handy for SPA usage)
+    # -----------------------------
+    @action(detail=True, methods=["get"], url_path="url")
+    def get_signed_url(self, request, pk=None):
+        obj = self.get_object()
+
+        user = request.user
+        is_admin = user and user.is_authenticated and user.groups.filter(name__in=["Admin", "Supervisor"]).exists()
+        if not is_admin and (not user or not user.is_authenticated or obj.user_id != user.id):
+            return Response({"detail": "You do not have permission to perform this action."},
+                            status=status.HTTP_403_FORBIDDEN)
+        try:
+            signed = self._signed_url_for(obj.storage_path)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Prevent caching stale URLs client-side
+        return Response({"signed_url": signed, "expires_in": int(os.getenv("SUPABASE_SIGNED_URL_TTL", "60"))})
