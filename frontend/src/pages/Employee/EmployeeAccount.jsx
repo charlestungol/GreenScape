@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, Paper, TextField, Button, Divider, Avatar } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import AxiosInstance from "../../components/AxiosInstance";
@@ -21,39 +21,81 @@ export default function EmployeeAccount() {
   });
 
   const [imagePreview, setImagePreview] = useState(null);
+  const [profileImage, setProfileImage] = useState(null);
   const [imageFile, setImageFile] = useState(null);
 
-  const handleImageChange = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-  };
-
-  const handleSaveProfile = async () => {
+  useEffect(() => {
+  const fetchProfileImage = async () => {
     try {
-      const formData = new FormData();
-      formData.append("name", profile.name);
-      formData.append("email", profile.email);
+      const response = await AxiosInstance.get("/core/user-images/");
 
-      if (imageFile) {
-        formData.append("profile_image", imageFile);
+      if (response.data.length > 0) {
+        const latestImage = response.data.at(-1);
+
+        setProfileImage(
+          `${process.env.REACT_APP_API_URL}/core/user-images/${latestImage.id}/bytes/`
+        );
       }
 
-      await AxiosInstance.patch(`/employees/${userId}/`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data"
-        }
-      });
-
-      alert("Profile updated!");
     } catch (error) {
-      console.error("Profile update error:", error);
-      alert("Failed to update profile");
+      console.log("No profile image yet");
     }
   };
 
+  fetchProfileImage();
+}, []);
+
+  const handleUpload = async (file) => {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const response = await AxiosInstance.post(
+    "/core/user-images/",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+
+  return response.data;
+};
+
+  const handleImageChange = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (imagePreview) {
+    URL.revokeObjectURL(imagePreview);
+  }
+
+  setImageFile(file);
+  setImagePreview(URL.createObjectURL(file));
+};
+
+  const handleSaveProfile = async () => {
+  if (!imageFile) {
+    alert("Please select an image first.");
+    return;
+  }
+  try {
+    const data = await handleUpload(imageFile);
+
+    setProfileImage(
+      `${process.env.REACT_APP_API_URL}/core/user-images/${data.id}/bytes/`
+    );
+
+    setImagePreview(null);
+    setImageFile(null);
+
+    alert("Profile updated!");
+
+  } catch (error) {
+    console.error("Profile update error:", error);
+    alert("Failed to update profile");
+  }
+};
   const handleChangePassword = () => {
     if (!password.next || password.next !== password.confirm) {
       alert("New password and confirm password must match.");
@@ -117,15 +159,15 @@ export default function EmployeeAccount() {
             <Box>
 
               <Avatar
-                src={imagePreview || ""}
+                src={imagePreview || profileImage || ""}
                 sx={{
                   width: 96,
                   height: 96,
                   fontSize: 40,
-                  bgcolor: "#06632b"
+                  bgcolor: "#1e211f"
                 }}
               >
-                {!imagePreview && (profile.name?.[0]?.toUpperCase() || "E")}
+                {!(imagePreview || profileImage) && (profile.name?.[0]?.toUpperCase() || "E")}
               </Avatar>
 
               <Button
