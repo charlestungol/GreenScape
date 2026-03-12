@@ -245,6 +245,7 @@ class UserImageSerializer(serializers.ModelSerializer):
 # Employee Serializer
 class EmployeeSerializer(serializers.ModelSerializer):
     # Validators
+    profile_image = serializers.ImageField(required=False, allow_null=True)
     firstname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
     lastname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
     phonenumber = serializers.CharField(validators=[validate_phone])
@@ -264,7 +265,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Employee
-        fields = ["employeeid", "address", "addressid", "firstname", "lastname", "phonenumber", "email", "staffstatus"]
+        fields = ["employeeid", "address", "addressid", "firstname", "lastname", "phonenumber", "email", "staffstatus","profile_image"]
         read_only_fields = ["employeeid"]
 
 # Booking Serializer
