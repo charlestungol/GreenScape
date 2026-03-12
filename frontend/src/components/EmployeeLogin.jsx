@@ -37,7 +37,7 @@ const EmployeeLogin = () => {
     const userId = response.data.user?.id || response.data.user_id || response.data.id;
     const userFirstName = response.data.user?.first_name || response.data.first_name || "Employee";
     const userRole = response.data.user?.role || response.data.role || "employee";
-    const token = response.data.token || response.data.key;
+    const access = response.data?.access || {}
     
     console.log("Employee extracted values:");
     console.log("userId:", userId);
@@ -46,7 +46,7 @@ const EmployeeLogin = () => {
     
     // Store data
     localStorage.setItem("user_id", userId);
-    localStorage.setItem("token", token);
+    localStorage.setItem("access", access);
     localStorage.setItem("role", userRole);
     localStorage.setItem("first_name", userFirstName);
     

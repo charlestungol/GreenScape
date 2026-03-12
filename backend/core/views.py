@@ -1,54 +1,90 @@
-import os, uuid, mimetypes
-from django.http import HttpResponseRedirect
-from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
-from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.response import Response
-from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
-from django.shortcuts import get_object_or_404
-from django.db import transaction
-from django.contrib.auth.models import Group
 
+# ---------------------------------------------------
+# Standard Library
+# ---------------------------------------------------
+import mimetypes
+import os
+import uuid
+
+# ---------------------------------------------------
+# Django
+# ---------------------------------------------------
+from django.contrib.auth.models import Group
+from django.db import transaction
+from django.http import HttpResponseRedirect
+from django.shortcuts import get_object_or_404
+
+# ---------------------------------------------------
+# Django REST Framework
+# ---------------------------------------------------
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
+from rest_framework.response import Response
+
+# ---------------------------------------------------
+# Third-Party / Services
+# ---------------------------------------------------
 from core.supabase_client import supabase
+
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SERVICE_IMAGES_BUCKET = os.getenv("SUPABASE_BUCKET_SERVICE_IMAGES", "service-images")
+USER_IMAGES_BUCKET    = os.getenv("SUPABASE_BUCKET_USER_IMAGES", "profiles")
+
+
+
+# ---------------------------------------------------
+# Project: Models
+# ---------------------------------------------------
 from .models import (
     Address,
-    Customer,
-    Employee,
-    Service,
-    Customerservice,
-    ServiceImage,
-    Site,
-    Zone,
-    Servicetype,
     Booking,
+    Customer,
+    Customerservice,
+    Employee,
     Invoice,
     Quotes,
     Schedule,
-);
+    Service,
+    ServiceImage,
+    Servicetype,
+    Site,
+    Zone,
+    UserImage
+)
+
+# ---------------------------------------------------
+# Project: Serializers
+# ---------------------------------------------------
 from .serializers import (
     AddressSerializer,
-    CustomerSerializer,
-    EmployeeSerializer,
-    ServiceSerializer,
-    CustomerServiceSerializer,
-    ServiceImageSerializer,
-    SiteSerializer,
-    ZoneSerializer,
-    ServiceTypeSerializer,
     BookingSerializer,
+    CustomerSerializer,
+    CustomerServiceSerializer,
+    EmployeeSerializer,
     InvoiceSerializer,
     QuoteSerializer,
     ScheduleSerializer,
-);
+    ServiceImageSerializer,
+    ServiceSerializer,
+    ServiceTypeSerializer,
+    SiteSerializer,
+    ZoneSerializer,
+    UserImageSerializer
+)
 
-# Security -- Methods for permissions of roles.
+# ---------------------------------------------------
+# Project: Permissions
+# ---------------------------------------------------
 from .permissions import (
+    IsAuthenticatedOrReadOnly,
     IsOwnerOrAdmin,
     IsOwnerOrStaff,
-    isAdmin,
-    IsAuthenticatedOrReadOnly
+    isAdmin,  # if this is a function, consider renaming to `is_admin` for PEP8
 )
+
 
 
 # -----------------------------------------------------------------------------
@@ -105,65 +141,73 @@ class AddressViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You do not have permission to perform this action.")
         serializer.save()
 
+    # Allows user to add thier data.
     @action(detail=False, methods=['put'], url_path='me', permission_classes=[permissions.IsAuthenticated])
     @transaction.atomic
     def upsert_me(self, request):
         user = request.user
-
         is_staff_user = user.groups.filter(name__in=["Staff"]).exists()
-        
+
         customer = None
         employee = None
         address = None
 
         if is_staff_user:
-            employee = Employee.objects.filter(user_id=user.id).first()
+            employee = Employee.objects.filter(user_id=user.id).select_related("addressid").first()
             address = employee.addressid if employee else None
         else:
-            customer = Customer.objects.filter(user_id=user.id).first()
+            customer = Customer.objects.filter(user_id=user.id).select_related("addressid").first()
             address = customer.addressid if customer else None
 
-        # ✅ NEW: allow staff users even if Employee doesn't exist yet
+        # For non-staff users, ensure Customer exists; otherwise deny.
         if not is_staff_user and not customer:
-            return Response({"detail": "You do not have permission to perform this action."},
-                            status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"detail": "You do not have permission to perform this action."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-        # Create address if none exists
+        # Create Address if none exists
         if address is None:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             address = serializer.save()
 
             if is_staff_user:
-                # ✅ Create Employee profile now that Address exists
+                # Create Employee profile if missing
                 if not employee:
-                    # Default role = Staff
-                    role = Group.objects.get(name="Staff")
+                    try:
+                        staff_group = Group.objects.get(name="Staff")
+                    except Group.DoesNotExist:
+                        return Response(
+                            {"detail": "Group 'Staff' does not exist. Ask admin to create it."},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
-                    Employee.objects.create(
+                    employee = Employee.objects.create(
                         user=user,
                         addressid=address,
-                        roleid=role.strip(),
-                        firstname="".strip(),
-                        lastname="".strip(),
-                        phonenumber="".strip(),
-                        staffstatus="Active".strip()
+                        roleid=staff_group,     # ✅ assign Group instance directly
+                        firstname="",
+                        lastname="",
+                        phonenumber="",
+                        staffstatus="Active",
                     )
                 else:
                     employee.addressid = address
                     employee.save(update_fields=["addressid"])
             else:
-                # customer flow unchanged
+                # Customer flow: link address
                 customer.addressid = address
                 customer.save(update_fields=["addressid"])
 
             return Response(self.get_serializer(address).data, status=status.HTTP_201_CREATED)
 
-        # update existing address
+        # Update existing address (partial)
         serializer = self.get_serializer(address, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(self.get_serializer(address).data, status=status.HTTP_200_OK)
+
 
 # -----------------------------------------------------------------------------
 # Customer views -- Allows for CRUD --
@@ -216,142 +260,112 @@ class CustomerViewSet(viewsets.ModelViewSet):
 # -----------------------------------------------------------------------------
 # Employee View -- Allows for CRUD --
 # -----------------------------------------------------------------------------
+
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related("addressid").all()
     serializer_class = EmployeeSerializer
-    permission_classes = [isAdmin, DjangoModelPermissions]
+    # Don't set class-level permission_classes if you're overriding get_permissions()
 
-    # Only admin and supervisors can view or edit employee data.
+    # Only admin and supervisors can view ALL employee data; others see only their own.
     def get_queryset(self):
         user = self.request.user
-        # If the user is not authenticated it will not allow access.
         if not (user and user.is_authenticated):
             return Employee.objects.none()
-        
-        # If its a staff return all employee -- Only admin and supervisor can see all employee data.
+
         if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
             return Employee.objects.select_related("addressid").all()
-        
-        # If its an employee, return employees data.
-        return Employee.objects.select_related("addressid").filter(user_id = user.id)
+
+        # For Employees, return only their own record
+        return Employee.objects.select_related("addressid").filter(user_id=user.id)
+
+    # Permit reads for any authenticated user; writes require admin via your custom permission.
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticated()]
+        # Write operations:
+        # If you have a custom isAdmin, use it; otherwise enforce via perform_* below.
+        # return [isAdmin(), DjangoModelPermissions()]
+        return [DjangoModelPermissions()]  # and we’ll hard-check admin/supervisor in perform_*.
 
     # Only admin and supervisors can create employee data.
     def perform_create(self, serializer):
         user = self.request.user
-        # If the user is not authenticated it will not allow access.
         if not (user and user.is_authenticated):
             raise PermissionDenied("You do not have permission to perform this action.")
-        
         if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
             raise PermissionDenied("You do not have permission to perform this action.")
-
         serializer.save()
-    
+
     # Only admin and supervisors can update employee data.
     def perform_update(self, serializer):
         user = self.request.user
-        # If the user is not authenticated it will not allow access.
         if not (user and user.is_authenticated):
             raise PermissionDenied("You do not have permission to perform this action.")
-        
         if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
             raise PermissionDenied("You do not have permission to perform this action.")
-
         serializer.save()
-    
+
     # Only admin and supervisors can delete employee data.
     def perform_destroy(self, instance):
         user = self.request.user
-        # If the user is not authenticated it will not allow access.
         if not (user and user.is_authenticated):
             raise PermissionDenied("You do not have permission to perform this action.")
-        
         if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
             raise PermissionDenied("You do not have permission to perform this action.")
-        
         return super().perform_destroy(instance)
 
-    def get_permissions(self):
-        # Allows authenticated user to view employee data
-        if self.request.method in permissions.SAFE_METHODS:
-            return [IsAuthenticated()]
-        
-        # Allows admin to edit employee data.
-        return [isAdmin(), DjangoModelPermissions()]
+    # GET/PATCH /core/employees/me/
+    @action(detail=False, methods=["get", "patch"], url_path="me", permission_classes=[IsAuthenticated])
+    def me(self, request):
+        # Adjust if your FK name differs (assuming Employee.user -> CustomUser)
+        instance = get_object_or_404(Employee, user=request.user)
 
-    # Allows admin and supervisors to change employee role using /{employee_id}/role endpoint. Admin can assign any role, but supervisors cannot assign Admin role.
-    class EmployeeViewSet(viewsets.ModelViewSet):
-        # existing code ...
+        if request.method == "GET":
+            data = self.get_serializer(instance).data
+            return Response(data, status=status.HTTP_200_OK)
 
-        @action(
-            detail=True,
-            methods=["patch"],
-            url_path="role",
-            permission_classes=[IsAuthenticated]
-        )
-        def change_role(self, request, pk=None):
-            user = request.user
-            employee = self.get_object()
-            target_user = employee.user
+        # PATCH
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(user=request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-            # ✅ Who is allowed to change roles?
-            is_admin = user.groups.filter(name="Admin").exists()
-            is_supervisor = user.groups.filter(name="Supervisor").exists()
+    # PATCH /core/employees/{id}/role/
+    @action(detail=True, methods=["patch"], url_path="role", permission_classes=[isAdmin])
+    def change_role(self, request, pk=None):
+        user = request.user
+        employee = self.get_object()
+        target_user = employee.user 
 
-            if not (is_admin or is_supervisor):
-                return Response(
-                    {"detail": "You do not have permission to change roles."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+        is_admin = user.groups.filter(name="Admin").exists()
 
-            new_role = request.data.get("role")  # "Staff", "Supervisor", "Admin"
-            if new_role not in ["Staff", "Supervisor", "Admin"]:
-                return Response(
-                    {"detail": "Invalid role."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+        if not is_admin:
+            return Response(
+                {"detail": "You do not have permission to change roles."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-            #Supervisors cannot assign Admin
-            if is_supervisor and new_role == "Admin":
-                return Response(
-                    {"detail": "Supervisors cannot assign Admin role."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
+        new_role = request.data.get("role")  # "Staff", "Supervisor", "Admin"
+        if new_role not in ["Staff", "Supervisor", "Admin"]:
+            return Response({"detail": "Invalid role."}, status=status.HTTP_400_BAD_REQUEST)
 
-            #Apply role via auth_group
+        # Apply role via auth_group
+        try:
             group = Group.objects.get(name=new_role)
+        except Group.DoesNotExist:
+            return Response({"detail": f"Group '{new_role}' does not exist."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-            target_user.groups.clear()
-            target_user.groups.add(group)
+        target_user.groups.clear()
+        target_user.groups.add(group)
 
-            #Keep Employee.RoleId in sync
+        # Keep Employee.roleid in sync if you have that FK to Group
+        if hasattr(employee, "roleid"):
             employee.roleid = group
             employee.save(update_fields=["roleid"])
 
-            return Response(
-                {"detail": f"Role updated to {new_role}."},
-                status=status.HTTP_200_OK
-            )
-    
-    # Allows employee to retrieve or update their own data using /me endpoint. Admin and supervisors can also use this endpoint to retrieve or update their own data.
-    @action(detail = False, methods = ['get', 'patch', 'delete'])
-    def me(self, request):
-        instance = get_object_or_404(Employee, user=request.user)
+        return Response({"detail": f"Role updated to {new_role}."}, status=status.HTTP_200_OK)
 
-        # Getting employee data.
-        if request.method.lower() == 'get':
-            data = self.get_serializer(instance).data
-            return Response(data)
-        
-        # Patch employee data
-        serializers = self.get_serializer(instance, data=request.data, partial=True)
-
-        serializers.is_valid(raise_exception = True)
-
-        serializers.save(user=request.user)
-
-        return Response(serializers.data, status=status.HTTP_200_OK)
-    
 # -----------------------------------------------------------------------------
 # Service type view -- allows for CRUD
 # -----------------------------------------------------------------------------
@@ -835,8 +849,6 @@ class ZoneViewSet(viewsets.ModelViewSet):
 # - list/retrieve give metadata (no raw bytes)
 # - POST /upload to attach a file to a service
 # - GET  /{id}/bytes to stream the image inline (no download dialog)
-BUCKET = os.getenv("SUPABASE_BUCKET_SERVICE_IMAGES", "service-images")
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 # -----------------------------------------------------------------------------
 class ServiceImageViewSet(viewsets.ModelViewSet):
     queryset = ServiceImage.objects.select_related("service").all()
@@ -893,7 +905,7 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
         storage_path = f"{service_id}/{uuid.uuid4().hex}{ext}"
 
         try:
-            supabase().storage.from_(BUCKET).upload(
+            supabase().storage.from_(SERVICE_IMAGES_BUCKET).upload(
                 path=storage_path,
                 file=raw,
                 file_options={
@@ -907,7 +919,7 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
 
         obj = ServiceImage.objects.create(
             service_id=int(service_id),
-            bucket=BUCKET,
+            bucket=SERVICE_IMAGES_BUCKET,
             storage_path=storage_path,
             content_type=content_type,           
             filename=filename,
@@ -936,7 +948,7 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
         _, ext = os.path.splitext(file_obj.name)
         ext = ext.lower() or ".bin"
         new_path = f"{obj.serviceid_id}/{uuid.uuid4().hex}{ext}"
-        up = supabase().storage.from_(BUCKET).upload(
+        up = supabase().storage.from_(SERVICE_IMAGES_BUCKET).upload(
             path=new_path,
             file=raw,
             file_options={
@@ -954,17 +966,248 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
         obj.size_bytes = len(raw)
         obj.filename = getattr(file_obj, "name", obj.filename)
         obj.save(update_fields=["storage_path", "content_type", "size_bytes", "filename"])
-        supabase().storage.from_(BUCKET).remove(path=old_path)
+        supabase().storage.from_(SERVICE_IMAGES_BUCKET).remove(path=old_path)
 
         return Response(self.get_serializer(obj, context={"request": request}).data, status=status.HTTP_200_OK)
     
     def destroy(self, request, *args, **kwargs):
         obj = self.get_object()
-        supabase().storage.from_(BUCKET).remove(path=obj.storage_path)
+        supabase().storage.from_(SERVICE_IMAGES_BUCKET).remove(path=obj.storage_path)
         return super().destroy(request, *args, **kwargs)
     
     @action(detail=True, methods=["get"], url_name="bytes")
     def get_bytes(self, request, pk=None):
         obj = self.get_object()
-        public_url = f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{obj.storage_path}"
+        public_url = f"{SUPABASE_URL}/storage/v1/object/public/{SERVICE_IMAGES_BUCKET}/{obj.storage_path}"
         return HttpResponseRedirect(public_url)
+
+
+# -----------------------------------------------------------------------------
+# User profile Image ViewSet (private bucket)
+# - POST   /core/user-images/                -> upload (owner)
+# - GET    /core/user-images/                -> list (owner; admins see all)
+# - GET    /core/user-images/{id}/           -> retrieve metadata
+# - GET    /core/user-images/{id}/bytes/     -> 302 redirect to signed URL (good for <img src>)
+# - GET    /core/user-images/{id}/url/       -> JSON with signed_url (good for SPA)
+# - POST   /core/user-images/{id}/replace/   -> replace file (keep metadata fresh)
+# - DELETE /core/user-images/{id}/           -> delete file + row
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# User profile Image ViewSet (private bucket)
+# - POST   /core/user-images/                -> upload (owner)
+# - GET    /core/user-images/                -> list (owner; admins see all)
+# - GET    /core/user-images/{id}/           -> retrieve metadata
+# - GET    /core/user-images/{id}/bytes/     -> 302 redirect to signed URL (good for <img src>)
+# - GET    /core/user-images/{id}/url/       -> JSON with signed_url (good for SPA)
+# - POST   /core/user-images/{id}/replace/   -> replace file (keep metadata fresh)
+# - DELETE /core/user-images/{id}/           -> delete file + row
+# -----------------------------------------------------------------------------
+class UserImageViewSet(viewsets.ModelViewSet):
+    queryset = UserImage.objects.select_related("user").all()
+    serializer_class = UserImageSerializer
+    parser_classes = [MultiPartParser, FormParser]
+
+    # Allow read for authenticated users (but queryset limits to owner/admin).
+    # Writes require owner/admin.
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [IsAuthenticatedOrReadOnly()]
+        return [IsOwnerOrAdmin()]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = UserImage.objects.select_related("user").all()
+
+        if not user or not user.is_authenticated:
+            return qs.none()
+
+        if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+            return qs
+
+        return qs.filter(user_id=user.id)
+
+    # -----------------------------
+    # Helpers
+    # -----------------------------
+    def _validate_and_extract_file(self, request):
+        file_obj = request.FILES.get("image")
+        filename = request.data.get("filename") or (file_obj.name if file_obj else "image")
+
+        if not file_obj:
+            raise PermissionDenied("No image file provided.")
+
+        raw = file_obj.read()
+        if len(raw) > 20 * 1024 * 1024:
+            raise PermissionDenied("Image file is too large (Max 20MB)")
+
+        content_type = (
+            getattr(file_obj, "content_type", None)
+            or mimetypes.guess_type(filename)[0]
+            or "application/octet-stream"
+        )
+        if content_type not in ["image/jpeg", "image/png", "image/webp"]:
+            raise PermissionDenied("Unsupported image type. Only JPEG, PNG, and WebP are allowed.")
+
+        return raw, filename, content_type
+
+    def _build_storage_path(self, user_id: int, filename: str) -> str:
+        _, ext = os.path.splitext(filename or "")
+        ext = ext.lower() or ".bin"
+        return f"{user_id}/{uuid.uuid4().hex}{ext}"
+
+    def _signed_url_for(self, path: str, expires: int = None) -> str:
+        """Create a short-lived signed URL for a private object; returns the URL as string."""
+        ttl = expires or int(os.getenv("SUPABASE_SIGNED_URL_TTL", "60"))  # default 60s
+        try:
+            # Supabase Python client response can differ by version/wrapper.
+            res = supabase().storage.from_(USER_IMAGES_BUCKET).create_signed_url(path, ttl)
+            # Common keys: 'signedURL', 'signed_url', or nested data
+            if isinstance(res, dict):
+                return res.get("signedURL") or res.get("signed_url") or res.get("data", {}).get("signedUrl") or res.get("data", {}).get("signedURL")
+            # If your wrapper returns a string directly:
+            if isinstance(res, str):
+                return res
+            raise RuntimeError("Unexpected response from create_signed_url")
+        except Exception as e:
+            raise RuntimeError(f"signed url failed: {str(e)}")
+
+    # -----------------------------
+    # Create (Upload)
+    # -----------------------------
+    def create(self, request, *args, **kwargs):
+        if not request.user or not request.user.is_authenticated:
+            return Response({"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        raw, filename, content_type = self._validate_and_extract_file(request)
+        storage_path = self._build_storage_path(request.user.id, filename)
+
+        try:
+            supabase().storage.from_(USER_IMAGES_BUCKET).upload(
+                path=storage_path,
+                file=raw,
+                file_options={
+                    "content-type": content_type,
+                    "cache-control": "86400",
+                    "upsert": "false",
+                },
+            )
+        except Exception as e:
+            return Response({"detail": f"upload failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        obj = UserImage.objects.create(
+            user=request.user,
+            bucket=USER_IMAGES_BUCKET,
+            storage_path=storage_path,
+            content_type=content_type,
+            filename=filename,
+            size_bytes=len(raw),
+        )
+
+        return Response(self.get_serializer(obj).data, status=status.HTTP_201_CREATED)
+
+    # -----------------------------
+    # Replace (Upload new file, delete old)
+    # -----------------------------
+    @action(detail=True, methods=["post"], url_path="replace")
+    def replace_file(self, request, pk=None):
+        obj = self.get_object()
+
+        # Additional check: owner or admin
+        user = request.user
+        is_admin = user and user.is_authenticated and user.groups.filter(name__in=["Admin", "Supervisor"]).exists()
+        if not is_admin and (not user or not user.is_authenticated or obj.user_id != user.id):
+            return Response({"detail": "You do not have permission to perform this action."},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        raw, filename, content_type = self._validate_and_extract_file(request)
+        new_path = self._build_storage_path(obj.user_id, filename)
+
+        up = supabase().storage.from_(USER_IMAGES_BUCKET).upload(
+            path=new_path,
+            file=raw,
+            file_options={
+                "content-type": content_type,
+                "cache-control": "86400",
+                "upsert": "false",
+            },
+        )
+        if isinstance(up, dict) and up.get("error"):
+            return Response({"detail": f"upload failed: {up['error']}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Best-effort remove of old blob
+        old_path = obj.storage_path
+        try:
+            # If your client requires a list: .remove([old_path])
+            supabase().storage.from_(USER_IMAGES_BUCKET).remove(path=old_path)
+        except Exception:
+            pass
+
+        obj.storage_path = new_path
+        obj.content_type = content_type
+        obj.size_bytes = len(raw)
+        obj.filename = filename
+        obj.save(update_fields=["storage_path", "content_type", "size_bytes", "filename"])
+
+        return Response(self.get_serializer(obj).data, status=status.HTTP_200_OK)
+
+    # -----------------------------
+    # Delete (Remove DB row and blob)
+    # -----------------------------
+    def destroy(self, request, *args, **kwargs):
+        obj = self.get_object()
+
+        user = request.user
+        is_admin = user and user.is_authenticated and user.groups.filter(name__in=["Admin", "Supervisor"]).exists()
+        if not is_admin and (not user or not user.is_authenticated or obj.user_id != user.id):
+            return Response({"detail": "You do not have permission to perform this action."},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            supabase().storage.from_(USER_IMAGES_BUCKET).remove(path=obj.storage_path)
+        except Exception:
+            pass
+
+        return super().destroy(request, *args, **kwargs)
+
+    # -----------------------------
+    # Get image: 302 redirect to signed URL (best for <img src>)
+    # -----------------------------
+    @action(detail=True, methods=["get"], url_path="bytes")
+    def get_bytes(self, request, pk=None):
+        obj = self.get_object()
+
+        # Enforce owner/admin to obtain a signed URL
+        user = request.user
+        is_admin = user and user.is_authenticated and user.groups.filter(name__in=["Admin", "Supervisor"]).exists()
+        if not is_admin and (not user or not user.is_authenticated or obj.user_id != user.id):
+            return Response({"detail": "You do not have permission to perform this action."},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            signed = self._signed_url_for(obj.storage_path)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 302 redirect to Supabase (bandwidth stays off your server)
+        return HttpResponseRedirect(signed)
+
+    # -----------------------------
+    # Get image: JSON with signed URL (handy for SPA usage)
+    # -----------------------------
+    @action(detail=True, methods=["get"], url_path="url")
+    def get_signed_url(self, request, pk=None):
+        obj = self.get_object()
+
+        user = request.user
+        is_admin = user and user.is_authenticated and user.groups.filter(name__in=["Admin", "Supervisor"]).exists()
+        if not is_admin and (not user or not user.is_authenticated or obj.user_id != user.id):
+            return Response({"detail": "You do not have permission to perform this action."},
+                            status=status.HTTP_403_FORBIDDEN)
+        try:
+            signed = self._signed_url_for(obj.storage_path)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Prevent caching stale URLs client-side
+        return Response({"signed_url": signed, "expires_in": int(os.getenv("SUPABASE_SIGNED_URL_TTL", "60"))})

@@ -23,23 +23,31 @@ load_dotenv(BASE_DIR / ".env")
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!e=(2vv(vp6z!d8aoe!%6o_4=_92l4(t5xw04#)-4n5w_*rdxf'
+# SECURITY WARNING: keep the secret key used in production secret! Need to put in .env file for production
+SECRET_KEY = os.getenv("SECRET_KEY", "")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = []
 
-# Email verifty
+# Email / account settings (django-allauth)
 SITE_ID = 1
-ACCOUNT_LOGIN_METHODS = {"email"}
-ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+
+# Use email as the only credential for login
+ACCOUNT_AUTHENTICATION_METHOD = "email"
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None 
+
+# Email verification flow
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"   
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True         # Verify immediately when visiting the confirmation link
 ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = "/email-verified/"
 ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = "http://localhost:5173"
+
+# Optional: either remove or list plain field names (no asterisks). Often you can omit this and control via serializers/forms.
+# ACCOUNT_SIGNUP_FIELDS = ["first_name", "last_name"]
 
 # When user click verifiy email link, the email will be verified immediately without asking user to click another confirm button.
 ACCOUNT_CONFIRM_EMAIL_ON_GET = True
@@ -75,8 +83,11 @@ EMAIL_SSL_KEYFILE = os.getenv("EMAIL_SSL_KEYFILE") or None
 # Configure Simple JWT settings
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
-    "TOKEN_OBTAIN_SERIALIZER": "users.tokens.CustomTokenObtainPairSerializer",
+    "BLACKLIST_AFTER_ROTATION": True,
+    "ALGORITHM": "HS256",
 }
 
 # Cookies settings for JWT
@@ -85,6 +96,7 @@ CORS_ALLOW_CREDENTIALS = True
 # If using cookies, ensure the frontend is included in CSRF_TRUSTED_ORIGINS
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
 # --- Session cookies ---
@@ -93,6 +105,7 @@ SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = False  # True in production (HTTPS)
 
 # --- CSRF cookies ---
+CSRF_COOKIE_NAME = "csrftoken"
 CSRF_COOKIE_HTTPONLY = False   # Must be readable by JS for X-CSRFToken header
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SECURE = False    # True in production
@@ -100,6 +113,9 @@ CSRF_COOKIE_SECURE = False    # True in production
 # --- JWT cookies ---
 JWT_AUTH_COOKIE_SAMESITE = "Lax"
 JWT_AUTH_COOKIE_SECURE = False  # True in production
+
+# --- Google OAuth ---
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 
 # Application definition
 
@@ -117,12 +133,10 @@ INSTALLED_APPS = [
     'dj_rest_auth',
     'dj_rest_auth.registration',
     'rest_framework',
-    # 'rest_framework.authtoken',
     'corsheaders',
     'users',
     'core',
     'rest_framework_simplejwt.token_blacklist',
-    # 'knox',
 ]
 
 LOGGING = {
@@ -154,6 +168,7 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
+    "http://127.0.0.1:5173",
 ]
 
 AUTH_USER_MODEL ='users.CustomUser'
@@ -184,7 +199,6 @@ WSGI_APPLICATION = 'auth.wsgi.application'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        "dj_rest_auth.jwt_auth.JWTCookieAuthentication",
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         ),
     

@@ -27,6 +27,7 @@ from .models import (
     Invoice,
     Quotes,
     Schedule,
+    UserImage,
 );
 
 
@@ -181,8 +182,6 @@ class ServiceSerializer(serializers.ModelSerializer):
         read_only_fields = ["serviceid"]
 
 # Service Image 
-from rest_framework import serializers
-
 class ServiceImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
 
@@ -195,7 +194,6 @@ class ServiceImageSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if not request:
             return None
-        # Use the endpoint you already implemented:
         return request.build_absolute_uri(f"/core/service-images/{obj.id}/bytes/")
 
 # Customer Service
@@ -228,6 +226,21 @@ class CustomerServiceSerializer(serializers.ModelSerializer):
         model = Customerservice
         fields = ["customerid", "serviceid", "customer", "service", "createdat", "reqdate", "redyear", "completed"]
         read_only_fields = ["createdat", "customer", "service"]
+
+# Service Image 
+class UserImageSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserImage
+        fields = ["id", "user", "bucket", "storage_path", "content_type", "filename", "size_bytes", "created_at", "url"]
+        read_only_fields = ["id", "created_at", "url"]
+
+    def get_url(self, obj: UserImage):
+        request = self.context.get("request")
+        if not request:
+            return None
+        return request.build_absolute_uri(f"/core/profiles/{obj.id}/bytes/")
 
 # Employee Serializer
 class EmployeeSerializer(serializers.ModelSerializer):

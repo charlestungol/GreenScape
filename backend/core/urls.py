@@ -1,22 +1,11 @@
-# core/urls.py
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-
 from .views import (
-    AddressViewSet,
-    BookingViewSet,
-    CustomerViewSet,
-    EmployeeViewSet,
-    ServiceTypeViewSet,
-    ServiceViewSet,
-    CustomerServiceViewSet,
-    ServiceImageViewSet,
-    SiteViewSet,
-    ZoneViewSet,
-    InvoiceViewSet,
-    QuoteViewSet,
-    ScheduleViewSet
-);
+    AddressViewSet, BookingViewSet, CustomerViewSet, EmployeeViewSet,
+    ServiceTypeViewSet, ServiceViewSet, CustomerServiceViewSet,
+    ServiceImageViewSet, SiteViewSet, ZoneViewSet, InvoiceViewSet,
+    QuoteViewSet, ScheduleViewSet
+)
 
 router = DefaultRouter()
 router.register(r"addresses", AddressViewSet, basename="address")
@@ -35,4 +24,4 @@ router.register(r"schedules", ScheduleViewSet, basename="schedule")
 
 urlpatterns = [
     path("", include(router.urls)),
-] 
+]
