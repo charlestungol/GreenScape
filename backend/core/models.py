@@ -164,6 +164,11 @@ class Employee(models.Model):
     phonenumber = models.CharField(db_column="PhoneNumber", max_length=10, null=True, blank=True)
     staffstatus = models.CharField(db_column="StaffStatus", max_length=20, null=True, blank=True)
     roleid = models.ForeignKey(Group, models.DO_NOTHING, db_column='RoleId')  # Field name made lowercase.
+    profile_image = models.ImageField(
+    upload_to="employee_profiles/",
+    null=True,
+    blank=True
+    )
     class Meta:
         managed = True
         db_table = "Employee"
