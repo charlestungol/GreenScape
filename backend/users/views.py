@@ -33,10 +33,9 @@ from .serializers import (
     ClientRegisterSerializer,
     EmployeeLoginSerializer,
     EmployeeRegisterSerializer,
-    CompleteProfileSerializer
+    CompleteCustomerProfileSerializer,
+
 )
-
-
 
 throttle_classes = [ScopedRateThrottle]
 User = get_user_model()
@@ -268,7 +267,7 @@ class CompleteCustomerProfileViewset(APIView):
     permissions_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = CompleteProfileSerializer(data=request.data, context={"request": request})
+        serializer = CompleteCustomerProfileSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception = True)
         customer = serializer.save()
         return Response ({"detail" : "Profile completed"} , status = status.HTTP_201_CREATED,)

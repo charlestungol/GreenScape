@@ -91,7 +91,7 @@ const Settings = () => {
 
       const res = await AxiosInstance.get(endpoint);
       const data = res.data;
-
+      const hasServerAddress = Boolean(res.data?.address);
       const clean = (v) => (typeof v === "string" ? v.trim() : v);
 
       //Normalize into ONE UI shape
@@ -100,16 +100,17 @@ const Settings = () => {
         first_name: clean(data?.firstname) || "",
         last_name: clean(data?.lastname) || "",
         phone: clean(data?.phonenumber) || "",
-        address: data?.address
-          ? {
-              street: clean(data.address.street) || "",
-              city: clean(data.address.city) || "",
-              province: clean(data.address.province) || "",
-              postal_code: clean(data.address.postalcode) || "",
-            }
-          : null,
+        address:
+          {
+            street: clean(data?.address?.street) || "",
+            city: clean(data?.address?.city) || "",
+            province: clean(data?.address?.province) || "",
+            postal_code: clean(data?.address?.postalcode) || "",
+          },
         role,
+        hasServerAddress,
       });
+
     } catch (err) {
       console.error("Error fetching user info:", err);
       setUserMsgType("error");
@@ -144,11 +145,24 @@ const Settings = () => {
     setUserMsgType("");
     setSavingProfile(true); // changed (see section 4)
     try {
+      const role = getRole();
+
+      const endpoint =
+        role === "employee"
+          ? "/core/employees/me/"
+          : "/core/customers/me/";
+            
+      // Clean helper (handles undefined/null)
+      const clean = (v) => (typeof v === "string" ? v.trim() : v ?? "");
+
+      // --- Decide method based on whether server has an address ---
+      const hasServerAddress = Boolean(userInfo?.hasServerAddress);
+      
       const payload = {
         // email: userInfo.email?.trim() || "",
-        firstname: userInfo.first_name?.trim() || "",
-        lastname: userInfo.last_name?.trim() || "",
-        phonenumber: userInfo.phone?.trim() || "",
+        firstname: clean(userInfo.first_name?.trim() || ""),
+        lastname: clean(userInfo.last_name?.trim() || ""),
+        phonenumber: clean(userInfo.phone?.trim() || ""),
         address: {
           street: userInfo.address.street?.trim() || "",
           city: userInfo.address.city?.trim() || "",
@@ -156,15 +170,11 @@ const Settings = () => {
           postalcode: (userInfo.address.postal_code || "").replace(/\s+/g, "").toUpperCase(),
         },
       };
-
-      const role = getRole();
-
-      const endpoint =
-        role === "employee"
-          ? "/core/employees/me/"
-          : "/core/customers/me/";
-
-      await AxiosInstance.patch(endpoint, payload);
+      if (!hasServerAddress) {
+        await AxiosInstance.put(endpoint, payload);
+      } else{
+        await AxiosInstance.patch(endpoint, payload);
+      }
 
       setUserMsgType("success");
       setUserMessage("Profile updated successfully!");

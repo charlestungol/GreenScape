@@ -141,74 +141,6 @@ class AddressViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You do not have permission to perform this action.")
         serializer.save()
 
-    # Allows user to add thier data.
-    @action(detail=False, methods=['put'], url_path='me', permission_classes=[permissions.IsAuthenticated])
-    @transaction.atomic
-    def upsert_me(self, request):
-        user = request.user
-        is_staff_user = user.groups.filter(name__in=["Staff"]).exists()
-
-        customer = None
-        employee = None
-        address = None
-
-        if is_staff_user:
-            employee = Employee.objects.filter(user_id=user.id).select_related("addressid").first()
-            address = employee.addressid if employee else None
-        else:
-            customer = Customer.objects.filter(user_id=user.id).select_related("addressid").first()
-            address = customer.addressid if customer else None
-
-        # For non-staff users, ensure Customer exists; otherwise deny.
-        if not is_staff_user and not customer:
-            return Response(
-                {"detail": "You do not have permission to perform this action."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        # Create Address if none exists
-        if address is None:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            address = serializer.save()
-
-            if is_staff_user:
-                # Create Employee profile if missing
-                if not employee:
-                    try:
-                        staff_group = Group.objects.get(name="Staff")
-                    except Group.DoesNotExist:
-                        return Response(
-                            {"detail": "Group 'Staff' does not exist. Ask admin to create it."},
-                            status=status.HTTP_400_BAD_REQUEST,
-                        )
-
-                    employee = Employee.objects.create(
-                        user=user,
-                        addressid=address,
-                        roleid=staff_group,     # ✅ assign Group instance directly
-                        firstname="",
-                        lastname="",
-                        phonenumber="",
-                        staffstatus="Active",
-                    )
-                else:
-                    employee.addressid = address
-                    employee.save(update_fields=["addressid"])
-            else:
-                # Customer flow: link address
-                customer.addressid = address
-                customer.save(update_fields=["addressid"])
-
-            return Response(self.get_serializer(address).data, status=status.HTTP_201_CREATED)
-
-        # Update existing address (partial)
-        serializer = self.get_serializer(address, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(self.get_serializer(address).data, status=status.HTTP_200_OK)
-
-
 # -----------------------------------------------------------------------------
 # Customer views -- Allows for CRUD --
 # -----------------------------------------------------------------------------
@@ -266,13 +198,13 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     serializer_class = EmployeeSerializer
     # Don't set class-level permission_classes if you're overriding get_permissions()
 
-    # Only admin and supervisors can view ALL employee data; others see only their own.
+    # Only admin can view ALL employee data; others see only their own.
     def get_queryset(self):
         user = self.request.user
         if not (user and user.is_authenticated):
             return Employee.objects.none()
 
-        if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+        if user.groups.filter(name__in=["Admin"]).exists():
             return Employee.objects.select_related("addressid").all()
 
         # For Employees, return only their own record
@@ -313,22 +245,142 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
             raise PermissionDenied("You do not have permission to perform this action.")
         return super().perform_destroy(instance)
+    
+    # -------- helpers --------
+
+    # Check if user is an employee
+    def get_employee_for_user(self, user):
+        return (Employee.objects
+                .select_related("user", "addressid", "roleid")
+                .filter(user_id=user.id)
+                .first())
+
+    # Get profile payload
+    def _profile_payload(self, employee):
+        u = employee.user
+        addr = employee.addressid
+        return {
+            "email": u.email,
+            "firstname": employee.firstname or "",
+            "lastname": employee.lastname or "",
+            "phonenumber": getattr(employee, "phonenumber", "") or "",
+            "employee_number": getattr(u, "employee_number", "") or "",
+            "address": ({
+                "street": addr.street or "",
+                "city": addr.city or "",
+                "province": addr.province or "",
+                "postalcode": addr.postalcode or "",
+            } if addr else None),
+        }
 
     # GET/PATCH /core/employees/me/
-    @action(detail=False, methods=["get", "patch"], url_path="me", permission_classes=[IsAuthenticated])
+    @action(detail=False, methods=["get", "patch", "put"], url_path="me", permission_classes=[IsAuthenticated])
     def me(self, request):
-        # Adjust if your FK name differs (assuming Employee.user -> CustomUser)
         instance = get_object_or_404(Employee, user=request.user)
+        # Get user data
+        user = request.user
+        # Check if user is in staff group 
+        is_employee = (
+            getattr(user, "role", "").lower() == "employee"
+            or user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists()
+        )
+        # Check if if user is employee
+        if not is_employee:
+            return Response({"details" : "Only employees have access"}, status = status.HTTP_403_FORBIDDEN)
+        # Get employee data instance
+        employee = self.get_employee_for_user(user)
+        # Create  employee instance if  none
+        if employee is None:
+            staff_group = Group.objects.filter(name__iexact="Staff").first()
+            employee = Employee.objects.create(
+                user=user,
+                roleid=staff_group if staff_group else None,
+            )
 
         if request.method == "GET":
             data = self.get_serializer(instance).data
             return Response(data, status=status.HTTP_200_OK)
+        
+        def _clean_str(v):
+            return v.strip() if isinstance(v, str) else v
 
-        # PATCH
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save(user=request.user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        if request.method == "PUT":
+
+            data = request.data or {}
+
+            first = _clean_str(data.get("firstname"))
+            last = _clean_str(data.get("lastname"))
+            phone = _clean_str(data.get("phonenumber"))
+            changed = []
+
+            if first is not None and first !=  employee.firstname:
+                employee.firstname  = first; changed.append("firstname")
+            if last is not None and last != employee.lastname:
+                employee.lastname = last; changed.append("lastname")
+            if phone is not None and getattr(employee, "phonenumber", None) != phone:
+                employee.phonenumber = phone; changed.append("phonenumber")
+            if changed:
+                employee.save(update_fields=changed)
+            addr_payload = data.get("address") or {}
+            pc = addr_payload.get("postalcode")
+            if pc:
+                addr_payload["postalcode"] = pc.replace(" ", "").upper()
+            
+            if employee.addressid is None:
+                # Create new address
+                addr_ser = AddressSerializer(data=addr_payload)
+                addr_ser.is_valid(raise_exception=True)
+                employee.addressid = addr_ser.save()
+                employee.save(update_fields=["addressid"])
+                return Response(self._profile_payload(employee), status=status.HTTP_201_CREATED)
+            else:
+                # Update existing address fully/partially
+                addr_ser = AddressSerializer(employee.addressid, data=addr_payload, partial=True)
+                addr_ser.is_valid(raise_exception=True)
+                addr_ser.save()
+                return Response(self._profile_payload(employee), status=status.HTTP_200_OK)
+
+
+        # --- PATCH: partial profile + optional nested address ---
+        if request.method.lower() == "PATCH":
+            data = request.data or {}
+
+            # Partial updates
+            first = _clean_str(data.get("firstname"))
+            last = _clean_str(data.get("lastname"))
+            phone = _clean_str(data.get("phonenumber"))
+
+            changed = []
+            if first is not None and first != employee.firstname:
+                employee.firstname = first; changed.append("firstname")
+            if last is not None and last != employee.lastname:
+                employee.lastname = last; changed.append("lastname")
+            if phone is not None and getattr(employee, "phonenumber", None) != phone:
+                employee.phonenumber = phone; changed.append("phonenumber")
+            if changed:
+                employee.save(update_fields=changed)
+
+            addr_payload = data.get("address") or {}
+            if addr_payload:
+                pc = addr_payload.get("postalcode")
+                if pc:
+                    addr_payload["postalcode"] = pc.replace(" ", "").upper()
+
+                if employee.addressid is None:
+                    addr_ser = AddressSerializer(data=addr_payload)
+                    addr_ser.is_valid(raise_exception=True)
+                    employee.addressid = addr_ser.save()
+                    employee.save(update_fields=["addressid"])
+                else:
+                    addr_ser = AddressSerializer(employee.addressid, data=addr_payload, partial=True)
+                    addr_ser.is_valid(raise_exception=True)
+                    addr_ser.save()
+
+            return Response(self._profile_payload(employee), status=status.HTTP_200_OK)
+
+        # Should not reach here
+        return Response({"detail": "Method not allowed."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
 
     # PATCH /core/employees/{id}/role/
     @action(detail=True, methods=["patch"], url_path="role", permission_classes=[isAdmin])

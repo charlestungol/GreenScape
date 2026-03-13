@@ -23,7 +23,7 @@ from rest_framework import serializers
 # ---------------------------------------------------
 # Project App Imports
 # ---------------------------------------------------
-from core.models import Address, Customer
+from core.models import Address, Customer, Employee
 from core.serializers import AddressSerializer
 from core.management.validators import (
     validate_phone,
@@ -221,6 +221,7 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
         group_name = validated_data.pop("group")
         is_staff = str(group_name).lower() == "admin"
 
+        # Create the user
         user = User.objects.create_user(
             **validated_data,
             is_active=False,
@@ -228,15 +229,25 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
             role="employee"
         )
 
+        # Filter for the group
         grp = Group.objects.filter(name__iexact=group_name).first()
         if not grp:
             grp = Group.objects.create(name=group_name.title())
 
+        # Create employee data
+        employee = Employee.objects.create(
+            roleid = grp,
+            user = user
+        )
+
+        # Add the group to the user
         user.groups.add(grp)
 
+        # Return the user
         return user
-    
-class CompleteProfileSerializer(serializers.Serializer):
+
+#For Customer to compelete their profile
+class CompleteCustomerProfileSerializer(serializers.Serializer):
     first_name = serializers.CharField(required=True, validators=[strip_string, prevent_control_characters, validate_name])
     last_name = serializers.CharField(required=True, validators=[strip_string, prevent_control_characters, validate_name])
     phone = serializers.CharField(required=True, validators=[strip_string, prevent_control_characters, validate_phone])
@@ -270,6 +281,7 @@ class CompleteProfileSerializer(serializers.Serializer):
         return customer
 
 
+#Serializer to allow user to change their email.
 class ChangeEmailSerializer(serializers.Serializer):
     new_email = serializers.EmailField(required=True, validators=[strip_string, validate_max_length(254)])
     password = serializers.CharField(required=True, write_only=True, validators=[strip_string, validate_max_length(16)])
