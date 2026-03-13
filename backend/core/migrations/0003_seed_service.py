@@ -1,5 +1,6 @@
 from django.db import migrations
 
+
 def seed_data(apps, schema_editor):
     Servicetype = apps.get_model("core", "Servicetype")
     Service = apps.get_model("core", "Service")
@@ -43,7 +44,7 @@ def unseed_data(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0003_initial"),
+        ("core", "0002_initial"),
     ]
     operations = [
         migrations.RunPython(seed_data, reverse_code=unseed_data),
