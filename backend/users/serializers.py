@@ -99,7 +99,7 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
         email = normalize_email(value or "")
         if not email:
             raise serializers.ValidationError("Email is required.")
-        if User.objects.filter(email_iexact=email).exists():
+        if User.objects.filter(email__iexact=email).exists():
             raise serializers.ValidationError("An account with this email already exists.")
         return email
     
