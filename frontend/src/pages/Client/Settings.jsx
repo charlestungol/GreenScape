@@ -12,6 +12,7 @@ const Settings = () => {
   const [msgType, setMsgType] = useState("");
   
   const [userInfo, setUserInfo] = useState({
+    email: "",
     first_name: "",
     last_name: "",
     phone: "", 
@@ -77,9 +78,9 @@ const Settings = () => {
   const fetchUserInfo = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      const response = await AxiosInstance.get("client/profile/", {
-        headers: { Authorization: `Token ${token}` },
+      const access = localStorage.getItem("access");
+      const response = await AxiosInstance.get("core/customers/me/", {
+        headers: { Authorization: `Bearer ${access}` },
       });
 
       const userData = response.data.user;
@@ -87,6 +88,7 @@ const Settings = () => {
       const addressData = customerData?.addressid || {};
 
       setUserInfo({
+        email: clean(userData?.email),
         first_name: clean(userData?.first_name),
         last_name: clean(userData?.last_name),
         phone: clean(customerData?.phonenumber),
@@ -124,7 +126,7 @@ const Settings = () => {
     setUserMsgType("");
     setSavingProfile(true);
     try {
-      const token = localStorage.getItem("token");
+      const access = localStorage.getItem("access");
 
       const payload = {
         user: {
@@ -142,8 +144,8 @@ const Settings = () => {
         },
       };
 
-      await AxiosInstance.put("client/profile/update/", payload, {
-        headers: { Authorization: `Token ${token}` },
+      await AxiosInstance.put("core/customers/me/", payload, {
+        headers: { Authorization: `Bearer ${access}` },
       });
 
       setUserMsgType("success");
@@ -243,7 +245,7 @@ const Settings = () => {
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const access = localStorage.getItem("access");
       const payload = {
         user: {
           email: newEmail,
@@ -257,7 +259,7 @@ const Settings = () => {
       };
 
       await AxiosInstance.put("client/profile/update/", payload, {
-        headers: { Authorization: `Token ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${access}`, "Content-Type": "application/json" },
       });
 
       setMsgType("success");
@@ -340,7 +342,7 @@ const Settings = () => {
                 <div className="infoItem">
                   <label className="infoLabel">First Name</label>
                   {editMode ? (
-                    <input type="text" name="first_name" className="infoInput" value={userInfo.first_name} onChange={handleInputChange} placeholder="Enter your first name" disabled={isLoading} />
+                    <input type="text" name="first_name" className="infoInput" autoComplete="given-name" value={userInfo.first_name} onChange={handleInputChange} placeholder="Enter your first name" disabled={isLoading} />
                   ) : (
                     <p className="infoValue">{userInfo.first_name || "Not set"}</p>
                   )}
@@ -349,7 +351,7 @@ const Settings = () => {
                 <div className="infoItem">
                   <label className="infoLabel">Last Name</label>
                   {editMode ? (
-                    <input type="text" name="last_name" className="infoInput" value={userInfo.last_name} onChange={handleInputChange} placeholder="Enter your last name" disabled={isLoading} />
+                    <input type="text" name="last_name" className="infoInput" autoComplete="family-name" value={userInfo.last_name} onChange={handleInputChange} placeholder="Enter your last name" disabled={isLoading} />
                   ) : (
                     <p className="infoValue">{userInfo.last_name || "Not set"}</p>
                   )}
@@ -358,7 +360,7 @@ const Settings = () => {
                 <div className="infoItem">
                   <label className="infoLabel">Phone Number</label>
                   {editMode ? (
-                    <input type="tel" name="phone" className="infoInput" value={userInfo.phone} onChange={handleInputChange} placeholder="Enter your phone number" disabled={isLoading} />
+                    <input type="tel" name="phone" className="infoInput" autoComplete="tel" value={userInfo.phone} onChange={handleInputChange} placeholder="Enter your phone number" disabled={isLoading} />
                   ) : (
                     <p className="infoValue">{userInfo.phone || "Not set"}</p>
                   )}
@@ -367,7 +369,7 @@ const Settings = () => {
                 <div className="infoItem fullWidth">
                   <label className="infoLabel">Street Address</label>
                   {editMode ? (
-                    <input type="text" name="address.street" className="infoInput" value={userInfo.address.street} onChange={handleInputChange} placeholder="Enter street address" disabled={isLoading} />
+                    <input type="text" name="address.street" className="infoInput" autoComplete="street-address" value={userInfo.address.street} onChange={handleInputChange} placeholder="Enter street address" disabled={isLoading} />
                   ) : (
                     <p className="infoValue">{userInfo.address.street || "Not set"}</p>
                   )}
@@ -376,7 +378,7 @@ const Settings = () => {
                 <div className="infoItem">
                   <label className="infoLabel">City</label>
                   {editMode ? (
-                    <input type="text" name="address.city" className="infoInput" value={userInfo.address.city} onChange={handleInputChange} placeholder="Enter city" disabled={isLoading} />
+                    <input type="text" name="address.city" className="infoInput" autoComplete="address-level2" value={userInfo.address.city} onChange={handleInputChange} placeholder="Enter city" disabled={isLoading} />
                   ) : (
                     <p className="infoValue">{userInfo.address.city || "Not set"}</p>
                   )}
@@ -385,7 +387,7 @@ const Settings = () => {
                 <div className="infoItem">
                   <label className="infoLabel">Province</label>
                   {editMode ? (
-                    <input type="text" name="address.province" className="infoInput" value={userInfo.address.province} onChange={handleInputChange} placeholder="Enter province" disabled={isLoading} />
+                    <input type="text" name="address.province" className="infoInput" autoComplete="address-level1" value={userInfo.address.province} onChange={handleInputChange} placeholder="Enter province" disabled={isLoading} />
                   ) : (
                     <p className="infoValue">{userInfo.address.province || "Not set"}</p>
                   )}
@@ -394,7 +396,7 @@ const Settings = () => {
                 <div className="infoItem">
                   <label className="infoLabel">Postal Code</label>
                   {editMode ? (
-                    <input type="text" name="address.postal_code" className="infoInput" value={userInfo.address.postal_code} onChange={handleInputChange} placeholder="Enter postal code" disabled={isLoading} />
+                    <input type="text" name="address.postal_code" className="infoInput" autoComplete="postal-code" value={userInfo.address.postal_code} onChange={handleInputChange} placeholder="Enter postal code" disabled={isLoading} />
                   ) : (
                     <p className="infoValue">{userInfo.address.postal_code || "Not set"}</p>
                   )}
@@ -433,17 +435,17 @@ const Settings = () => {
                 <>
                   <div className="inputGroup">
                     <label>Old Password</label>
-                    <input type="password" placeholder="Enter old password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} disabled={changingPassword} />
+                    <input type="password" placeholder="Enter old password" autoComplete="current-password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} disabled={changingPassword} />
                   </div>
                   <div className="inputGroup">
                     <label>New Password</label>
-                    <input type="password" placeholder="Enter new password (min. 6 characters)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} disabled={changingPassword} />
+                    <input type="password" placeholder="Enter new password (min. 6 characters)" autoComplete="new-password"  value={newPassword} onChange={(e) => setNewPassword(e.target.value)} disabled={changingPassword} />
                   </div>
                 </>
               ) : (
                 <div className="inputGroup">
                   <label>New Email Address</label>
-                  <input type="email" placeholder="Enter new email address" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} disabled={isLoading} />
+                  <input type="email" placeholder="Enter new email address" autoComplete="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} disabled={isLoading} />
                   <p className="inputHint">Your current email: {userInfo.email}</p>
                 </div>
               )}
