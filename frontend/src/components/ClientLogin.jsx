@@ -81,12 +81,6 @@ const ClientLogin = () => {
     localStorage.setItem(`user_${userId}_first_name`, userFirstName);
     localStorage.setItem(`user_${userId}_role`, userRole);
     
-    // Verify storage
-    console.log("Storage verification:");
-    console.log("Stored user_id:", localStorage.getItem("user_id"));
-    console.log("Stored first_name:", localStorage.getItem("first_name"));
-    console.log("Stored role:", localStorage.getItem("role"));
-    
     navigate('/home');
 
   } catch (err) {

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import "../clientCss/Dashboard.css";
+import { useEffect, useState, useRef } from "react"; 
+import "../components/clientCss/Dashboard.css";
 import {
   BarChart, Bar,
   LineChart, Line,
@@ -30,6 +30,9 @@ function Analytics() {
   const [data, setData] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [chartType, setChartType] = useState('bar');
+  
+  // Create a ref for the modal content
+  const modalContentRef = useRef(null);
 
   // Define getExpenses at the top
   const getExpenses = () => {
@@ -90,6 +93,36 @@ function Analytics() {
   const totalBudget = data.reduce((sum, month) => sum + month.budget, 0);
   const totalExpensesAmount = data.reduce((sum, month) => sum + month.expenses, 0);
   const recentExpenses = expenses.slice().reverse().slice(0, 10);
+
+  // Handle click outside modal
+  const handleOverlayClick = (e) => {
+    // If the click is on the overlay itself (not the modal content), close the modal
+    if (modalContentRef.current && !modalContentRef.current.contains(e.target)) {
+      setShowReport(false);
+    }
+  };
+
+  // Handle ESC key press
+  useEffect(() => {
+    const handleEscKey = (e) => {
+      if (e.key === 'Escape' && showReport) {
+        setShowReport(false);
+      }
+    };
+
+    // Add event listener when modal is open
+    if (showReport) {
+      document.addEventListener('keydown', handleEscKey);
+      // Prevent body scrolling when modal is open
+      document.body.style.overflow = 'hidden';
+    }
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+      document.body.style.overflow = 'unset';
+    };
+  }, [showReport]);
 
   useEffect(() => {
     const update = () => {
@@ -217,10 +250,17 @@ function Analytics() {
           )}
         </ResponsiveContainer>
       </div>
+      
       {/* Analytics Overlay / Modal */}
       {showReport && (
-        <div className="overlay">
-          <div className="analyticsOverlayContent">
+        <div 
+          className="overlay" 
+          onClick={handleOverlayClick}  // Add click handler to overlay
+        >
+          <div 
+            ref={modalContentRef}  // Add ref to modal content
+            className="analyticsOverlayContent"
+          >
             
             {/* Header */}
             <div className="analyticsHeader">

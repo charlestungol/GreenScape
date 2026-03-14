@@ -1,10 +1,10 @@
-import Card from '../components/ServicesCard';
+import Card from '../../components/ServicesCard';
 import { useNavigate } from 'react-router-dom';
-import '../clientCss/Services.css';
-import serviceImage1 from '../assets/img/service-img-1.jpg';
-import serviceImage2 from '../assets/img/service-img-2.jpg';
-import serviceImage3 from '../assets/img/service-img-3.png';
-import serviceImage4 from '../assets/img/service-img-4.jpg';
+import '../../components/clientCss/Services.css';
+import serviceImage1 from '../../assets/img/service-img-1.jpg';
+import serviceImage2 from '../../assets/img/service-img-2.jpg';
+import serviceImage3 from '../../assets/img/service-img-3.png';
+import serviceImage4 from '../../assets/img/service-img-4.jpg';
 
 const Services = () => {
   const navigate = useNavigate();
