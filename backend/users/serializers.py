@@ -283,9 +283,19 @@ class CompleteCustomerProfileSerializer(serializers.Serializer):
 
 #Serializer to allow user to change their email.
 class ChangeEmailSerializer(serializers.Serializer):
-    new_email = serializers.EmailField(required=True, validators=[strip_string, validate_max_length(254)])
-    password = serializers.CharField(required=True, write_only=True, validators=[strip_string, validate_max_length(16)])
+    new_email = serializers.EmailField(
+        required=True,
+        validators=[strip_string, validate_max_length(254)]
+    )
+    # Allow longer passwords; 128 is common
+    password = serializers.CharField(
+        required=True,
+        write_only=True,
+        validators=[strip_string, validate_max_length(16)]
+    )
+
     def validate_new_email(self, value):
+        # normalize_email already handles trimming & case
         return normalize_email(value)
 
 class ChangePasswordSerializer(serializers.Serializer):

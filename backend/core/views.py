@@ -196,6 +196,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related("addressid").all()
     serializer_class = EmployeeSerializer
+    premisssion_classes = [IsOwnerOrAdmin]
     # Don't set class-level permission_classes if you're overriding get_permissions()
 
     # Only admin can view ALL employee data; others see only their own.
@@ -210,14 +211,13 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         # For Employees, return only their own record
         return Employee.objects.select_related("addressid").filter(user_id=user.id)
 
-    # Permit reads for any authenticated user; writes require admin via your custom permission.
-    def get_permissions(self):
-        if self.request.method in permissions.SAFE_METHODS:
-            return [IsAuthenticated()]
-        # Write operations:
-        # If you have a custom isAdmin, use it; otherwise enforce via perform_* below.
-        # return [isAdmin(), DjangoModelPermissions()]
-        return [DjangoModelPermissions()]  # and we’ll hard-check admin/supervisor in perform_*.
+    # # Permit reads for any authenticated user; writes require admin via your custom permission.
+    # def get_permissions(self):
+    #     if getattr(self, "action", None) == "me":
+    #         return [IsAuthenticated()]
+    #     if self.request.method in permissions.SAFE_METHODS:
+    #         return [IsAuthenticated()]
+    #     return [DjangoModelPermissions()]  # and we’ll hard-check admin/supervisor in perform_*.
 
     # Only admin and supervisors can create employee data.
     def perform_create(self, serializer):
@@ -304,45 +304,8 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         def _clean_str(v):
             return v.strip() if isinstance(v, str) else v
 
-        if request.method == "PUT":
-
-            data = request.data or {}
-
-            first = _clean_str(data.get("firstname"))
-            last = _clean_str(data.get("lastname"))
-            phone = _clean_str(data.get("phonenumber"))
-            changed = []
-
-            if first is not None and first !=  employee.firstname:
-                employee.firstname  = first; changed.append("firstname")
-            if last is not None and last != employee.lastname:
-                employee.lastname = last; changed.append("lastname")
-            if phone is not None and getattr(employee, "phonenumber", None) != phone:
-                employee.phonenumber = phone; changed.append("phonenumber")
-            if changed:
-                employee.save(update_fields=changed)
-            addr_payload = data.get("address") or {}
-            pc = addr_payload.get("postalcode")
-            if pc:
-                addr_payload["postalcode"] = pc.replace(" ", "").upper()
-            
-            if employee.addressid is None:
-                # Create new address
-                addr_ser = AddressSerializer(data=addr_payload)
-                addr_ser.is_valid(raise_exception=True)
-                employee.addressid = addr_ser.save()
-                employee.save(update_fields=["addressid"])
-                return Response(self._profile_payload(employee), status=status.HTTP_201_CREATED)
-            else:
-                # Update existing address fully/partially
-                addr_ser = AddressSerializer(employee.addressid, data=addr_payload, partial=True)
-                addr_ser.is_valid(raise_exception=True)
-                addr_ser.save()
-                return Response(self._profile_payload(employee), status=status.HTTP_200_OK)
-
-
         # --- PATCH: partial profile + optional nested address ---
-        if request.method.lower() == "PATCH":
+        if request.method == "PATCH":
             data = request.data or {}
 
             # Partial updates

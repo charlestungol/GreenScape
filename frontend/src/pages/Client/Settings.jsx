@@ -78,27 +78,26 @@ const Settings = () => {
   const fetchUserInfo = async () => {
     setIsLoading(true);
     try {
-      const access = localStorage.getItem("access");
-      const response = await AxiosInstance.get("core/customers/me/", {
-        headers: { Authorization: `Bearer ${access}` },
-      });
+      const response = await AxiosInstance.get("core/customers/me/");
 
-      const userData = response.data.user;
-      const customerData = response.data.customer;
-      const addressData = customerData?.addressid || {};
+      const customer = response.data || {};
+      const address  = customer.address || {};
+      console.log (address)
 
       setUserInfo({
-        email: clean(userData?.email),
-        first_name: clean(userData?.first_name),
-        last_name: clean(userData?.last_name),
-        phone: clean(customerData?.phonenumber),
+        email: clean(customer.email),
+        first_name: clean(customer?.firstname),
+        last_name: clean(customer?.lastname),
+        phone: clean(customer?.phonenumber),
         address: {
-          street: clean(addressData?.street),
-          city: clean(addressData?.city),
-          province: clean(addressData?.province),
-          postal_code: clean(addressData?.postalcode),
+          street: clean(address?.street),
+          city: clean(address?.city),
+          province: clean(address?.province),
+          postal_code: clean(address?.postalcode),
         },
       });
+
+      console.log(userInfo)
     } catch (err) {
       console.error("Error fetching user info:", err);
       setUserMsgType("error");
@@ -126,27 +125,19 @@ const Settings = () => {
     setUserMsgType("");
     setSavingProfile(true);
     try {
-      const access = localStorage.getItem("access");
-
       const payload = {
-        user: {
-          first_name: clean(userInfo.first_name),
-          last_name: clean(userInfo.last_name),
-        },
-        customer: {
-          phonenumber: clean(userInfo.phone),
-          address: {
-            street: userInfo.address.street?.trim() || "",
-            city: userInfo.address.city?.trim() || "",
-            province: userInfo.address.province?.trim() || "",
-            postalcode: (userInfo.address.postal_code || "").replace(/\s+/g, "").toUpperCase(),
-          },
+        firstname : clean(userInfo.first_name),
+        lastname : clean(userInfo.last_name),
+        phonenumber: clean(userInfo.phone),
+        address: {
+          street: userInfo.address.street?.trim() || "",
+          city: userInfo.address.city?.trim() || "",
+          province: userInfo.address.province?.trim() || "",
+          postalcode: (userInfo.address.postal_code || "").replace(/\s+/g, "").toUpperCase(),
         },
       };
 
-      await AxiosInstance.put("core/customers/me/", payload, {
-        headers: { Authorization: `Bearer ${access}` },
-      });
+      await AxiosInstance.patch("core/customers/me/", payload);
 
       setUserMsgType("success");
       setUserMessage("Profile updated successfully!");
@@ -245,22 +236,7 @@ const Settings = () => {
     }
 
     try {
-      const access = localStorage.getItem("access");
-      const payload = {
-        user: {
-          email: newEmail,
-          first_name: userInfo.first_name,
-          last_name: userInfo.last_name,
-        },
-        customer: {
-          phonenumber: userInfo.phone,
-          address: userInfo.address,
-        },
-      };
-
-      await AxiosInstance.put("client/profile/update/", payload, {
-        headers: { Authorization: `Bearer ${access}`, "Content-Type": "application/json" },
-      });
+      await AxiosInstance.post("change-email/", { newemail: newEmail });
 
       setMsgType("success");
       setMessage("Email changed successfully!");

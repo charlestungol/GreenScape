@@ -66,7 +66,7 @@ const performRefresh = async () => {
   // - DRF SimpleJWT cookie refresh via custom endpoint, e.g. /auth/jwt/refresh/
   // - dj-rest-auth with custom cookie strategy, etc.
   // The key is: it should pull refresh token from HttpOnly cookie.
-  return AxiosInstance.post("/auth/jwt/refresh/", null, {
+  return AxiosInstance.post("refresh/", null, {
     // Don't attach Authorization here; only the cookie is required.
     // `withCredentials: true` ensures the refresh cookie is sent.
     headers: {
