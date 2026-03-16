@@ -288,7 +288,7 @@ class UserViewSet(viewsets.ModelViewSet):
 class ChangeEmailViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = ChangeEmailSerializer
-    throttle_scope = "account_change"  # optional: define rate in DEFAULT_THROTTLE_RATES
+    throttle_scope = "account_change"  
 
     def create(self, request):
         serializer = self.serializer_class(data=request.data, context={"request": request})

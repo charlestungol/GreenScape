@@ -219,6 +219,7 @@ REST_FRAMEWORK = {
         "user": "60/minute",      # Authenticated user actions
         "login": "30/minute",       # Login endpoint (if separate throttle needed)
         "register": "5/hour",    # Registration endpoint (if separate throttle needed)
+        "account_change" : "30/minute" #Changing email.
     },
 
     "DEFAULT_PAGINATION_CLASS":
