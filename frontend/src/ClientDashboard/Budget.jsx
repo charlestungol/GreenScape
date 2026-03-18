@@ -35,7 +35,7 @@ function Budget() {
   const [budget, setBudget] = useState(getInitialBudget());
   const [input, setInput] = useState("");
   const [showOverlay, setShowOverlay] = useState(false);
-  const [mode, setMode] = useState("set"); // "set", "add"
+  const [mode, setMode] = useState("set"); 
 
   const handleSave = () => {
     const value = Number(input);
@@ -49,7 +49,7 @@ function Budget() {
       case "add":
         newBudget = budget + value;
         break;
-      default: // "set"
+      default: 
         newBudget = value;
     }
     

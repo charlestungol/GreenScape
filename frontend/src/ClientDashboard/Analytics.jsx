@@ -308,7 +308,7 @@ function Analytics() {
               
               {expenses.length === 0 ? (
                 <div className="emptyState">
-                  <span className="emptyState-icon">s</span>
+                  <span className="emptyState-icon"></span>
                   <p className="emptyState-text">No transactions yet</p>
                 </div>
               ) : (
@@ -338,7 +338,6 @@ function Analytics() {
               
               {data.length === 0 ? (
                 <div className="emptyState">
-                  <span className="emptyState-icon">📊</span>
                   <p className="emptyState-text">No monthly data available</p>
                 </div>
               ) : (

@@ -11,11 +11,10 @@ import Maps from "../../ClientDashboard/Maps.jsx";
 
 const Home = () => {
   return (
+    <div>
+      <div className="titleWrapper">DASHBOARD</div>
       <div className="dashboardContainer">
         <div>
-          <div className="titleWrapper">
-            CLIENT DASHBOARD
-          </div>
           <div className="firstLayerBoard">
             <div className="leftColumn">
               <Budget/>
@@ -36,6 +35,7 @@ const Home = () => {
             </div>
           </div>
         </div>
+      </div>
       </div>
   );
 };

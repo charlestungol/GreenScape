@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom"; 
 import "../components/clientCss/Dashboard.css";
 import AddLocationAltIcon from "@mui/icons-material/AddLocationAlt";
 import CloseIcon from "@mui/icons-material/Close";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle"; 
+import AxiosInstance from "../../src/components/AxiosInstance"; 
 
 import {
   MapContainer,
@@ -45,15 +44,78 @@ const fetchAddress = async (lat, lng, setSelectedAddress) => {
   }
 };
 
+/* ================= PARSE ADDRESS FUNCTION ================= */
+const parseAddress = (fullAddress) => {
+  console.log("Parsing full address:", fullAddress);
+  
+  let parts = fullAddress.split(',').map(part => part.trim());
+  console.log("All parts:", parts);
+  if (parts[parts.length - 1].toLowerCase() === "canada") {
+    parts.pop();
+  }
+  
+  let street = "";
+  let city = "";
+  let province = "";
+  let postalcode = "";
+  
+  const lastPart = parts[parts.length - 1];
+  const postalMatch = lastPart.match(/[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d/);
+  
+  if (postalMatch) {
+    postalcode = postalMatch[0].replace(/\s+/g, ' ').trim().toUpperCase();
+    parts.pop(); 
+    
+    if (parts.length > 0) {
+      province = parts.pop() || "";
+    }
+
+    if (parts.length > 0) {
+      city = parts.pop() || "";
+    }
+    street = parts.join(', ');
+    } else {
+    const provinces = ["alberta", "british columbia", "ontario", "quebec", "manitoba", 
+                       "saskatchewan", "nova scotia", "new brunswick", "newfoundland", 
+                       "prince edward island", "northwest territories", "yukon", "nunavut"];
+    
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i].toLowerCase();
+      if (provinces.some(prov => part.includes(prov))) {
+        province = parts[i];
+        if (i > 0) {
+          city = parts[i - 1];
+        }
+        street = parts.slice(0, i - 1).join(', ');
+        break;
+      }
+    }
+  }
+  street = street.replace(/\s+/g, ' ').trim();
+  city = city.replace(/\s+/g, ' ').trim();
+  province = province.replace(/\s+/g, ' ').trim();
+  if (!city && parts.length > 1) {
+    city = parts[parts.length - 2] || "";
+  }
+  if (!province && parts.length > 0) {
+    province = parts[parts.length - 1] || "";
+  }
+  
+  const result = { street, city, province, postalcode };
+  console.log("Final parsed result:", result);
+  
+  return result;
+};
+
 /* ================= MAIN COMPONENT ================= */
 function Maps() {
-  const navigate = useNavigate();
   const [showMap, setShowMap] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [selectedAddress, setSelectedAddress] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isConfirming, setIsConfirming] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState("");
 
   const defaultCenter = [51.0447, -114.0719]; // Calgary
 
@@ -86,32 +148,70 @@ function Maps() {
 
   /* ================= HANDLE LOCATION CONFIRMATION ================= */
   const handleConfirmLocation = async () => {
-    if (!selectedPosition) return;
+    if (!selectedPosition || !selectedAddress) return;
     
     setIsConfirming(true);
+    setError("");
     
     try {
+      // Parse the address into components
+      const { street, city, province, postalcode } = parseAddress(selectedAddress);
+      
+      // Get user info from localStorage
+      const firstName = localStorage.getItem('first_name') || '';
+      const lastName = localStorage.getItem('last_name') || '';
+      const userName = `${firstName} ${lastName}`.trim() || 'Customer';
+      
+      // Prepare the location data
+      const locationData = {
+        name: userName,
+        street: street,
+        city: city,
+        province: province,
+        postalcode: postalcode
+      };
+
+      console.log("Saving location:", locationData);
+      
+      // Send to your ServiceLocation API
+      const response = await AxiosInstance.post('core/service-locations/', locationData);
+      
+      console.log("Location saved successfully:", response.data);
+      
+      // Show success message
       setShowSuccess(true);
       
+      // Close after 2 seconds
       setTimeout(() => {
         setShowMap(false);
+        setSelectedPosition(null);
+        setSelectedAddress("");
+        setSearchQuery("");
         setShowSuccess(false);
         setIsConfirming(false);
-        
-        navigate("/services", {
-          state: {
-            location: {
-              position: selectedPosition,
-              address: selectedAddress
-            }
-          }
-        });
-      }, 1500);
+      }, 2000);
       
-    } catch (error) {
-      console.error("Error saving location:", error);
+    } catch (err) {
+      console.error("Error saving location:", err);
+      
+      if (err.response) {
+        if (err.response.status === 401) {
+          setError("Please log in to save locations");
+        } else if (err.response.status === 400) {
+          const errors = err.response.data;
+          let errorMsg = "Validation error:\n";
+          Object.entries(errors).forEach(([key, val]) => {
+            errorMsg += `- ${key}: ${Array.isArray(val) ? val.join(', ') : val}\n`;
+          });
+          setError(errorMsg);
+        } else {
+          setError("Failed to save location. Please try again.");
+        }
+      } else {
+        setError("Network error. Please check your connection.");
+      }
+      
       setIsConfirming(false);
-      alert("Failed to save location. Please try again.");
     }
   };
 
@@ -124,6 +224,7 @@ function Maps() {
     setSelectedAddress("");
     setSearchQuery("");
     setShowSuccess(false);
+    setError("");
   };
 
   return (
@@ -203,11 +304,17 @@ function Maps() {
               </div>
             )}
 
+            {/* ERROR MESSAGE */}
+            {error && (
+              <div className="error-message">
+                s {error}
+              </div>
+            )}
+
             {/* SUCCESS MESSAGE */}
             {showSuccess && (
               <div className="success-message">
-                <CheckCircleIcon />
-                <span>Location confirmed! Redirecting to services...</span>
+                <span>Location saved successfully!</span>
               </div>
             )}
 
@@ -221,13 +328,10 @@ function Maps() {
                 {isConfirming ? (
                   <>
                     <span className="spinner"></span>
-                    Confirming...
+                    Saving...
                   </>
                 ) : (
-                  <>
-                    <CheckCircleIcon />
-                    Confirm Location & Continue
-                  </>
+                  "Save Location"
                 )}
               </button>
 
@@ -236,6 +340,7 @@ function Maps() {
                 onClick={() => {
                   setSelectedPosition(null);
                   setSelectedAddress("");
+                  setError("");
                 }}
                 disabled={isConfirming}
               >

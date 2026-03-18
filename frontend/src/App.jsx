@@ -1,6 +1,7 @@
 import './App.css';
 import { Routes, Route } from 'react-router-dom';
 import NavbarWrapper from './components/NavbarWrapper';
+import ScrollToTop from './components/ScrollToTop';
 
 // Public pages
 import Landing from "./pages/LandingPage";
@@ -14,6 +15,7 @@ import Home from './pages/Client/ClientHome';
 import ClientProfile from './pages/Client/ClientProfile';
 import Services from './pages/Client/Services';
 import Booking from './pages/Client/Booking';
+import RequestQuote from './pages/Client/RequestQuote';
 import Settings from './pages/Client/Settings';
 
 // Employee/admin pages
@@ -39,6 +41,8 @@ import RouteProtection from "./components/RouteProtection";
 
 function App() {
   return (
+    <>
+    <ScrollToTop />
     <Routes>
       {/* Public pages (no Navbar) */}
       <Route path="/" element={<Landing />} />
@@ -79,6 +83,14 @@ function App() {
           element={
             <RouteProtection>
               <Booking />
+            </RouteProtection>
+          }
+        />
+        <Route
+          path="/request-quote"
+          element={
+            <RouteProtection>
+              <RequestQuote />
             </RouteProtection>
           }
         />
@@ -201,6 +213,7 @@ function App() {
         />
       </Route>
     </Routes>
+    </>
   );
 }
 

@@ -12,7 +12,7 @@ const Settings = () => {
   const [msgType, setMsgType] = useState("");
   
   const [userInfo, setUserInfo] = useState({
-    email: "",
+    email:"",
     first_name: "",
     last_name: "",
     phone: "", 
@@ -85,7 +85,7 @@ const Settings = () => {
       console.log (address)
 
       setUserInfo({
-        email: clean(customer.email),
+        email: clean(customer?.email),
         first_name: clean(customer?.firstname),
         last_name: clean(customer?.lastname),
         phone: clean(customer?.phonenumber),
@@ -236,7 +236,10 @@ const Settings = () => {
     }
 
     try {
-      await AxiosInstance.post("change-email/", { newemail: newEmail });
+      await AxiosInstance.post("change-email/",
+         { new_email: newEmail, 
+           password:oldPassword
+         });
 
       setMsgType("success");
       setMessage("Email changed successfully!");
@@ -288,7 +291,7 @@ const Settings = () => {
 
   return (
     <div>
-      <p className="titleWrapper">SETTINGS</p>
+      <p className="settingsTitle">SETTINGS</p>
       <div className="settings-page">
         <div className="settingsContainer">
           {/* User Information Section */}
@@ -419,11 +422,33 @@ const Settings = () => {
                   </div>
                 </>
               ) : (
+              <form onSubmit={(e) => e.preventDefault()}>
                 <div className="inputGroup">
                   <label>New Email Address</label>
-                  <input type="email" placeholder="Enter new email address" autoComplete="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} disabled={isLoading} />
+                  <input type="email" 
+                    placeholder="Enter new email address" 
+                    autoComplete="email" 
+                    value={newEmail} 
+                    onChange={(e) => setNewEmail(e.target.value)} 
+                    disabled={isLoading} />
+                </div>
+
+                <div className="inputGroup">
+                  <label>Confirm Password</label>
+                  <input 
+                    type="password" 
+                    placeholder="Enter your current password to confirm" 
+                    autoComplete="current-password" 
+                    value={oldPassword} 
+                    onChange={(e) => setOldPassword(e.target.value)} 
+                    disabled={isLoading} 
+                  />
+                </div>
+                
+                <div>
                   <p className="inputHint">Your current email: {userInfo.email}</p>
                 </div>
+              </form>
               )}
 
               <button

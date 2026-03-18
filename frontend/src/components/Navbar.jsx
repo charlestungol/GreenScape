@@ -20,7 +20,7 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
-// import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import CalculateIcon from '@mui/icons-material/Calculate';
 
 import Logo from "../assets/img/Logo.png";
 import DefaultProfilePic from "../assets/img/Profile.webp";
@@ -92,6 +92,7 @@ const menuConfig = {
     { label: "DASHBOARD", path: "/home", icon: <DashboardIcon sx={{ color: "#1c3d37" }} /> },
     { label: "SERVICES", path: "/services", icon: <WaterDropIcon sx={{ color: "#1c3d37" }} /> },
     { label: "BOOKING", path: "/booking", icon: <CalendarMonthIcon sx={{ color: "#1c3d37" }} /> },
+    { label: "REQUEST QUOTE", path: "/request-quote", icon: <CalculateIcon sx={{ color: "#1c3d37" }} /> },
     { label: "SETTINGS", path: "/settings", icon: <SettingsIcon sx={{ color: "#1c3d37" }} /> },
   ],
   employee: [

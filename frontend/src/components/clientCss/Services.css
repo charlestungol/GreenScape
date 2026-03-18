@@ -6,14 +6,15 @@
 }
 
 /* Title wrapper */
-.titleWrapper {
- border:solid 2px  #06632b;
- color: #06632b;
+.servicesTitle {
+ border:solid 2px  #1c3d37;
+ color: #1c3d37;
  padding: 20px;
  font-size: 25px;
  font-weight:bold;
  border-radius: 20px;
  width: 96%;
+ margin: 0;
 }
 
 /* Cards grid */
