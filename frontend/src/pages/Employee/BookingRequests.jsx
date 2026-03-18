@@ -99,7 +99,8 @@ export default function BookingRequests() {
           fontWeight: 800,
           color: "#1c3d37",
           mb: 2,
-          fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          fontFamily:
+            '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         }}
       >
         Booking & Quote Requests
@@ -113,7 +114,8 @@ export default function BookingRequests() {
             px: 2,
             pt: 1,
             "& .MuiTab-root": {
-              fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+              fontFamily:
+                '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
               fontWeight: 600,
               color: "#1c3d37",
             },
@@ -173,7 +175,9 @@ export default function BookingRequests() {
                             fontWeight: 600,
                           }}
                         >
-                          {actionLoadingId === `booking-${item.id}` ? "Approving..." : "Approve"}
+                          {actionLoadingId === `booking-${item.id}`
+                            ? "Approving..."
+                            : "Approve"}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -206,7 +210,9 @@ export default function BookingRequests() {
                       <TableCell>{item.client_name || "N/A"}</TableCell>
                       <TableCell>{item.client_email || "N/A"}</TableCell>
                       <TableCell>{item.service_name || "N/A"}</TableCell>
-                      <TableCell>{item.quote_amount ? `$${item.quote_amount}` : "N/A"}</TableCell>
+                      <TableCell>
+                        {item.quote_amount ? `$${item.quote_amount}` : "N/A"}
+                      </TableCell>
                       <TableCell>{renderStatusChip(item.status)}</TableCell>
                       <TableCell align="center">
                         <Button
@@ -224,7 +230,9 @@ export default function BookingRequests() {
                             fontWeight: 600,
                           }}
                         >
-                          {actionLoadingId === `quote-${item.id}` ? "Approving..." : "Approve"}
+                          {actionLoadingId === `quote-${item.id}`
+                            ? "Approving..."
+                            : "Approve"}
                         </Button>
                       </TableCell>
                     </TableRow>

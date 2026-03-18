@@ -23,6 +23,7 @@ import MySchedule from "./pages/Employee/MySchedule";
 import EmployeeManagement from "./pages/Employee/EmployeeManagement";
 import EmployeeTimesheets from "./pages/Employee/EmployeeTimesheets";
 import ServiceSchedule from "./pages/Employee/ServiceSchedule";
+import BookingRequests from "./pages/Employee/BookingRequests";
 import FinancesBoard from "./pages/Employee/FinancesBoard";
 import ClientView from "./pages/Employee/ClientView";
 import EmployeeAccount from "./pages/Employee/EmployeeAccount";
@@ -137,7 +138,15 @@ function App() {
               <ServiceSchedule />
             </RouteProtection>
           }
-        />
+          />
+          <Route 
+            path="/employee/booking-requests"
+            element={
+              <RouteProtection allowedRole="employee">
+                <BookingRequests />
+              </RouteProtection>
+            }  
+            />
         <Route
           path="/employee/finances"
           element={

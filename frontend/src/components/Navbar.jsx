@@ -22,6 +22,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
+import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 
 import Logo from "../assets/img/Logo.png";
 import DefaultProfilePic from "../assets/img/Profile.webp";
@@ -31,6 +32,8 @@ import AxiosInstance from "./AxiosInstance";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
 const GREEN = "#1c3d37";
+const drawerWidth = 300;
+const EMPLOYEE_ROLES = ["employee", "admin", "supervisor", "staff"];
 
 const theme = createTheme({
   typography: {
@@ -89,8 +92,6 @@ const theme = createTheme({
   },
 });
 
-const drawerWidth = 300;
-
 const menuConfig = {
   client: [
     {
@@ -131,6 +132,11 @@ const menuConfig = {
       icon: <PeopleOutlineIcon sx={{ color: GREEN }} />,
     },
     {
+      label: "BOOKING REQUESTS",
+      path: "/employee/booking-requests",
+      icon: <AssignmentTurnedInIcon sx={{ color: GREEN }} />,
+    },
+    {
       label: "SERVICE SCHEDULE",
       path: "/employee/service-schedule",
       icon: <WaterDropIcon sx={{ color: GREEN }} />,
@@ -161,16 +167,24 @@ export default function Navbar({ content }) {
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const normalizeRole = (role) => {
+    const lower = (role || "").toLowerCase();
+    return EMPLOYEE_ROLES.includes(lower) ? "employee" : "client";
+  };
+
   const getUserData = () => {
-    const role = localStorage.getItem("role") || "client";
+    const rawRole = localStorage.getItem("role") || localStorage.getItem("group") || "client";
+    const role = normalizeRole(rawRole);
 
     let displayName = "User";
 
     if (role === "employee") {
       const firstName = localStorage.getItem("first_name");
       const email = localStorage.getItem("email");
+      const employeeNumber = localStorage.getItem("employee_number");
 
       if (firstName) displayName = firstName;
+      else if (employeeNumber) displayName = `Employee ${employeeNumber}`;
       else if (email) displayName = email.split("@")[0];
     } else {
       const userId = localStorage.getItem("user_id");
@@ -202,7 +216,7 @@ export default function Navbar({ content }) {
 
   const handleLogout = async () => {
     const userId = localStorage.getItem("user_id");
-    const role = localStorage.getItem("role");
+    const role = normalizeRole(localStorage.getItem("role"));
 
     if (userId && role === "client") {
       const userDataKeys = [
