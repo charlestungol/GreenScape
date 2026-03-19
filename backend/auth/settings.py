@@ -28,7 +28,9 @@ load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-key")
 
-DEBUG = os.getenv("DEBUG", "False").strip().lower() == "true"
+TEST_DEPLOY_MARKER = "CJ_HOST_FIX_V1"
+
+DEBUG = os.getenv("DEBUG", "False").strip().lower() == "false"
 
 ALLOWED_HOSTS = ["*"]
 
