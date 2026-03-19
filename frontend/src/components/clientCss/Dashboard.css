@@ -75,7 +75,37 @@ html:has(.dashboardContainer) {
   transform: translateY(-4px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
+/* ============================================
+   CHATBOT FLOATING ACTION BUTTON
+   ============================================ */
 
+.chatbot-fab {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  width: 64px;
+  height: 64px;
+  border: none;
+  border-radius: 50%;
+  background: #06632b;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  z-index: 9999;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chatbot-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
+}
+
+.chatbot-fab:active {
+  transform: scale(0.97);
+}
 /* ============================================
    WRAPPER COMPONENTS
    ============================================ */

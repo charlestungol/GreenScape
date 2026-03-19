@@ -15,4 +15,5 @@ urlpatterns = [
     path('core/', include('core.urls')),
     path('csrf/', get_csrf),
     path("accounts/", include("allauth.urls")),
+    path("api/", include("core.urls")),
 ]

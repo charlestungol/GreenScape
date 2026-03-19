@@ -6,6 +6,7 @@ from .views import (
     ServiceImageViewSet, SiteViewSet, ZoneViewSet, InvoiceViewSet,
     QuoteViewSet, ScheduleViewSet
 )
+from .chatbot_data.views import chat
 
 router = DefaultRouter()
 router.register(r"addresses", AddressViewSet, basename="address")
@@ -23,5 +24,6 @@ router.register(r"quotes", QuoteViewSet, basename="quote")
 router.register(r"schedules", ScheduleViewSet, basename="schedule")
 
 urlpatterns = [
+    path("chat/", chat, name="chat"),
     path("", include(router.urls)),
 ]
