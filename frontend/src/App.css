@@ -74,7 +74,7 @@
 
 /* BUTTON */
 
-.loginForm button {
+.loginForm button, .registerForm button {
   padding: 12px;
   border-radius: 8px;
   border: none;

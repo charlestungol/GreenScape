@@ -1,18 +1,12 @@
-/* ============================================
-   DASHBOARD LAYOUT & BASE STYLES
-   ============================================ */
-
 body:has(.dashboardContainer),
 html:has(.dashboardContainer) {
   overflow-y: auto;
   -ms-overflow-style: none;
-  scrollbar-width: none;
+  scrollbar-width: none; 
 }
 
 .dashboardContainer {
-  min-height: 100dvh;
   overflow-y: auto !important;
-  /* scrollbar-width: none !important; */
 }
 
 .firstLayerBoard {
@@ -57,13 +51,14 @@ html:has(.dashboardContainer) {
 }
 
 .titleWrapper {
-  border: solid 2px #06632b;
-  color: #06632b;
+  border: solid 2px #1c3d37;
+  color: #1c3d37;
   padding: 20px;
   font-size: 25px;
   font-weight: bold;
   border-radius: 20px;
   width: 96%;
+  margin-bottom: 25px;
 }
 
 .clickable {
@@ -357,7 +352,8 @@ html:has(.dashboardContainer) {
 }
 
 .budgetFormButton.cancel:hover {
-  background-color: #e0e0e0;
+  background-color: #9e2c2c;
+  color: white;
 }
 
 /* Budget Summary */
@@ -377,7 +373,7 @@ html:has(.dashboardContainer) {
 
 .budgetSummarySpent {
   font-size: 14px;
-  color: #d32f2f;
+  color: #9e2c2c;
   margin-bottom: 5px;
 }
 
@@ -571,7 +567,8 @@ html:has(.dashboardContainer) {
 }
 
 .expenseFormButton.cancel:hover {
-  background-color: #e0e0e0;
+  background-color: #9e2c2c;
+  color: white;
 }
 
 /* Expense List */
@@ -957,7 +954,7 @@ html:has(.dashboardContainer) {
   justify-content: center;
   gap: 8px;
   padding: 12px;
-  background: #4caf50;
+  background: #1c3d37;
   color: white;
   border-radius: 8px;
   margin-bottom: 15px;
@@ -1036,7 +1033,7 @@ html:has(.dashboardContainer) {
 }
 
 .close-link:hover:not(:disabled) {
-  color: #333;
+  color: #9e2c2c;
 }
 
 .close-link.disabled {
@@ -1361,7 +1358,6 @@ html:has(.dashboardContainer) {
   content: '';
   width: 4px;
   height: 18px;
-  background: #06632b;
   border-radius: 4px;
   display: inline-block;
 }
@@ -1535,10 +1531,10 @@ html:has(.dashboardContainer) {
 /* Analytics Close Button */
 .analyticsCloseBtn {
   padding: 12px 28px;
-  margin-bottom: 20px;
+  margin-top: 20px;
   background: white;
-  border: 1.5px solid #06632b;
-  color: #06632b;
+  border: 1.5px solid #9e2c2c;
+  color: #9e2c2c;
   border-radius: 40px;
   font-size: 14px;
   font-weight: 600;
@@ -1551,7 +1547,7 @@ html:has(.dashboardContainer) {
 }
 
 .analyticsCloseBtn:hover {
-  background: #06632b;
+  background: #9e2c2c;
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(6, 99, 43, 0.2);

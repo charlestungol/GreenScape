@@ -3,7 +3,10 @@
   grid-template-columns: 1fr 1fr;
   min-height: 100vh;
   background: linear-gradient(145deg, #ffffff 0%, #f8faf9 100%);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  margin: 0 20px 0 20px;
+  padding: 20px;
+  border-radius: 20px;
 }
 
 /* Left Column - Booking Form */
@@ -40,10 +43,10 @@
 .booking-title {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #0a2e25;
+  color: #1c3d37;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 3px solid #2c6e49;
+  border-bottom: 3px solid #1c3d37;
   display: inline-block;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -101,6 +104,8 @@
   border-color: #5a7c6c;
 }
 
+/* BOOKING BUTTON */
+
 .btn-book-appointment {
   background: #1c3d37;
   color: white;
@@ -115,6 +120,9 @@
   transition: all 0.3s ease;
   margin-top: 1.5rem;
   border: 2px solid #1c3d37;
+  display: flex;
+  width: 100%;
+  justify-content: center;
 }
 
 .btn-book-appointment:hover {
@@ -125,6 +133,75 @@
 
 .btn-book-appointment:active {
   transform: translateY(0);
+}
+
+.loading-spinner {
+  margin-left: 8px;
+}
+
+.warning-text {
+  color: #856404;
+  display: block;
+  margin-top: 4px;
+}
+
+/* Popup styles - add these to your Booking.css */
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.popup-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  animation: slideIn 0.3s ease;
+}
+
+.popup-content.success {
+  border-left: 6px solid #1c3d37;
+}
+
+.popup-content.error {
+  border-left: 6px solid #dc3545;
+}
+
+.popup-content p {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  color: #333;
+  white-space: pre-line;
+}
+
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Right Column - Calendar */

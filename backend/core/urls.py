@@ -4,7 +4,7 @@ from .views import (
     AddressViewSet, BookingViewSet, CustomerViewSet, EmployeeViewSet,
     ServiceTypeViewSet, ServiceViewSet, CustomerServiceViewSet,
     ServiceImageViewSet, SiteViewSet, ZoneViewSet, InvoiceViewSet,
-    QuoteViewSet, ScheduleViewSet
+    QuoteViewSet, ScheduleViewSet,RequestQuoteViewSet, ServiceLocationViewSet
 )
 
 router = DefaultRouter()
@@ -21,6 +21,8 @@ router.register(r"bookings", BookingViewSet, basename="booking")
 router.register(r"invoices", InvoiceViewSet, basename="invoice")
 router.register(r"quotes", QuoteViewSet, basename="quote")
 router.register(r"schedules", ScheduleViewSet, basename="schedule")
+router.register(r'request-quotes', RequestQuoteViewSet, basename='requestquote')
+router.register(r'service-locations', ServiceLocationViewSet, basename='servicelocation')
 
 urlpatterns = [
     path("", include(router.urls)),

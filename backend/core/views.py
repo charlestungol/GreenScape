@@ -52,7 +52,9 @@ from .models import (
     Servicetype,
     Site,
     Zone,
-    UserImage
+    UserImage,
+    RequestQuote,
+    ServiceLocation,
 )
 
 # ---------------------------------------------------
@@ -72,7 +74,9 @@ from .serializers import (
     ServiceTypeSerializer,
     SiteSerializer,
     ZoneSerializer,
-    UserImageSerializer
+    UserImageSerializer,
+    RequestQuoteSerializer,
+    ServiceLocationSerializer,
 )
 
 # ---------------------------------------------------
@@ -534,7 +538,7 @@ class CustomerServiceViewSet(viewsets.ModelViewSet):
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.select_related("customerid", "serviceid").all()
     serializer_class = BookingSerializer
-    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]  # Only authenticated users can access
 
     # Getting data
     def get_queryset(self):
@@ -1226,3 +1230,101 @@ class UserImageViewSet(viewsets.ModelViewSet):
 
         # Prevent caching stale URLs client-side
         return Response({"signed_url": signed, "expires_in": int(os.getenv("SUPABASE_SIGNED_URL_TTL", "60"))})
+    
+
+# ------------------------------
+# Request Quote Viewset
+# ------------------------------
+class RequestQuoteViewSet(viewsets.ModelViewSet):
+    queryset = RequestQuote.objects.all()
+    serializer_class = RequestQuoteSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        user = self.request.user
+        
+        # If user is not authenticated, return no quotes
+        if not user.is_authenticated:
+            return RequestQuote.objects.none()
+        
+        # Staff can see all quotes
+        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            return RequestQuote.objects.all()
+        
+        # Customers can only see their own quotes
+        customer = Customer.objects.filter(user=user).first()
+        if customer:
+            return RequestQuote.objects.filter(customerid=customer)
+        
+        return RequestQuote.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        
+        # If user is authenticated, link to their customer account
+        if user.is_authenticated:
+            customer = Customer.objects.filter(user=user).first()
+            if customer:
+                serializer.save(customerid=customer)
+            else:
+                # Authenticated but no customer profile? Save without customer
+                serializer.save()
+        else:
+            # Unauthenticated users can still submit quotes
+            serializer.save()
+
+# ------------------------------
+# Service Location Viewset
+# ------------------------------
+class ServiceLocationViewSet(viewsets.ModelViewSet):
+    queryset = ServiceLocation.objects.all()
+    serializer_class = ServiceLocationSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        user = self.request.user
+        
+        # If user is not authenticated, return no locations
+        if not user.is_authenticated:
+            return ServiceLocation.objects.none()
+        
+        # Staff can see all locations
+        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+            return ServiceLocation.objects.all()
+        
+        # Customers can only see their own locations
+        customer = Customer.objects.filter(user=user).first()
+        if customer:
+            return ServiceLocation.objects.filter(customerid=customer)
+        
+        return ServiceLocation.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        
+        # Must be authenticated to create a service location
+        if not user.is_authenticated:
+            raise PermissionDenied("You must be logged in to save a service location.")
+        
+        # Automatically assign to the logged-in user's customer account
+        customer = Customer.objects.filter(user=user).first()
+        if customer:
+            serializer.save(customerid=customer)
+        else:
+            raise PermissionDenied("No customer profile found. Please complete your profile first.")
+    
+    # Optional: Add custom action for getting user's locations
+    @action(detail=False, methods=['get'])
+    def my_locations(self, request):
+        """Get all locations for the current user"""
+        user = request.user
+        if not user.is_authenticated:
+            return Response({"detail": "Authentication required"}, status=401)
+        
+        customer = Customer.objects.filter(user=user).first()
+        if not customer:
+            return Response({"detail": "Customer profile not found"}, status=404)
+        
+        locations = self.get_queryset().filter(customerid=customer)
+        serializer = self.get_serializer(locations, many=True)
+        return Response(serializer.data)

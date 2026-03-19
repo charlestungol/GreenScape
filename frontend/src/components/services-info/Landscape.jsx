@@ -4,10 +4,6 @@ import { useNavigate } from 'react-router-dom';
 const Landscape= () =>{
     const navigate = useNavigate();
 
-    const handleBookNow = () => {
-        navigate('/booking');
-    };
-
     const handleBack = () => {
         navigate('/services'); 
     };
@@ -15,7 +11,6 @@ const Landscape= () =>{
   return (
     <div>
       <div className="header-section">
-        <p className="titleWrapper">Landscape Lighting</p>
       </div>
       <div className="back-button-container">
         <button className="btn-back" onClick={handleBack}>
@@ -26,7 +21,6 @@ const Landscape= () =>{
         <div>
           <div className="installation-card residential">
             <div className="card-header">
-              <h2 className="card-title">LANDSCAPE LIGHTING</h2>
               <div className="title-underline"></div>
             </div>
             <div className="card-content">
@@ -38,9 +32,6 @@ const Landscape= () =>{
                 Timers also have photo cells that will only allow the timer to turn lights on when it starts to get dark.Motion sensors can also be added to systems for added security.
                 Enhance your homes curb appeal and showcase your property while spending more time enjoying the beauty of your landscaping well into the night.
               </p>
-            </div>
-            <div className="card-footer">
-              <button className="btn-book" onClick={handleBookNow}>BOOK NOW</button>
             </div>
             </div>
           </div>

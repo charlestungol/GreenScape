@@ -1,4 +1,4 @@
-import '../App.css';
+import '../App.css'
 import BackgroundVideo from '../assets/videos/vid_1.mp4'; 
 import Logo from '../assets/img/Logo.png'; 
 
