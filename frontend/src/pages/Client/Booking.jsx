@@ -15,8 +15,6 @@ const Booking = () => {
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
-  // Popup states
   const [showPopup, setShowPopup] = useState(false);
   const [popupMessage, setPopupMessage] = useState({ type: "", text: "" });
 
@@ -38,14 +36,11 @@ const Booking = () => {
     "3:00 PM",
     "4:00 PM",
   ];
-
-  // Check authentication on component mount
   useEffect(() => {
     const token = localStorage.getItem("access");
     const userId = localStorage.getItem("user_id");
 
     if (!token || !userId) {
-      // Redirect to login if not authenticated
       navigate("/client-login");
       return;
     }
@@ -55,15 +50,11 @@ const Booking = () => {
     loadServices();
   }, [navigate]);
 
-  // Load user data if logged in
   const loadUserData = async () => {
     try {
-      // Get customer profile
       const response = await AxiosInstance.get("core/customers/me/");
       console.log("Customer data:", response.data);
       setCustomers(response.data);
-
-      // Auto-fill form
       setFormData((prev) => ({
         ...prev,
         fullName: `${response.data.firstname || ""} ${
@@ -77,8 +68,6 @@ const Booking = () => {
       console.error("Error loading customer:", error);
     }
   };
-
-  // Load available services
   const loadServices = async () => {
     setLoadingServices(true);
     try {
@@ -104,8 +93,6 @@ const Booking = () => {
       setLoadingServices(false);
     }
   };
-
-  // Check availability when date or service changes
   useEffect(() => {
     if (date && formData.service && isAuthenticated) {
       checkAvailability();
@@ -115,10 +102,8 @@ const Booking = () => {
   const checkAvailability = async () => {
     setCheckingAvailability(true);
     try {
-      // Format date as YYYY-MM-DD
       const formattedDate = date.toISOString().split("T")[0];
 
-      // Get schedules for this date
       const response = await AxiosInstance.get("core/schedules/", {
         params: {
           date: formattedDate,
@@ -127,8 +112,6 @@ const Booking = () => {
       });
 
       console.log("Schedules for date:", response.data);
-
-      // Get booked time slots from schedules
       let schedules = [];
       if (Array.isArray(response.data)) {
         schedules = response.data;
@@ -150,13 +133,11 @@ const Booking = () => {
         })
         .filter((slot) => slot !== null);
 
-      // Filter available slots
       const available = timeSlots.filter(
         (slot) => !bookedSlots.includes(slot)
       );
+      
       setAvailableTimeSlots(available);
-
-      // Reset time selection if currently selected time is now unavailable
       if (formData.time && !available.includes(formData.time)) {
         setFormData((prev) => ({ ...prev, time: "" }));
       }
@@ -172,12 +153,8 @@ const Booking = () => {
     setDate(newDate);
   };
 
-  // Format phone number as user types
   const formatPhoneNumber = (value) => {
-    // Remove all non-digits
     const phoneNumber = value.replace(/\D/g, "");
-    
-    // Format based on length
     if (phoneNumber.length <= 3) {
       return phoneNumber;
     } else if (phoneNumber.length <= 6) {
@@ -191,7 +168,6 @@ const Booking = () => {
     const { name, value } = e.target;
     
     if (name === "phone") {
-      // For phone input, format the value
       const formattedPhone = formatPhoneNumber(value);
       setFormData({
         ...formData,
@@ -216,24 +192,18 @@ const Booking = () => {
     }
     return `${hours.toString().padStart(2, "0")}:${minutes}:00`;
   };
-
-  // Clean phone number for submission (remove formatting)
   const cleanPhoneNumber = (phone) => {
     return phone.replace(/\D/g, "");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Double-check authentication
     if (!isAuthenticated) {
       navigate("/client-login");
       return;
     }
 
     setLoading(true);
-
-    // Validate required fields
     if (!formData.service || !formData.time || !date) {
       setPopupMessage({ 
         type: "error", 
@@ -244,8 +214,6 @@ const Booking = () => {
       setLoading(false);
       return;
     }
-
-    // Validate email is provided
     if (!formData.email) {
       setPopupMessage({ 
         type: "error", 
@@ -256,8 +224,6 @@ const Booking = () => {
       setLoading(false);
       return;
     }
-
-    // Validate phone is provided
     if (!formData.phone) {
       setPopupMessage({ 
         type: "error", 
@@ -268,8 +234,6 @@ const Booking = () => {
       setLoading(false);
       return;
     }
-
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       setPopupMessage({ 
@@ -281,11 +245,7 @@ const Booking = () => {
       setLoading(false);
       return;
     }
-
-    // Clean phone number for validation
     const cleanPhone = cleanPhoneNumber(formData.phone);
-    
-    // Validate phone (basic - at least 10 digits)
     if (cleanPhone.length < 10) {
       setPopupMessage({ 
         type: "error", 

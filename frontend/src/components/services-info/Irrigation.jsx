@@ -18,7 +18,6 @@ const Irrigation = () => {
         </button>
       </div>
       <div className="irrigation-container">
-        {/* <div className="installations-grid"> */}
           <div className="installation-card residential">
             <div className="card-header">
               <h2 className="card-title">Residential Installations</h2>
