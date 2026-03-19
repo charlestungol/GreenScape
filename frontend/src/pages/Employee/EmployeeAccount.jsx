@@ -19,7 +19,6 @@ export default function EmployeeAccount() {
     lastname: "",
     phonenumber: "",
     email: localStorage.getItem("email") || "",
-    staffstatus: "",
   });
 
   const [password, setPassword] = useState({
@@ -48,7 +47,6 @@ export default function EmployeeAccount() {
             lastname: myRow.lastname || "",
             phonenumber: myRow.phonenumber || "",
             email: myRow.email || localStorage.getItem("email") || "",
-            staffstatus: myRow.staffstatus || "",
           });
         }
       } catch (error) {
@@ -82,7 +80,6 @@ export default function EmployeeAccount() {
           lastname: profile.lastname,
           phonenumber: profile.phonenumber,
           email: profile.email,
-          staffstatus: profile.staffstatus,
         });
       }
 
@@ -190,13 +187,6 @@ export default function EmployeeAccount() {
                 label="Phone Number"
                 value={profile.phonenumber}
                 onChange={(e) => handleProfileChange("phonenumber", e.target.value)}
-                fullWidth
-              />
-
-              <TextField
-                label="Staff Status"
-                value={profile.staffstatus}
-                onChange={(e) => handleProfileChange("staffstatus", e.target.value)}
                 fullWidth
               />
 
