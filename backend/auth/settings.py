@@ -30,7 +30,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-key")
 
 TEST_DEPLOY_MARKER = "CJ_HOST_FIX_V1"
 
-DEBUG = os.getenv("DEBUG", "False").strip().lower() == "true"
+DEBUG = os.getenv("DEBUG", "False").strip().lower() == "false"
 
 ALLOWED_HOSTS = ["*"]
 
