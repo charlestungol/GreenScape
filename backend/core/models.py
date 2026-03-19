@@ -41,6 +41,7 @@ class Customer(models.Model):
     class Meta:
         managed = True
         db_table = 'Customer'
+        ordering = ['customerid']
 
 # ---------------------------------------
 # Services and related models
@@ -55,6 +56,7 @@ class Servicetype(models.Model):
     class Meta:
         managed = True
         db_table = 'ServiceType'
+        ordering = ['servicetypeid']
 
 # Service model
 class Service(models.Model):
@@ -67,6 +69,7 @@ class Service(models.Model):
     class Meta:
         managed = True
         db_table = 'Service'
+        ordering = ['serviceid']
         constraints = [
                     models.UniqueConstraint(fields=['servicetype', 'title'], name='uq_service_type_title'),
                 ]
@@ -96,6 +99,7 @@ class ServiceImage(models.Model):
 
     class Meta:
         managed = True
+        ordering = ['created_at']
         db_table = "ServiceImage"
 
 class UserImage(models.Model):
@@ -117,6 +121,7 @@ class UserImage(models.Model):
     class Meta:
         managed = True
         db_table = "users_userimage"
+        ordering = ['created_at']
         indexes = [
             models.Index(fields=["user", "created_at"]),
             models.Index(fields=["bucket", "storage_path"])
@@ -140,6 +145,7 @@ class Customerservice(models.Model):
 
     class Meta:
         managed = True
+        ordering = ['createdat']
         db_table = 'CustomerService'
 
 # ---------------------------------------
@@ -163,6 +169,10 @@ class Employee(models.Model):
     phonenumber = models.CharField(db_column="PhoneNumber", max_length=10, null=True, blank=True)
     staffstatus = models.CharField(db_column="StaffStatus", max_length=20, null=True, blank=True)
     roleid = models.ForeignKey(Group, models.DO_NOTHING, db_column='RoleId')  # Field name made lowercase.
+
+    class Meta:
+        managed = True
+        ordering = ['employeeid']
 # ---------------------------------------
 # Booking model
 # ---------------------------------------
@@ -178,6 +188,7 @@ class Booking(models.Model):
 
     class Meta:
         managed = True
+        ordering = ['appointmenttime']
         db_table = 'Booking'
 
 # ---------------------------------------
@@ -193,6 +204,7 @@ class Invoice(models.Model):
 
     class Meta:
         managed = True
+        ordering = ['issuedate']
         db_table = 'Invoice'
 
 # ---------------------------------------
@@ -211,6 +223,7 @@ class Quotes(models.Model):
 
     class Meta:
         managed = True
+        ordering = ['quotesid']
         db_table = 'Quotes'
 
 
@@ -241,6 +254,7 @@ class RequestQuote(models.Model):
 
     class Meta:
         managed = True
+        ordering = ['requestquoteid']
         db_table = 'RequestQuote'
 
 # ---------------------------------------
@@ -259,6 +273,7 @@ class ServiceLocation(models.Model):
 
     class Meta:
         managed = True
+        ordering = ['servicelocationid']
         db_table = 'ServiceLocation'
 
 
@@ -276,6 +291,7 @@ class Schedule(models.Model):
 
     class Meta:
         managed = True
+        ordering = ['starttime', 'endtime']
         db_table = 'Schedule'
 
 # ---------------------------------------
@@ -292,6 +308,7 @@ class Site(models.Model):
 
     class Meta:
         managed = True
+        ordering = ['siteid']
         db_table = 'Site'
 
 # ---------------------------------------
@@ -307,5 +324,6 @@ class Zone(models.Model):
 
     class Meta:
         managed = True
+        ordering = ['zoneid']
         db_table = 'Zone'
 

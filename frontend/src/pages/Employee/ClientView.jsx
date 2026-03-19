@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   Box, Paper, Typography, TextField, Select, MenuItem,
   InputLabel, FormControl, List, ListItem, ListItemText,
@@ -19,16 +19,29 @@ const GREEN = "#1c3d37";
 const GREEN_LIGHT = "#e8f0ef";
 const GREEN_MID = "#2e6b5e";
 
-const initialClientsData = [
-  { id: 1, name: "John Doe", email: "john@example.com", status: "Active", phone: "403-555-0101", company: "Acme Corp", notes: "Long-term client since 2019.", photos: [] },
-  { id: 2, name: "Jane Smith", email: "jane@example.com", status: "Inactive", phone: "403-555-0182", company: "Smith & Co", notes: "On hold pending contract renewal.", photos: [] },
-  { id: 3, name: "Alice Johnson", email: "alice@example.com", status: "Active", phone: "403-555-0143", company: "Johnson LLC", notes: "Prefers email communication.", photos: [] },
-  { id: 4, name: "Bob Brown", email: "bob@example.com", status: "Active", phone: "403-555-0167", company: "Brown Industries", notes: "Interested in expanding services.", photos: [] },
-];
+useEffect (() => {
+  const fetchCustomers = async () => {
+    try {
+      const res = await AxiosInstance.get("/core/customers/")
+      const raw = Array.isArray(res.data) ? res.data : (res.data.results || []);
 
-function getInitials(name) {
-  return name.split(" ").map(n => n[0]).join("").toUpperCase();
-}
+      const mapped = raw.map( c=> ({
+        id: c.customerid,
+        name: `${c.firstname} ${c.lastname}`.trim(),
+        email: c.email,
+        phone: c.phonenumber,
+        address: c.address,
+        original: c,
+      }))
+
+      setClients(mapped);
+    }
+    catch (err) {
+      console.error("Failed to load customer:", err)
+    }
+  };
+  fetchCustomers()
+}, [])
 
 function StatusChip({ status }) {
   return (
