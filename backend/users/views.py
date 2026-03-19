@@ -304,8 +304,20 @@ class ChangeEmailViewSet(viewsets.ViewSet):
             user.is_active = False  # Deactivate until verified
             user.save(update_fields=["email", "is_active"])
 
-            # Create or update EmailAddress and send confirmation
-            EmailAddress.objects.add_email(request, user, new_email, confirm=True)
+            # Create the email
+            email_addr, created = EmailAddress.objects.get_or_create( user=user, email=new_email, defaults={"verified": False, "primary": False},)
+            # Make new email primary.
+            EmailAddress.objects.filter(user = user).exclude(email__iexact=new_email).update(primary=False)
+            
+            if not email_addr.primary:
+                email_addr.primary = True
+                email_addr.save(update_fields=["primary"])
+                        # Delete old email from 
+
+            EmailAddress.objects.filter(user=user).exclude(email__iexact=new_email).delete()
+
+            # Send confirmation email
+            email_addr.send_confirmation(request)
 
         return Response(
             {"message": "Email changed successfully. Please verify your new email."},
