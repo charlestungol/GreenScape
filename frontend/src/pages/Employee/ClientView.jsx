@@ -14,34 +14,22 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
 import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
+import AxiosInstance from "../../components/AxiosInstance";
 
 const GREEN = "#1c3d37";
 const GREEN_LIGHT = "#e8f0ef";
 const GREEN_MID = "#2e6b5e";
 
-useEffect (() => {
-  const fetchCustomers = async () => {
-    try {
-      const res = await AxiosInstance.get("/core/customers/")
-      const raw = Array.isArray(res.data) ? res.data : (res.data.results || []);
 
-      const mapped = raw.map( c=> ({
-        id: c.customerid,
-        name: `${c.firstname} ${c.lastname}`.trim(),
-        email: c.email,
-        phone: c.phonenumber,
-        address: c.address,
-        original: c,
-      }))
-
-      setClients(mapped);
-    }
-    catch (err) {
-      console.error("Failed to load customer:", err)
-    }
-  };
-  fetchCustomers()
-}, [])
+/** Helper: initials from full name */
+function getInitials(name) {
+  return (name || "")
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
+}
 
 function StatusChip({ status }) {
   return (
@@ -388,10 +376,34 @@ function ClientDetailPage({ client, onBack, onSave }) {
 
 // Main Client List Page
 export default function EmployeeClientList() {
-  const [clients, setClients] = useState(initialClientsData);
+  const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [selectedClientId, setSelectedClientId] = useState(null);
+
+    useEffect (() => {
+    const fetchCustomers = async () => {
+      try {
+        const res = await AxiosInstance.get("core/customers/")
+        const raw = Array.isArray(res.data) ? res.data : (res.data?.results ?? []);
+
+        const mapped = raw.map( c=> ({
+          id: c.customerid,
+          name: `${c.firstname} ${c.lastname}`.trim(),
+          email: c.email,
+          phone: c.phonenumber,
+          address: c.address,
+          original: c,
+        }))
+
+        setClients(mapped);
+      }
+      catch (err) {
+        console.error("Failed to load customer:", err)
+      }
+    };
+    fetchCustomers()
+  }, [])
 
   const selectedClient = clients.find(c => c.id === selectedClientId) || null;
 
