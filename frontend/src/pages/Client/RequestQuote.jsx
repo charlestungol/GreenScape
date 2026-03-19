@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import AxiosInstance from "../../components/AxiosInstance"; // Make sure this import is here!
+import AxiosInstance from "../../components/AxiosInstance"; 
 import "../../components/clientCss/RequestQuote.css";
 
 function RequestQuote() {

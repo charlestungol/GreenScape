@@ -96,10 +96,10 @@ const EmployeeLogin = () => {
           onChange={e => setPassword(e.target.value)}
         />
 
-        <button onClick={handleLogin}>Login</button>
+        <button onClick={handleLogin}>LOGIN</button>
 
         <button onClick={() => navigate('/employee-register')}>
-          Sign Up
+          SIGN UP
         </button>
 
         {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
