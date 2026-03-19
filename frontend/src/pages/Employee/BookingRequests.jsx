@@ -23,83 +23,64 @@ export default function BookingRequests() {
   const [quoteRequests, setQuoteRequests] = useState([]);
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
-  const getBookingId = (item) => item.bookingid || item.id;
-  const getQuoteId = (item) => item.quoteid || item.quotesid || item.id;
 
-  const getClientName = (item) => {
-    if (item.client_name) return item.client_name;
+  // IDs
+  const getBookingId = (item) => item.bookingid ?? item.id;
+  const getQuoteId   = (item) => item.requestquoteid ?? item.quoteid ?? item.quotesid ?? item.id;
 
-    if (item.customer) {
-      const first = item.customer.firstname || "";
-      const last = item.customer.lastname || "";
-      const fullName = `${first} ${last}`.trim();
-      if (fullName) return fullName;
-    }
-
-    return "N/A";
+  // Bookings accessors (nested customer/service)
+  const getBookingClientName = (item) => {
+    const first = item.customer?.firstname || "";
+    const last  = item.customer?.lastname || "";
+    const full  = `${first} ${last}`.trim();
+    return full || "N/A";
   };
-
-  const getClientEmail = (item) => {
-    if (item.client_email) return item.client_email;
-    if (item.customer?.email) return item.customer.email;
-    return "N/A";
-  };
-
-  const getServiceName = (item) => {
-    if (item.service_name) return item.service_name;
-    if (item.service?.title) return item.service.title;
-    return "N/A";
-  };
-
+  const getBookingClientEmail = (item) => item.customer?.email || "N/A";
+  const getBookingServiceName = (item) => item.service?.title || "N/A";
   const getBookingDate = (item) => {
-    if (item.booking_date) return item.booking_date;
-    if (item.bookingdate) return item.bookingdate;
-
-    if (item.appointmenttime) {
-      const date = new Date(item.appointmenttime);
-      if (!isNaN(date)) {
-        return date.toLocaleDateString();
-      }
-    }
-
-    return "N/A";
+    if (!item.appointmenttime) return "N/A";
+    const d = new Date(item.appointmenttime);
+    return isNaN(d) ? "N/A" : d.toLocaleDateString();
   };
-
   const getBookingTime = (item) => {
-    if (item.booking_time) return item.booking_time;
-    if (item.bookingtime) return item.bookingtime;
-
-    if (item.appointmenttime) {
-      const date = new Date(item.appointmenttime);
-      if (!isNaN(date)) {
-        return date.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-      }
-    }
-
-    return "N/A";
+    if (!item.appointmenttime) return "N/A";
+    const d = new Date(item.appointmenttime);
+    return isNaN(d) ? "N/A" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  const getQuoteAmount = (item) => {
-    if (item.quote_amount) return item.quote_amount;
-    if (item.amount) return item.amount;
-    if (item.totalamount) return item.totalamount;
-    return null;
-  };
+  // RequestQuote accessors (flat fields)
+  const getQuoteClientName  = (item) => item.fullname || "N/A";
+  const getQuoteClientEmail = (item) => item.email || "N/A";
+  const getQuoteServiceName = (item) => item.producttype || "N/A";
+  // If your API adds numeric amount later, adapt this getter:
+  const getQuoteAmount = (item) => item.amount ?? item.totalamount ?? null;
+
+
 
   const fetchRequests = async () => {
     try {
       setLoading(true);
 
       const [bookingsRes, quotesRes] = await Promise.all([
-        AxiosInstance.get("/core/bookings/"),
-        AxiosInstance.get("/core/quotes/"),
+        AxiosInstance.get("core/bookings/"),
+        AxiosInstance.get("core/request-quotes/"),
       ]);
 
-      setBookingRequests(Array.isArray(bookingsRes.data) ? bookingsRes.data : []);
-      setQuoteRequests(Array.isArray(quotesRes.data) ? quotesRes.data : []);
+      const bookings = Array.isArray(bookingsRes.data)
+        ? bookingsRes.data
+        : (bookingsRes.data?.results ?? []);
+
+      const quotes = Array.isArray(quotesRes.data)
+        ? quotesRes.data
+        : (quotesRes.data?.results ?? []); 
+
+      console.log("Bookings raw:", bookingsRes.data);
+      console.log("Quotes raw:", quotesRes.data);
+      console.log("Bookings array used:", bookings);
+      console.log("Quotes array used:", quotes);
+
+      setBookingRequests(bookings);
+      setQuoteRequests(quotes);
     } catch (error) {
       console.error("Failed to fetch bookings/quotes:", error);
       alert("Failed to load booking and quote data.");
@@ -116,7 +97,7 @@ export default function BookingRequests() {
     try {
       setActionLoadingId(`booking-${id}`);
 
-      await AxiosInstance.patch(`/core/bookings/${id}/`, {
+      await AxiosInstance.patch(`core/bookings/${id}/`, {
         status: "approved",
       });
 
@@ -134,7 +115,7 @@ export default function BookingRequests() {
     try {
       setActionLoadingId(`quote-${id}`);
 
-      await AxiosInstance.patch(`/core/quotes/${id}/`, {
+      await AxiosInstance.patch(`core/request-quotes/${id}/`, {
         status: "approved",
       });
 
@@ -232,13 +213,12 @@ export default function BookingRequests() {
                 {bookingRequests.length > 0 ? (
                   bookingRequests.map((item) => {
                     const bookingId = getBookingId(item);
-                    const status = item.status || "";
-
+                    const status    = (item.status || "").toLowerCase();
                     return (
                       <TableRow key={bookingId}>
-                        <TableCell>{getClientName(item)}</TableCell>
-                        <TableCell>{getClientEmail(item)}</TableCell>
-                        <TableCell>{getServiceName(item)}</TableCell>
+                        <TableCell>{getBookingClientName(item)}</TableCell>
+                        <TableCell>{getBookingClientEmail(item)}</TableCell>
+                        <TableCell>{getBookingServiceName(item)}</TableCell>
                         <TableCell>{getBookingDate(item)}</TableCell>
                         <TableCell>{getBookingTime(item)}</TableCell>
                         <TableCell>{renderStatusChip(status)}</TableCell>
@@ -246,21 +226,11 @@ export default function BookingRequests() {
                           <Button
                             variant="contained"
                             size="small"
-                            disabled={
-                              status.toLowerCase() === "approved" ||
-                              actionLoadingId === `booking-${bookingId}`
-                            }
+                            disabled={status === "approved" || actionLoadingId === `booking-${bookingId}`}
                             onClick={() => handleApproveBooking(bookingId)}
-                            sx={{
-                              backgroundColor: "#1c3d37",
-                              "&:hover": { backgroundColor: "#16302b" },
-                              textTransform: "none",
-                              fontWeight: 600,
-                            }}
+                            sx={{ backgroundColor: "#1c3d37", "&:hover": { backgroundColor: "#16302b" }, textTransform: "none", fontWeight: 600 }}
                           >
-                            {actionLoadingId === `booking-${bookingId}`
-                              ? "Approving..."
-                              : "Approve"}
+                            {actionLoadingId === `booking-${bookingId}` ? "Approving..." : "Approve"}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -268,9 +238,7 @@ export default function BookingRequests() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
-                      No booking requests found.
-                    </TableCell>
+                    <TableCell colSpan={7} align="center">No booking requests found.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -290,38 +258,26 @@ export default function BookingRequests() {
               <TableBody>
                 {quoteRequests.length > 0 ? (
                   quoteRequests.map((item) => {
-                    const quoteId = getQuoteId(item);
-                    const status = item.status || "";
-                    const quoteAmount = getQuoteAmount(item);
+                    const quoteId    = getQuoteId(item);
+                    const status     = (item.status || "").toLowerCase();
+                    const quoteAmount = getQuoteAmount(item); // likely null right now
 
                     return (
                       <TableRow key={quoteId}>
-                        <TableCell>{getClientName(item)}</TableCell>
-                        <TableCell>{getClientEmail(item)}</TableCell>
-                        <TableCell>{getServiceName(item)}</TableCell>
-                        <TableCell>
-                          {quoteAmount !== null ? `$${quoteAmount}` : "N/A"}
-                        </TableCell>
+                        <TableCell>{getQuoteClientName(item)}</TableCell>
+                        <TableCell>{getQuoteClientEmail(item)}</TableCell>
+                        <TableCell>{getQuoteServiceName(item)}</TableCell>
+                        <TableCell>{quoteAmount !== null ? `$${quoteAmount}` : "N/A"}</TableCell>
                         <TableCell>{renderStatusChip(status)}</TableCell>
                         <TableCell align="center">
                           <Button
                             variant="contained"
                             size="small"
-                            disabled={
-                              status.toLowerCase() === "approved" ||
-                              actionLoadingId === `quote-${quoteId}`
-                            }
+                            disabled={status === "approved" || actionLoadingId === `quote-${quoteId}`}
                             onClick={() => handleApproveQuote(quoteId)}
-                            sx={{
-                              backgroundColor: "#1c3d37",
-                              "&:hover": { backgroundColor: "#16302b" },
-                              textTransform: "none",
-                              fontWeight: 600,
-                            }}
+                            sx={{ backgroundColor: "#1c3d37", "&:hover": { backgroundColor: "#16302b" }, textTransform: "none", fontWeight: 600 }}
                           >
-                            {actionLoadingId === `quote-${quoteId}`
-                              ? "Approving..."
-                              : "Approve"}
+                            {actionLoadingId === `quote-${quoteId}` ? "Approving..." : "Approve"}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -329,9 +285,7 @@ export default function BookingRequests() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      No quote requests found.
-                    </TableCell>
+                    <TableCell colSpan={6} align="center">No quote requests found.</TableCell>
                   </TableRow>
                 )}
               </TableBody>

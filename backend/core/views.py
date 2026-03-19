@@ -538,7 +538,7 @@ class CustomerServiceViewSet(viewsets.ModelViewSet):
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.select_related("customerid", "serviceid").all()
     serializer_class = BookingSerializer
-    permission_classes = [IsAuthenticated]  # Only authenticated users can access
+    permission_classes = [IsOwnerOrStaff]  # Only authenticated users can access
 
     # Getting data
     def get_queryset(self):
@@ -1238,7 +1238,7 @@ class UserImageViewSet(viewsets.ModelViewSet):
 class RequestQuoteViewSet(viewsets.ModelViewSet):
     queryset = RequestQuote.objects.all()
     serializer_class = RequestQuoteSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsOwnerOrStaff]
 
     def get_queryset(self):
         user = self.request.user

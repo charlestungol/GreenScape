@@ -61,12 +61,14 @@ export default function EmployeeManagement() {
         firstname: employee.firstname,
         lastname: employee.lastname,
         phonenumber: employee.phonenumber,
-        staffstatus: employee.staffstatus,
       });
 
       alert("Employee updated successfully.");
-    } catch (error) {
-      console.error("Employee save error:", error);
+    } catch (err) {
+      console.error("Employee save error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+      });
       alert("Update failed.");
     } finally {
       setSavingId(null);
