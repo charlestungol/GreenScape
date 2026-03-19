@@ -2,44 +2,46 @@ import React, { useEffect, useState } from "react";
 import {
   Box,
   Typography,
+  Button,
   Paper,
   Table,
   TableHead,
   TableRow,
   TableCell,
   TableBody,
-  Button,
   TextField,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  MenuItem,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import AxiosInstance from "../../components/AxiosInstance";
 
-const GREEN = "#1c3d37";
+const roles = ["Admin", "Supervisor", "Staff"];
 
 export default function EmployeeManagement() {
   const navigate = useNavigate();
 
   const [employees, setEmployees] = useState([]);
   const [savingId, setSavingId] = useState(null);
-  const [openAddDialog, setOpenAddDialog] = useState(false);
 
+  const [openAddDialog, setOpenAddDialog] = useState(false);
   const [newEmployee, setNewEmployee] = useState({
     firstname: "",
     lastname: "",
     phonenumber: "",
-    staffstatus: "",
+    role: "",
   });
 
   const loadEmployees = async () => {
     try {
       const res = await AxiosInstance.get("core/employees/");
-      setEmployees(res.data?.results || res.data || []);
-    } catch (error) {
-      console.error("EmployeeManagement load error:", error);
+      setEmployees(res.data?.results ?? res.data ?? []);
+    } catch (err) {
+      console.error("Error loading employees:", err);
+      alert("Failed to load employees.");
     }
   };
 
@@ -47,9 +49,11 @@ export default function EmployeeManagement() {
     loadEmployees();
   }, []);
 
-  const updateEmployeeField = (employeeid, field, value) => {
+  const updateEmployeeField = (id, field, value) => {
     setEmployees((prev) =>
-      prev.map((e) => (e.employeeid === employeeid ? { ...e, [field]: value } : e))
+      prev.map((emp) =>
+        emp.employeeid === id ? { ...emp, [field]: value } : emp
+      )
     );
   };
 
@@ -57,95 +61,77 @@ export default function EmployeeManagement() {
     try {
       setSavingId(employee.employeeid);
 
-      await AxiosInstance.patch(`core/employees/${employee.employeeid}/`, {
-        firstname: employee.firstname,
-        lastname: employee.lastname,
-        phonenumber: employee.phonenumber,
-        staffstatus: employee.staffstatus,
-      });
+      // Update role separately
+      await AxiosInstance.patch(
+        `core/employees/${employee.employeeid}/role/`,
+        {
+          role: employee.role,
+        }
+      );
 
-      alert("Employee updated successfully.");
-    } catch (error) {
-      console.error("Employee save error:", error);
-      alert("Update failed.");
+      alert("Role updated successfully.");
+    } catch (err) {
+      console.error("Error updating role:", err);
+      alert("Failed to update role.");
     } finally {
       setSavingId(null);
     }
   };
 
-  const handleOpenAddDialog = () => {
-    setOpenAddDialog(true);
-  };
-
-  const handleCloseAddDialog = () => {
-    setOpenAddDialog(false);
-    setNewEmployee({
-      firstname: "",
-      lastname: "",
-      phonenumber: "",
-      staffstatus: "",
-    });
-  };
-
   const handleAddEmployee = async () => {
-    if (
-      !newEmployee.firstname ||
-      !newEmployee.lastname ||
-      !newEmployee.phonenumber ||
-      !newEmployee.staffstatus
-    ) {
-      alert("Please fill in all fields.");
+    const { firstname, lastname, phonenumber, role } = newEmployee;
+
+    if (!firstname || !lastname || !phonenumber || !role) {
+      alert("Please fill all fields.");
       return;
     }
 
     try {
       await AxiosInstance.post("core/employees/", {
-        firstname: newEmployee.firstname,
-        lastname: newEmployee.lastname,
-        phonenumber: newEmployee.phonenumber,
-        staffstatus: newEmployee.staffstatus,
+        firstname,
+        lastname,
+        phonenumber,
+        role,
       });
 
-      alert("Employee data added successfully.");
-      handleCloseAddDialog();
+      alert("Employee added successfully.");
+      setOpenAddDialog(false);
+      setNewEmployee({
+        firstname: "",
+        lastname: "",
+        phonenumber: "",
+        role: "",
+      });
       loadEmployees();
-    } catch (error) {
-      console.error("Add employee error:", error);
-      alert("Failed to add employee data.");
+    } catch (err) {
+      console.error("Error adding employee:", err);
+      alert("Failed to add employee.");
     }
   };
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          mb: 2,
-          gap: 2,
-          flexWrap: "wrap",
-        }}
-      >
-        <Typography variant="h4" sx={{ fontWeight: 800, color: GREEN }}>
-          Employee Management
-        </Typography>
+      <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
+        Employee Management
+      </Typography>
 
-        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-          <Button variant="contained" onClick={handleOpenAddDialog}>
-            Add Employee Data
-          </Button>
+      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+        <Button
+          variant="contained"
+          onClick={() => setOpenAddDialog(true)}
+        >
+          Add Employee
+        </Button>
 
-          <Button
-            variant="contained"
-            onClick={() => navigate("/employee/employee-management/timesheets")}
-          >
-            View Timesheets
-          </Button>
-        </Box>
+        <Button
+          variant="outlined"
+          onClick={() => navigate("/employee/timesheets")}
+        >
+          View Timesheets
+        </Button>
       </Box>
 
-      <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
+      <Paper>
         <Table>
           <TableHead>
             <TableRow>
@@ -154,127 +140,121 @@ export default function EmployeeManagement() {
               <TableCell><b>Last Name</b></TableCell>
               <TableCell><b>Email</b></TableCell>
               <TableCell><b>Phone</b></TableCell>
-              <TableCell><b>Status</b></TableCell>
+              <TableCell><b>Role</b></TableCell>
               <TableCell><b>Action</b></TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {employees.map((e) => (
-              <TableRow key={e.employeeid}>
-                <TableCell>{e.employeeid}</TableCell>
+            {employees.map((emp) => (
+              <TableRow key={emp.employeeid}>
+                <TableCell>{emp.employeeid}</TableCell>
 
+                <TableCell>{emp.firstname}</TableCell>
+                <TableCell>{emp.lastname}</TableCell>
+                <TableCell>{emp.email}</TableCell>
+                <TableCell>{emp.phonenumber}</TableCell>
+
+                {/* ROLE DROPDOWN */}
                 <TableCell>
                   <TextField
+                    select
                     size="small"
-                    value={e.firstname || ""}
-                    onChange={(evt) =>
-                      updateEmployeeField(e.employeeid, "firstname", evt.target.value)
+                    value={emp.role || ""}
+                    onChange={(e) =>
+                      updateEmployeeField(
+                        emp.employeeid,
+                        "role",
+                        e.target.value
+                      )
                     }
-                  />
-                </TableCell>
-
-                <TableCell>
-                  <TextField
-                    size="small"
-                    value={e.lastname || ""}
-                    onChange={(evt) =>
-                      updateEmployeeField(e.employeeid, "lastname", evt.target.value)
-                    }
-                  />
-                </TableCell>
-
-                <TableCell>{e.email || "—"}</TableCell>
-
-                <TableCell>
-                  <TextField
-                    size="small"
-                    value={e.phonenumber || ""}
-                    onChange={(evt) =>
-                      updateEmployeeField(e.employeeid, "phonenumber", evt.target.value)
-                    }
-                  />
-                </TableCell>
-
-                <TableCell>
-                  <TextField
-                    size="small"
-                    value={e.staffstatus || ""}
-                    onChange={(evt) =>
-                      updateEmployeeField(e.employeeid, "staffstatus", evt.target.value)
-                    }
-                  />
+                  >
+                    {roles.map((r) => (
+                      <MenuItem key={r} value={r}>
+                        {r}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </TableCell>
 
                 <TableCell>
                   <Button
+                    variant="contained"
                     size="small"
-                    variant="outlined"
-                    onClick={() => saveEmployee(e)}
-                    disabled={savingId === e.employeeid}
+                    disabled={savingId === emp.employeeid}
+                    onClick={() => saveEmployee(emp)}
                   >
-                    {savingId === e.employeeid ? "Saving..." : "Save"}
+                    {savingId === emp.employeeid ? "Saving..." : "Save"}
                   </Button>
                 </TableCell>
               </TableRow>
             ))}
+
+            {employees.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} align="center">
+                  No employees found.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </Paper>
 
-      {/* ADD EMPLOYEE DATA POPUP */}
-      <Dialog open={openAddDialog} onClose={handleCloseAddDialog} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ color: GREEN, fontWeight: 800 }}>
-          Add Employee Data
-        </DialogTitle>
-
-        <DialogContent
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-            pt: 2,
-          }}
-        >
+      {/* ADD EMPLOYEE DIALOG */}
+      <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)}>
+        <DialogTitle>Add Employee</DialogTitle>
+        <DialogContent>
           <TextField
+            fullWidth
             label="First Name"
+            margin="dense"
             value={newEmployee.firstname}
             onChange={(e) =>
-              setNewEmployee((prev) => ({ ...prev, firstname: e.target.value }))
+              setNewEmployee({ ...newEmployee, firstname: e.target.value })
             }
-            fullWidth
           />
 
           <TextField
+            fullWidth
             label="Last Name"
+            margin="dense"
             value={newEmployee.lastname}
             onChange={(e) =>
-              setNewEmployee((prev) => ({ ...prev, lastname: e.target.value }))
+              setNewEmployee({ ...newEmployee, lastname: e.target.value })
             }
-            fullWidth
           />
 
           <TextField
-            label="Phone Number"
+            fullWidth
+            label="Phone"
+            margin="dense"
             value={newEmployee.phonenumber}
             onChange={(e) =>
-              setNewEmployee((prev) => ({ ...prev, phonenumber: e.target.value }))
+              setNewEmployee({ ...newEmployee, phonenumber: e.target.value })
             }
-            fullWidth
           />
 
           <TextField
-            label="Staff Status"
-            value={newEmployee.staffstatus}
-            onChange={(e) =>
-              setNewEmployee((prev) => ({ ...prev, staffstatus: e.target.value }))
-            }
+            select
             fullWidth
-          />
+            label="Role"
+            margin="dense"
+            value={newEmployee.role}
+            onChange={(e) =>
+              setNewEmployee({ ...newEmployee, role: e.target.value })
+            }
+          >
+            {roles.map((r) => (
+              <MenuItem key={r} value={r}>
+                {r}
+              </MenuItem>
+            ))}
+          </TextField>
         </DialogContent>
 
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={handleCloseAddDialog}>Cancel</Button>
+        <DialogActions>
+          <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleAddEmployee}>
             Add
           </Button>
