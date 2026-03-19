@@ -177,25 +177,16 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 
-        emp = getattr(user, "employee", None)
-
         payload = {
             "access": access_token,
             "user": {
                 "id": user.id,
                 "email": user.email,
                 "role": user.role,
-                "employee_number": user.employee_number,
+                "employee_number": getattr(user, "employee_number", ""),
             },
-            "profile_ready": bool(emp),
+            "profile_ready": True,
         }
-
-        if emp:
-            payload["user"].update({
-                "employee_id": emp.employeeid,
-                "first_name": emp.firstname,
-                "last_name": emp.lastname,
-            })
 
         resp = Response(payload, status=status.HTTP_200_OK)
         return set_refresh_cookie(resp, refresh_token)
