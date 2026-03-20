@@ -15,6 +15,11 @@ import CloseIcon from "@mui/icons-material/Close";
 import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import AxiosInstance from "../../components/AxiosInstance";
+import PersonAddIcon from "@mui/icons-material/PersonAdd"
+import HomeIcon             from "@mui/icons-material/Home";
+import PersonIcon           from "@mui/icons-material/Person";
+import CheckCircleIcon      from "@mui/icons-material/CheckCircle";
+ 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const GREEN       = "#1c3d37";
