@@ -2,7 +2,6 @@ import { useState } from "react";
 import "../App.css";
 
 function Expenses() {
-  // Services as expense categories
   const services = [
     "Landscape Lighting", 
     "Irrigation Installations",
@@ -11,31 +10,24 @@ function Expenses() {
     "Spring Startup",
     "Winterization"
   ];
-
-  // Get initial expenses from localStorage with user ID prefix
   const getInitialExpenses = () => {
     const userId = localStorage.getItem("user_id");
     
     try {
       let savedExpenses = [];
-      
-      // Try to get from user-specific storage first
       if (userId) {
         const userExpenses = localStorage.getItem(`user_${userId}_userExpenses`);
         if (userExpenses) {
           savedExpenses = JSON.parse(userExpenses);
-          // Also set it in current session for compatibility
           localStorage.setItem("userExpenses", userExpenses);
           console.log(`Loaded ${savedExpenses.length} expenses for user ${userId}`);
         } else {
-          // Fallback to global storage
           const globalExpenses = localStorage.getItem("userExpenses");
           if (globalExpenses) {
             savedExpenses = JSON.parse(globalExpenses);
           }
         }
       } else {
-        // No user ID, use global storage
         const globalExpenses = localStorage.getItem("userExpenses");
         if (globalExpenses) {
           savedExpenses = JSON.parse(globalExpenses);
@@ -55,17 +47,12 @@ function Expenses() {
     amount: "",
     category: services[0]
   });
-
-  // Save expenses to localStorage with user ID prefix
   const saveExpenses = (updatedExpenses) => {
     const userId = localStorage.getItem("user_id");
     const expensesString = JSON.stringify(updatedExpenses);
     
     try {
-      // Save to current session
       localStorage.setItem("userExpenses", expensesString);
-      
-      // Also save with user ID prefix for persistence
       if (userId) {
         localStorage.setItem(`user_${userId}_userExpenses`, expensesString);
         console.log(`Expenses saved for user ${userId}: ${updatedExpenses.length} items`);
@@ -80,17 +67,12 @@ function Expenses() {
     setExpenses(updatedExpenses);
   };
 
-  // Add new expense
   const addExpense = () => {
     const amount = Number(formData.amount);
-    
-    // Validate input
     if (!amount || amount <= 0) {
       alert("Please enter a valid positive number");
       return;
     }
-
-    // Use category as the expense name
     const expenseName = formData.category;
 
     const newExpense = {
@@ -103,8 +85,6 @@ function Expenses() {
 
     const updatedExpenses = [...expenses, newExpense];
     saveExpenses(updatedExpenses);
-
-    // Close overlay AND reset form
     setShowAddOverlay(false);
     setFormData({
       amount: "",
@@ -113,8 +93,6 @@ function Expenses() {
     
     window.dispatchEvent(new Event("expensesUpdated"));
   };
-
-  // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -122,16 +100,12 @@ function Expenses() {
       [name]: value
     }));
   };
-
-  // Handle category selection via chips
   const handleCategorySelect = (category) => {
     setFormData(prev => ({
       ...prev,
       category
     }));
   };
-
-  // Handle keyboard events
   const handleKeyPress = (e) => {
     if (e.key === "Enter") {
       addExpense();
@@ -143,18 +117,14 @@ function Expenses() {
       });
     }
   };
-
-  // Calculate total expenses
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   return (
     <>
-      {/* Main Expenses Card - Click anywhere to add expense */}
       <div 
         className="expensesWrapper clickable"
         onClick={() => {
           setShowAddOverlay(true);
-          // Reset form when opening overlay
           setFormData({
             amount: "",
             category: services[0]
@@ -166,8 +136,6 @@ function Expenses() {
           <p className="expensesTotal">${totalExpenses.toLocaleString()}</p>
         </div>
       </div>
-
-      {/* Add Expense Overlay */}
       {showAddOverlay && (
         <div className="expenseOverlay" onClick={() => {
           setShowAddOverlay(false);
@@ -181,8 +149,6 @@ function Expenses() {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="expenseFormTitle">Add New Expense</h3>
-            
-            {/* Amount Input */}
             <input
               type="number"
               name="amount"
@@ -194,8 +160,6 @@ function Expenses() {
               min="0"
               step="0.01"
             />
-            
-            {/* Service Selection */}
             <div className="categoryChis">
               <p>
                 Select Service:

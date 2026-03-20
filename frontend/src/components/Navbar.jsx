@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
+import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import List from "@mui/material/List";
 import Typography from "@mui/material/Typography";
@@ -8,6 +9,10 @@ import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
+import IconButton from "@mui/material/IconButton";
+import MenuIcon from "@mui/icons-material/Menu";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
@@ -15,22 +20,38 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
-// import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
+import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
+import CalculateIcon from '@mui/icons-material/Calculate';
 
 import Logo from "../assets/img/Logo.png";
-import DefaultProfilePic from "../assets/img/Profile.jpg";
+import DefaultProfilePic from "../assets/img/Profile.webp";
 
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import AxiosInstance from "./AxiosInstance";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
-// Modern theme with Inter font
+const GREEN = "#1c3d37";
+const drawerWidth = 300;
+const EMPLOYEE_ROLES = ["employee", "admin", "supervisor", "staff"];
+
 const theme = createTheme({
   typography: {
-    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily:
+      '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontWeightRegular: 400,
     fontWeightMedium: 500,
     fontWeightBold: 600,
+  },
+  breakpoints: {
+    values: {
+      xs: 0,
+      sm: 600,
+      md: 900,
+      lg: 1200,
+      xl: 1536,
+    },
   },
   components: {
     MuiDrawer: {
@@ -43,26 +64,27 @@ const theme = createTheme({
     MuiListItemText: {
       styleOverrides: {
         primary: {
-          fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
+          fontFamily:
+            '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
           fontWeight: 500,
-          fontSize: '0.95rem',
-          letterSpacing: '-0.01em',
-          color: '#1c3d37',
+          fontSize: "0.95rem",
+          letterSpacing: "-0.01em",
+          color: GREEN,
         },
       },
     },
     MuiListItemButton: {
       styleOverrides: {
         root: {
-          borderRadius: '12px',
-          '&.Mui-selected': {
-            backgroundColor: 'rgba(28, 61, 55, 0.08)',
-            '&:hover': {
-              backgroundColor: 'rgba(28, 61, 55, 0.12)',
+          borderRadius: "12px",
+          "&.Mui-selected": {
+            backgroundColor: "rgba(28, 61, 55, 0.08)",
+            "&:hover": {
+              backgroundColor: "rgba(28, 61, 55, 0.12)",
             },
-            '& .MuiListItemText-primary': {
+            "& .MuiListItemText-primary": {
               fontWeight: 600,
-              color: '#1c3d37',
+              color: GREEN,
             },
           },
         },
@@ -71,19 +93,55 @@ const theme = createTheme({
   },
 });
 
-const drawerWidth = 300;
-
 const menuConfig = {
   client: [
     { label: "DASHBOARD", path: "/home", icon: <DashboardIcon sx={{ color: "#1c3d37" }} /> },
     { label: "SERVICES", path: "/services", icon: <WaterDropIcon sx={{ color: "#1c3d37" }} /> },
     { label: "BOOKING", path: "/booking", icon: <CalendarMonthIcon sx={{ color: "#1c3d37" }} /> },
+    { label: "REQUEST QUOTE", path: "/request-quote", icon: <CalculateIcon sx={{ color: "#1c3d37" }} /> },
     { label: "SETTINGS", path: "/settings", icon: <SettingsIcon sx={{ color: "#1c3d37" }} /> },
   ],
   employee: [
-    { label: "Dashboard", path: "/employeeHome", icon: <DashboardIcon sx={{ color: "#1c3d37" }} /> },
-    { label: "Clients", path: "/employee/client-view", icon: <PeopleOutlineIcon sx={{ color: "#1c3d37" }} /> },
-    { label: "Settings", path: "/settings", icon: <SettingsIcon sx={{ color: "#1c3d37" }} /> },
+    {
+      label: "DASHBOARD",
+      path: "/employee/dashboard",
+      icon: <DashboardIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "MY SCHEDULE",
+      path: "/employee/my-schedule",
+      icon: <CalendarMonthIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "EMPLOYEE MANAGEMENT",
+      path: "/employee/employee-management",
+      icon: <PeopleOutlineIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "BOOKING REQUESTS",
+      path: "/employee/booking-requests",
+      icon: <AssignmentTurnedInIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "SERVICE SCHEDULE",
+      path: "/employee/service-schedule",
+      icon: <WaterDropIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "FINANCES BOARD",
+      path: "/employee/finances",
+      icon: <RequestQuoteIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "CLIENT VIEW",
+      path: "/employee/client-view",
+      icon: <PeopleOutlineIcon sx={{ color: GREEN }} />,
+    },
+    {
+      label: "ACCOUNT",
+      path: "/employee/account",
+      icon: <AccountCircleIcon sx={{ color: GREEN }} />,
+    },
   ],
 };
 
@@ -91,96 +149,62 @@ export default function Navbar({ content }) {
   const location = useLocation();
   const navigate = useNavigate();
   const path = location.pathname;
+  const muiTheme = useTheme();
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Function to get user data from localStorage
-  const getUserData = () => {
-    const userId = localStorage.getItem("user_id");
-    
-    console.log("=== NAVBAR INIT ===");
-    console.log("User ID from localStorage:", userId);
-    
-    let firstName = "User";
-    let role = "client";
-    
-    // Try user-specific storage first
-    if (userId) {
-      const userFirstName = localStorage.getItem(`user_${userId}_first_name`);
-      const userRole = localStorage.getItem(`user_${userId}_role`);
-      
-      console.log(`User-specific data (user_${userId}_):`);
-      console.log(`- first_name: ${userFirstName}`);
-      console.log(`- role: ${userRole}`);
-      
-      // Use user-specific data if available
-      if (userFirstName) firstName = userFirstName;
-      if (userRole) role = userRole;
-      
-      // Load saved budget and expenses from user-specific storage
-      const savedBudget = localStorage.getItem(`user_${userId}_budget`);
-      const savedExpenses = localStorage.getItem(`user_${userId}_expenses`);
-      
-      if (savedBudget) {
-        localStorage.setItem("userBudget", savedBudget);
-        console.log(`Restored budget for user ${userId}: ${savedBudget}`);
-      }
-      if (savedExpenses) {
-        localStorage.setItem("userExpenses", savedExpenses);
-        console.log(`Restored expenses for user ${userId}`);
-      }
-      
-      // Load any other saved user data
-      const savedServices = localStorage.getItem(`user_${userId}_services`);
-      const savedBookings = localStorage.getItem(`user_${userId}_bookings`);
-      const savedSettings = localStorage.getItem(`user_${userId}_settings`);
-      
-      if (savedServices) {
-        localStorage.setItem("userServices", savedServices);
-      }
-      if (savedBookings) {
-        localStorage.setItem("userBookings", savedBookings);
-      }
-      if (savedSettings) {
-        localStorage.setItem("userSettings", savedSettings);
-      }
-    }
-    
-    // Fallback to global storage if user-specific data not found
-    if (firstName === "User") {
-      const globalFirstName = localStorage.getItem("first_name");
-      if (globalFirstName) firstName = globalFirstName;
-    }
-    
-    if (role === "client") {
-      const globalRole = localStorage.getItem("role");
-      if (globalRole) role = globalRole;
-    }
-    
-    console.log("Final user data:", { firstName, role });
-    return { firstName, role };
+  const normalizeRole = (role) => {
+    const lower = (role || "").toLowerCase();
+    return EMPLOYEE_ROLES.includes(lower) ? "employee" : "client";
   };
 
-  // State for user data - initialized directly
+  const getUserData = () => {
+    const rawRole = localStorage.getItem("role") || localStorage.getItem("group") || "client";
+    const role = normalizeRole(rawRole);
+
+    let displayName = "User";
+
+    if (role === "employee") {
+      const firstName = localStorage.getItem("first_name");
+      const email = localStorage.getItem("email");
+      const employeeNumber = localStorage.getItem("employee_number");
+
+      if (firstName) displayName = firstName;
+      else if (employeeNumber) displayName = `Employee ${employeeNumber}`;
+      else if (email) displayName = email.split("@")[0];
+    } else {
+      const userId = localStorage.getItem("user_id");
+
+      if (userId) {
+        const userFirstName = localStorage.getItem(`user_${userId}_first_name`);
+        if (userFirstName) displayName = userFirstName;
+      }
+
+      if (displayName === "User") {
+        const globalFirstName = localStorage.getItem("first_name");
+        const email = localStorage.getItem("email");
+
+        if (globalFirstName) displayName = globalFirstName;
+        else if (email) displayName = email.split("@")[0];
+      }
+    }
+
+    return { firstName: displayName, role };
+  };
+
   const [userData, setUserData] = useState(getUserData());
 
-  // Optional: Debug log after initial render
-  React.useEffect(() => {
-    console.log("UserData state initialized:", userData);
-  }, []);
+  useEffect(() => {
+    setUserData(getUserData());
+  }, [location.pathname]);
 
   const menuItems = menuConfig[userData.role] || menuConfig.client;
 
-  /* =========================
-     LOGOUT - Save user data and clear authentication only
-  ========================= */
   const handleLogout = async () => {
-    const token = localStorage.getItem("token");
     const userId = localStorage.getItem("user_id");
-    
-    console.log("Logging out user_id:", userId);
-    
-    // 1. Save ALL user data before clearing authentication
-    if (userId) {
-      // Define all data keys that belong to the user
+    const role = normalizeRole(localStorage.getItem("role"));
+
+    if (userId && role === "client") {
       const userDataKeys = [
         "userBudget",
         "userExpenses",
@@ -188,88 +212,252 @@ export default function Navbar({ content }) {
         "userBookings",
         "userSettings",
         "first_name",
-        "role"
+        "role",
       ];
-      
-      // Save each piece of data with user-specific key
-      userDataKeys.forEach(key => {
+
+      userDataKeys.forEach((key) => {
         const value = localStorage.getItem(key);
         if (value) {
           localStorage.setItem(`user_${userId}_${key}`, value);
-          console.log(`Saved user_${userId}_${key}:`, value ? "✓" : "empty");
-        }
-      });
-      
-      // Also save any other keys that start with 'user' (like userPreferences, etc.)
-      const allKeys = Object.keys(localStorage);
-      const userSpecificKeys = allKeys.filter(key => 
-        key.startsWith('user') && 
-        !key.startsWith(`user_${userId}_`) && // Skip already saved
-        !key.includes('_') // Skip keys that already have underscores
-      );
-      
-      userSpecificKeys.forEach(key => {
-        const value = localStorage.getItem(key);
-        if (value) {
-          localStorage.setItem(`user_${userId}_${key}`, value);
-          console.log(`Saved user_${userId}_${key} from ${key}`);
         }
       });
     }
-    
-    // Call logout API using AxiosInstance (cookie-based auth). We always
-    // attempt to call the backend so the server can clear auth cookies.
+
     try {
-      await AxiosInstance.post("/logout/");
+      await AxiosInstance.post("logout/");
     } catch (error) {
       console.log("Logout API error:", error);
     }
-    
-    const authKeysToClear = [
-      "token", 
-      "user_id",      
-      "first_name",    
+
+    [
+      "token",
+      "access",
+      "refresh",
+      "user_id",
+      "employee_id",
+      "employee_number",
+      "first_name",
       "last_name",
       "email",
-    ];
-    
-    authKeysToClear.forEach(key => {
-      localStorage.removeItem(key);
-      console.log(`Cleared auth key: ${key}`);
-    });
-    
-    // Clear current session user data (it's already saved in user-specific storage)
-    const userDataKeysToClear = [
+      "role",
+      "group",
+    ].forEach((key) => localStorage.removeItem(key));
+
+    [
       "userBudget",
       "userExpenses",
       "userServices",
       "userBookings",
-      "userSettings"
-    ];
-    
-    userDataKeysToClear.forEach(key => {
-      localStorage.removeItem(key);
-      console.log(`Cleared session data: ${key}`);
-    });
-    
-    // Clear sessionStorage
+      "userSettings",
+      "profileImage",
+    ].forEach((key) => localStorage.removeItem(key));
+
     sessionStorage.clear();
-    
-    // Reset component state
     setUserData({ firstName: "User", role: "client" });
-    
-    console.log("Logout complete. User data saved with prefix:", `user_${userId}_`);
-    
-    // Navigate to login
+
     navigate("/", { replace: true });
   };
+
+  const [profileImage, setProfileImage] = useState(() => {
+    const savedImage = localStorage.getItem("profileImage");
+    return savedImage || DefaultProfilePic;
+  });
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedImage = localStorage.getItem("profileImage");
+      setProfileImage(savedImage || DefaultProfilePic);
+    };
+
+    const interval = setInterval(handleStorageChange, 1000);
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const handleDrawerClose = () => {
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+  };
+
+  const profileLink =
+    userData.role === "employee" ? "/employee/account" : "/client-profile";
+
+  const drawer = (
+    <>
+      <Toolbar />
+
+      <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+        <img src={Logo} alt="Logo" style={{ width: isMobile ? "150px" : "200px" }} />
+      </Box>
+
+      <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+        <Link to={profileLink} onClick={handleDrawerClose} style={{ textDecoration: "none" }}>
+          <img
+            src={profileImage}
+            alt="Profile"
+            style={{
+              width: isMobile ? "100px" : "150px",
+              height: isMobile ? "100px" : "150px",
+              borderRadius: "50%",
+              border: `2px solid ${GREEN}`,
+              objectFit: "cover",
+              cursor: "pointer",
+            }}
+          />
+        </Link>
+      </Box>
+
+      <Typography
+        variant="h6"
+        sx={{
+          mb: 4,
+          textAlign: "center",
+          fontWeight: 500,
+          fontSize: isMobile ? "1rem" : "1.2rem",
+          color: GREEN,
+          letterSpacing: "-0.01em",
+        }}
+      >
+        Welcome, {userData.firstName}!
+      </Typography>
+
+      <Box sx={{ overflow: "auto", px: 2 }}>
+        <List>
+          {menuItems.map((item) => (
+            <ListItem disablePadding key={item.path} sx={{ mb: 0.5 }}>
+              <ListItemButton
+                component={Link}
+                to={item.path}
+                selected={path === item.path}
+                onClick={handleDrawerClose}
+                sx={{
+                  py: 1,
+                  px: 2,
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+                <ListItemText primary={item.label} />
+              </ListItemButton>
+            </ListItem>
+          ))}
+
+          <Box
+            sx={{
+              my: 2,
+              borderTop: "1px solid rgba(28, 61, 55, 0.12)",
+            }}
+          />
+
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={() => {
+                handleLogout();
+                handleDrawerClose();
+              }}
+              sx={{
+                py: 1,
+                px: 2,
+                "&:hover": {
+                  backgroundColor: "rgba(255, 68, 68, 0.04)",
+                },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <LogoutIcon sx={{ color: "#9e2c2c" }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="LOGOUT"
+                sx={{
+                  "& .MuiListItemText-primary": {
+                    color: "#9e2c2c !important",
+                    fontWeight: 500,
+                  },
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Box>
+    </>
+  );
 
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ display: "flex" }}>
+        <AppBar
+          position="fixed"
+          sx={{
+            display: { xs: "block", sm: "block", md: "none" },
+            backgroundColor: "#F8F8F8",
+            color: GREEN,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            zIndex: (theme) => theme.zIndex.drawer + 1,
+          }}
+        >
+          <Toolbar>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+
+            <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+              <img src={Logo} alt="Logo" style={{ height: "40px" }} />
+            </Typography>
+
+            <Link to={profileLink} onClick={handleDrawerClose}>
+              <img
+                src={profileImage}
+                alt="Profile"
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "50%",
+                  border: `2px solid ${GREEN}`,
+                  objectFit: "cover",
+                  cursor: "pointer",
+                }}
+              />
+            </Link>
+          </Toolbar>
+        </AppBar>
+
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true,
+          }}
+          sx={{
+            display: { xs: "block", sm: "block", md: "none" },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: drawerWidth,
+              backgroundColor: "#F8F8F8",
+            },
+          }}
+        >
+          {drawer}
+        </Drawer>
+
         <Drawer
           variant="permanent"
           sx={{
+            display: { xs: "none", sm: "none", md: "block" },
             width: drawerWidth,
             flexShrink: 0,
             [`& .MuiDrawer-paper`]: {
@@ -279,114 +467,20 @@ export default function Navbar({ content }) {
             },
           }}
         >
-          <Toolbar />
-
-          {/* LOGO */}
-          <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-            <img src={Logo} alt="Logo" style={{ width: "200px" }} />
-          </Box>
-
-          {/* PROFILE */}
-          <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-            <img
-              src={DefaultProfilePic}
-              alt="Profile"
-              style={{
-                width: "150px",
-                height: "150px",
-                borderRadius: "50%",
-                border: "2px solid #1c3d37",
-                objectFit: "cover",
-              }}
-            />
-          </Box>
-
-          {/* WELCOME MESSAGE */}
-          <Typography
-            variant="h6"
-            sx={{
-              mb: 4,
-              textAlign: "center",
-              fontWeight: 500,
-              fontSize: "1.2rem",
-              color: "#1c3d37",
-              letterSpacing: '-0.01em',
-            }}
-          >
-            Welcome, {userData.firstName}!
-          </Typography>
-
-          {/* MENU */}
-          <Box sx={{ overflow: "auto", px: 2 }}>
-            <List>
-              {menuItems.map((item) => (
-                <ListItem disablePadding key={item.path} sx={{ mb: 0.5 }}>
-                  <ListItemButton
-                    component={Link}
-                    to={item.path}
-                    selected={path === item.path}
-                    sx={{
-                      py: 1,
-                      px: 2,
-                    }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 40 }}>
-                      {item.icon}
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={item.label}
-                      slotProps={{
-                        primary: {
-                          fontSize: '0.95rem',
-                          letterSpacing: '-0.01em',
-                        }
-                      }}
-                    />
-                  </ListItemButton>
-                </ListItem>
-              ))}
-
-              {/* LOGOUT DIVIDER */}
-              <Box sx={{ 
-                my: 2, 
-                borderTop: '1px solid rgba(28, 61, 55, 0.12)' 
-              }} />
-
-              {/* LOGOUT */}
-              <ListItem disablePadding>
-                <ListItemButton 
-                  onClick={handleLogout}
-                  sx={{
-                    py: 1,
-                    px: 2,
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 68, 68, 0.04)',
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 40 }}>
-                    <LogoutIcon sx={{ color: '#9e2c2c' }} />
-                  </ListItemIcon>
-                  <ListItemText className="logoutBtn"
-                    primary="LOGOUT"
-                    slotProps={{
-                      primary: {
-                        sx: {
-                          color: '#9e2c2c !important',
-                          fontWeight: 500,
-                        }
-                      }
-                    }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            </List>
-          </Box>
+          {drawer}
         </Drawer>
 
-        {/* MAIN CONTENT */}
-        <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-          <Toolbar />
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            p: { xs: 2, md: 3 },
+            width: { xs: "100%", md: `calc(100% - ${drawerWidth}px)` },
+            mt: { xs: "64px", md: 0 },
+            minHeight: "100vh",
+          }}
+        >
+          <Toolbar sx={{ display: { xs: "block", md: "none" } }} />
           {content}
         </Box>
       </Box>

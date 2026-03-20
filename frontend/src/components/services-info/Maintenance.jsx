@@ -4,10 +4,6 @@ import { useNavigate } from 'react-router-dom';
 const Maintenance= () =>{
     const navigate = useNavigate();
 
-    const handleBookNow = () => {
-        navigate('/booking');
-    };
-
     const handleBack = () => {
         navigate('/services'); 
     };
@@ -15,7 +11,6 @@ const Maintenance= () =>{
   return (
     <div>
       <div className="header-section">
-        <p className="titleWrapper">Maintenance Service</p>
       </div>
       <div className="back-button-container">
         <button className="btn-back" onClick={handleBack}>
@@ -36,9 +31,6 @@ const Maintenance= () =>{
                 Our team is well-equipped to service a wide range of systems, including brands like Toro, Rain Bird, Irritrol, Hunter, and more.
                 We do Backflow testing and send all information to the City.
               </p>
-            </div>
-            <div className="card-footer">
-              <button className="btn-book" onClick={handleBookNow}>BOOK NOW</button>
             </div>
           </div>
         </div>

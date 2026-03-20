@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import "../clientCss/Dashboard.css";
+import { useEffect, useState, useRef } from "react"; 
+import "../components/clientCss/Dashboard.css";
 import {
   BarChart, Bar,
   LineChart, Line,
@@ -7,7 +7,6 @@ import {
   Legend, CartesianGrid
 } from "recharts";
 
-// Custom tooltip outside component
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
@@ -30,8 +29,8 @@ function Analytics() {
   const [data, setData] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [chartType, setChartType] = useState('bar');
+  const modalContentRef = useRef(null);
 
-  // Define getExpenses at the top
   const getExpenses = () => {
     try {
       const saved = localStorage.getItem("userExpenses");
@@ -55,7 +54,6 @@ function Analytics() {
       monthly[month] = (monthly[month] || 0) + amount;
     });
 
-    // Sort months in order
     const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
     return Object.keys(monthly)
@@ -67,7 +65,6 @@ function Analytics() {
       .sort((a, b) => monthOrder.indexOf(a.name) - monthOrder.indexOf(b.name));
   };
 
-  // Format date for display
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -77,7 +74,6 @@ function Analytics() {
     });
   };
 
-  // Format time for display
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString('en-US', {
@@ -86,10 +82,33 @@ function Analytics() {
     });
   };
 
-  // Calculate totals
   const totalBudget = data.reduce((sum, month) => sum + month.budget, 0);
   const totalExpensesAmount = data.reduce((sum, month) => sum + month.expenses, 0);
   const recentExpenses = expenses.slice().reverse().slice(0, 10);
+
+  const handleOverlayClick = (e) => {
+    if (modalContentRef.current && !modalContentRef.current.contains(e.target)) {
+      setShowReport(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleEscKey = (e) => {
+      if (e.key === 'Escape' && showReport) {
+        setShowReport(false);
+      }
+    };
+
+    if (showReport) {
+      document.addEventListener('keydown', handleEscKey);
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+      document.body.style.overflow = 'unset';
+    };
+  }, [showReport]);
 
   useEffect(() => {
     const update = () => {
@@ -110,9 +129,7 @@ function Analytics() {
 
   return (
     <div className="analyticsWrapper">
-      {/* Header with Chart Toggle */}
-      <div className="analytics-header">    
-        {/* Chart Toggle Buttons */}
+      <div className="analytics-header">   
         <div className="chart-toggle-group">
           <button 
             className={`chart-toggle-btn ${chartType === 'bar' ? 'active' : ''}`}
@@ -128,8 +145,6 @@ function Analytics() {
           </button>
         </div>
       </div>
-
-      {/* Chart Container */}
       <div
         className="chartsRow clickableChart"
         onClick={() => setShowReport(true)}
@@ -217,43 +232,38 @@ function Analytics() {
           )}
         </ResponsiveContainer>
       </div>
-      {/* Analytics Overlay / Modal */}
       {showReport && (
-        <div className="overlay">
-          <div className="analyticsOverlayContent">
+        <div 
+          className="overlay" 
+          onClick={handleOverlayClick}  
+        >
+          <div 
+            ref={modalContentRef} 
+            className="analyticsOverlayContent"
+          >
             
-            {/* Header */}
             <div className="analyticsHeader">
               <h2>Analytics & Transactions</h2>
             </div>
-
-            {/* Summary Cards Grid */}
             <div className="summaryGrid">
-              {/* Total Budget Card */}
               <div className="summaryCard">
                 <div className="summaryCard-header">
                   <p className="summaryLabel">Total Budget</p>
                 </div>
                 <p className="summaryValue budgetValue">${totalBudget.toLocaleString()}</p>
               </div>
-              
-              {/* Total Spent Card */}
               <div className="summaryCard">
                 <div className="summaryCard-header">
                   <p className="summaryLabel">Total Spent</p>
                 </div>
                 <p className="summaryValue expenseValue">${totalExpensesAmount.toLocaleString()}</p>
               </div>
-              
-              {/* Remaining Card */}
               <div className="summaryCard">
                 <div className="summaryCard-header">
                   <p className="summaryLabel">Remaining</p>
                 </div>
                 <p className="summaryValue remainingValue">${(totalBudget - totalExpensesAmount).toLocaleString()}</p>
               </div>
-              
-              {/* Transactions Card */}
               <div className="summaryCard">
                 <div className="summaryCard-header">
                   <p className="summaryLabel">Transactions</p>
@@ -261,14 +271,12 @@ function Analytics() {
                 <p className="summaryValue transactionValue">{expenses.length}</p>
               </div>
             </div>
-
-            {/* Recent Transactions Section */}
             <div>
               <h3 className="sectionHeader">Recent Activity</h3>
               
               {expenses.length === 0 ? (
                 <div className="emptyState">
-                  <span className="emptyState-icon">s</span>
+                  <span className="emptyState-icon"></span>
                   <p className="emptyState-text">No transactions yet</p>
                 </div>
               ) : (
@@ -291,14 +299,11 @@ function Analytics() {
                 </div>
               )}
             </div>
-
-            {/* Monthly Breakdown Section */}
             <div className="monthlyBreakdown">
               <h3 className="sectionHeader">Monthly Spending</h3>
               
               {data.length === 0 ? (
                 <div className="emptyState">
-                  <span className="emptyState-icon">📊</span>
                   <p className="emptyState-text">No monthly data available</p>
                 </div>
               ) : (
@@ -330,8 +335,6 @@ function Analytics() {
                 </div>
               )}
             </div>
-
-            {/* Close Button */}
             <button 
               className="analyticsCloseBtn"
               onClick={() => setShowReport(false)}

@@ -4,10 +4,6 @@ import { useNavigate } from 'react-router-dom';
 const Stormwater= () =>{
     const navigate = useNavigate();
 
-    const handleBookNow = () => {
-        navigate('/booking');
-    };
-
     const handleBack = () => {
         navigate('/services'); 
     };
@@ -15,7 +11,6 @@ const Stormwater= () =>{
   return (
     <div>
       <div className="header-section">
-        <p className="titleWrapper">Stormwater Management</p>
       </div>
       <div className="back-button-container">
         <button className="btn-back" onClick={handleBack}>
@@ -38,9 +33,6 @@ const Stormwater= () =>{
                 Our in-house, accredited designer has extensive experience in creating custom stormwater management systems. From residential and commercial installations to large-scale projects like golf courses, our designer has completed comprehensive drawings and plans that meet the highest industry standards.
                 Whether you’re looking to harvest rainwater for irrigation or develop a complete stormwater management strategy, Greenscape is here to provide the expertise and technology to meet your needs.
               </p>
-            </div>
-            <div className="card-footer">
-              <button className="btn-book" onClick={handleBookNow}>BOOK NOW</button>
             </div>
           </div>     
         </div>

@@ -1,11 +1,11 @@
 import '../App.css';
 import BackgroundVideo from '../assets/videos/vid_1.mp4'; 
 import Logo from '../assets/img/Logo.png'; 
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AxiosInstance from '../components/AxiosInstance';
-import { Axios } from 'axios';
+import GoogleIcon from '@mui/icons-material/Google';
+
 
 const ClientLogin = () => {
   const navigate = useNavigate();
@@ -24,12 +24,8 @@ const ClientLogin = () => {
   }
 
   try {
-    // Remove stale access token
     localStorage.removeItem("access");
-
-    // Just to make sure CSRF is seeded
     await AxiosInstance.get("/csrf/").catch(() => {})
-
     const response = await AxiosInstance.post('login/client/', {
       email: email,
       password: password
@@ -39,17 +35,16 @@ const ClientLogin = () => {
     console.log("Client login success:", response.data);
     console.log("Full response structure:", JSON.stringify(response.data, null, 2));
     
-    // DEBUG: Check the exact structure
     console.log("response.data:", response.data);
     console.log("response.data.user:", response.data.user);
     console.log("response.data.user.first_name:", response.data.user?.first_name);
     
-    // Store user ID - check different possible locations
+  
     const userId = response.data.user?.id || response.data.user_id || response.data.id;
     const userFirstName = response.data.user?.first_name || response.data.first_name || "";
     const userRole = response.data.user?.role || response.data.role || "client";
 
-    // Prefer SimpleJWT naming if present
+  
     const access = response.data?.access || {};
 
     
@@ -70,22 +65,12 @@ const ClientLogin = () => {
       return;
     }
     
-    // Store data
     localStorage.setItem("user_id", userId);
-    // Save tokens (Bearer)
     localStorage.setItem("access", access);
     localStorage.setItem("role", userRole);
     localStorage.setItem("first_name", userFirstName);
-    
-    // Also store with user-specific prefix for safety
     localStorage.setItem(`user_${userId}_first_name`, userFirstName);
     localStorage.setItem(`user_${userId}_role`, userRole);
-    
-    // Verify storage
-    console.log("Storage verification:");
-    console.log("Stored user_id:", localStorage.getItem("user_id"));
-    console.log("Stored first_name:", localStorage.getItem("first_name"));
-    console.log("Stored role:", localStorage.getItem("role"));
     
     navigate('/home');
 
@@ -99,6 +84,10 @@ const ClientLogin = () => {
     }
   }
 };
+
+const handleGoogleLogin = () => {
+  
+} 
 
   return (
     <div className="myBackground">
@@ -126,11 +115,12 @@ const ClientLogin = () => {
           onChange={e => setPassword(e.target.value)}
         />
 
-        <button onClick={handleLogin}>Login</button>
-
+        <button onClick={handleLogin}>LOGIN</button>
         <button onClick={() => navigate('/client-register')}>
-          Sign Up
+          SIGN UP
         </button>
+        or
+        <button onClick={handleGoogleLogin}><GoogleIcon/></button>
 
         <p className='errorMsg' >{error}</p>
 

@@ -28,6 +28,8 @@ from .models import (
     Quotes,
     Schedule,
     UserImage,
+    RequestQuote,
+    ServiceLocation
 );
 
 
@@ -80,7 +82,29 @@ class CustomerSerializer(serializers.ModelSerializer):
         model = Customer
         fields = ["customerid", "address", "addressid", "firstname", "lastname", "email", "phonenumber"]
         read_only_fields = ["customerid"]
-
+    
+    @transaction.atomic
+    def create(self, validated_data):
+        # Pull out the nested user dict (comes from email's source="user.email")
+        user_data = validated_data.pop("user", None)
+        
+        # addressid is an Address instance (resolved by PrimaryKeyRelatedField)
+        # It's already in validated_data as the correct key, so just create directly
+        customer = Customer.objects.create(**validated_data)
+        
+        # If an email was provided, create a user and link it to the customer
+        if user_data and user_data.get("email"):
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            email = user_data["email"]
+            
+            # Create user — no password, they can set one later via invite/reset
+            user = User.objects.create_user(email=email, password=None)
+            customer.user = user
+            customer.save(update_fields=["user"])
+        
+        return customer
+    
     @transaction.atomic
     def update(self, instance, validated_data):
         """
@@ -148,6 +172,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+    
 
     
 # Service Type
@@ -178,7 +203,7 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Service
-        fields = ["serviceid", "servicetypeid", "title", "description", "baseprice"]
+        fields = ["serviceid", "servicetypeid","servicetype", "title", "description", "baseprice"]
         read_only_fields = ["serviceid"]
 
 # Service Image 
@@ -270,25 +295,29 @@ class EmployeeSerializer(serializers.ModelSerializer):
 # Booking Serializer
 class BookingSerializer(serializers.ModelSerializer):
     # Validators
-    bookingdate = serializers.DateField(validators=[validate_not_past_date])
-    bookingtime = serializers.TimeField()
-
-    customer = CustomerSerializer(source="customerid", read_only = True)
-    service = ServiceSerializer(source="serviceid", read_only = True)
+    appointmenttime = serializers.DateTimeField()  # Single datetime field
+    
+    customer = CustomerSerializer(source="customerid", read_only=True)
+    service = ServiceSerializer(source="serviceid", read_only=True)
 
     customerid = serializers.PrimaryKeyRelatedField(
-        queryset = Customer.objects.all(),
-        write_only = True
+        queryset=Customer.objects.all(),
+        write_only=True
     )
 
     serviceid = serializers.PrimaryKeyRelatedField(
-        queryset = Service.objects.all(),
-        write_only = True
+        queryset=Service.objects.all(),
+        write_only=True
     )
 
     class Meta:
         model = Booking
-        fields = ["bookingid", "customerid", "serviceid", "customer", "service", "bookingdate", "bookingtime", "status"]
+        fields = [
+            "bookingid", "customerid", "serviceid", 
+            "customer", "service", 
+            "appointmenttime", "status",
+            "email", "phonenum"
+            ]
         read_only_fields = ["bookingid", "customer", "service"]
 
 # Invoice Serializer
@@ -382,3 +411,29 @@ class ZoneSerializer(serializers.ModelSerializer):
         model = Zone
         fields = ["zoneid", "siteid", "site", "zonecode", "description"]
         read_only_fields = ["zoneid"]
+
+#Request Quote Serializer
+class RequestQuoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RequestQuote
+        fields = '__all__'
+        read_only_fields = ['requestquoteid']
+
+#Service Location Serializer
+class ServiceLocationSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source='customerid.__str__', read_only=True)
+
+    class Meta:
+        model = ServiceLocation
+        fields = [
+            "servicelocationid",
+            "street",
+            "city",
+            "province",
+            "postalcode",
+            "customerid",
+            "customer_name"
+        ]
+        
+        read_only_fields = ["servicelocationid","customer_name"]
+

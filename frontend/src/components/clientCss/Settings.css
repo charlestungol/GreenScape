@@ -1,25 +1,3 @@
-/* clientCss/Settings.css */
-
-/* ===== VARIABLES ===== */
-:root {
-  --primary-dark: #1c3d37;
-  --primary: #2c6e49;
-  --primary-light: #1d4a31;
-  --secondary: #5a7c6c;
-  --text-dark: #1a2e2a;
-  --text-light: #5a6e6a;
-  --border-light: #e2e8e5;
-  --bg-light: #fafcfb;
-  --error-bg: #fff3f0;
-  --error-text: #b34141;
-  --success-bg: #e8f5e9;
-  --success-text: #2c6e49;
-  --shadow-sm: 0 8px 25px rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 15px 35px rgba(44, 110, 73, 0.06);
-  --shadow-lg: 0 30px 60px rgba(0, 0, 0, 0.2);
-  --transition: all 0.2s ease;
-}
-
 /* ===== BASE LAYOUT ===== */
 .settings-page {
   max-width: 1200px;
@@ -35,16 +13,15 @@
 }
 
 /* ===== HEADER ===== */
-.titleWrapper {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-dark);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  padding-bottom: 0.75rem;
-  border-bottom: 4px solid var(--primary);
-  display: inline-block;
-  margin-bottom: 0.5rem;
+.settingsTitle{
+ border:solid 2px  #1c3d37;
+ color: #1c3d37;
+ padding: 20px;
+ font-size: 25px;
+ font-weight:bold;
+ border-radius: 20px;
+ width: 96%;
+ margin: 0;
 }
 
 /* ===== SECTIONS ===== */
@@ -52,14 +29,29 @@
   background: white;
   border-radius: 20px;
   padding: 2rem;
-  box-shadow: var(--shadow-sm);
+   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(44, 110, 73, 0.08);
-  transition: var(--transition);
+  transition: all 0.2s ease;
 }
 
-.settingsSection:hover {
-  box-shadow: var(--shadow-md);
-  border-color: rgba(44, 110, 73, 0.15);
+.securitySettingsSection {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(44, 110, 73, 0.08);
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.securitySettingsSection .sectionTitle{
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1a2e2a;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: start;
 }
 
 .sectionHeader {
@@ -74,7 +66,7 @@
 .sectionTitle {
   font-size: 1.35rem;
   font-weight: 700;
-  color: var(--text-dark);
+  color: #1a2e2a;
   margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -100,14 +92,14 @@
 .infoLabel {
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--secondary);
+  color: #5a7c6c;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .infoValue {
   font-size: 1rem;
-  color: var(--text-dark);
+  color: #1a2e2a;
   margin: 0;
   padding: 0.75rem 0;
   border-bottom: 2px solid #edf2f0;
@@ -119,12 +111,12 @@
 .infoTextarea,
 .overlayContent input {
   padding: 0.85rem 1rem;
-  border: 1.5px solid var(--border-light);
+  border: 1.5px solid #e2e8e5;
   border-radius: 12px;
   font-size: 1rem;
-  color: var(--text-dark);
-  background: var(--bg-light);
-  transition: var(--transition);
+  color: #1a2e2a;
+  background: #fafcfb;
+  transition: all 0.2s ease;
   font-family: inherit;
   width: 100%;
   box-sizing: border-box;
@@ -139,7 +131,7 @@
 .infoTextarea:focus,
 .overlayContent input:focus {
   outline: none;
-  border-color: var(--primary);
+  border-color: #2c6e49;
   background: white;
   box-shadow: 0 0 0 3px rgba(44, 110, 73, 0.1);
 }
@@ -147,14 +139,13 @@
 .infoInput:hover,
 .infoTextarea:hover,
 .overlayContent input:hover {
-  border-color: var(--secondary);
+  border-color: #5a7c6c;
 }
 
 /* ===== BUTTONS ===== */
 .editBtn,
 .saveBtn,
 .cancelBtn,
-.changeBtn,
 .updateBtn {
   padding: 0.6rem 1.5rem;
   font-size: 0.85rem;
@@ -163,18 +154,31 @@
   letter-spacing: 0.1em;
   border-radius: 40px;
   cursor: pointer;
-  transition: var(--transition);
+  transition: all 0.2s ease;
   border: 2px solid;
+}
+
+.changeBtn{
+  padding: 0.6rem 1.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 40px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid;
+  margin: 10px;
 }
 
 .editBtn {
   background: transparent;
-  border-color: var(--primary-dark);
-  color: var(--primary-dark);
+  border-color: #1c3d37;
+  color: #1c3d37;
 }
 
 .editBtn:hover {
-  background: var(--primary-dark);
+  background: #1c3d37;
   color: white;
 }
 
@@ -184,14 +188,14 @@
 }
 
 .saveBtn {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
+  background: #1c3d37;
+  border-color: #1c3d37;
   color: white;
 }
 
 .saveBtn:hover {
-  background: var(--primary-light);
-  border-color: var(--primary-light);
+  background: #1d4a31;
+  border-color: #1d4a31;
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(44, 110, 73, 0.2);
 }
@@ -199,34 +203,34 @@
 .cancelBtn {
   background: transparent;
   border-color: #8a9e98;
-  color: var(--text-light);
+  color: #5a6e6a;
 }
 
 .cancelBtn:hover {
-  background: #f0f2f1;
-  border-color: var(--text-light);
-  color: var(--text-dark);
+  background: #9e2c2c;
+  border-color: #9e2c2c;
+  color: white;
 }
 
 .changeBtn {
   margin-top: 1.25rem;
   background: transparent;
-  border-color: var(--primary-dark);
-  color: var(--primary-dark);
+  border-color: #1c3d37;
+  color: #1c3d37;
   width: auto;
   min-width: 200px;
 }
 
 .changeBtn:hover,
 .updateBtn:hover {
-  background: var(--primary-dark);
+  background: #1c3d37;
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(44, 110, 73, 0.2);
 }
 
 .updateBtn {
-  background: var(--primary-dark);
+  background: #1c3d37;
   color: white;
   border: none;
   padding: 1rem;
@@ -249,15 +253,15 @@
 }
 
 .errorMsg {
-  background: var(--error-bg);
-  color: var(--error-text);
-  border-left: 4px solid var(--error-text);
+  background: #fff3f0;
+  color: #b34141;
+  border-left: 4px solid #b34141;
 }
 
 .successMsg {
-  background: var(--success-bg);
-  color: var(--success-text);
-  border-left: 4px solid var(--success-text);
+  background: #e8f5e9;
+  color: #2c6e49;
+  border-left: 4px solid #2c6e49;
 }
 
 /* ===== OVERLAY/MODAL ===== */
@@ -282,7 +286,7 @@
   border-radius: 24px;
   width: 90%;
   max-width: 450px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
   animation: modalFadeIn 0.3s ease;
 }
 
@@ -300,7 +304,7 @@
 .overlayTitle {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--text-dark);
+  color: #1a2e2a;
   margin: 0 0 1.5rem 0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -316,7 +320,7 @@
 .inputGroup label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--secondary);
+  color: #5a7c6c;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -336,7 +340,7 @@
 }
 
 .closeModal:hover {
-  color: var(--text-dark);
+  color: #9e2c2c;
 }
 
 /* ===== UTILITIES ===== */

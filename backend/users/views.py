@@ -33,10 +33,9 @@ from .serializers import (
     ClientRegisterSerializer,
     EmployeeLoginSerializer,
     EmployeeRegisterSerializer,
-    CompleteProfileSerializer
+    CompleteCustomerProfileSerializer,
+
 )
-
-
 
 throttle_classes = [ScopedRateThrottle]
 User = get_user_model()
@@ -178,25 +177,16 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 
-        emp = getattr(user, "employee", None)
-
         payload = {
             "access": access_token,
             "user": {
                 "id": user.id,
                 "email": user.email,
                 "role": user.role,
-                "employee_number": user.employee_number,
+                "employee_number": getattr(user, "employee_number", ""),
             },
-            "profile_ready": bool(emp),
+            "profile_ready": True,
         }
-
-        if emp:
-            payload["user"].update({
-                "employee_id": emp.employeeid,
-                "first_name": emp.firstname,
-                "last_name": emp.lastname,
-            })
 
         resp = Response(payload, status=status.HTTP_200_OK)
         return set_refresh_cookie(resp, refresh_token)
@@ -268,7 +258,7 @@ class CompleteCustomerProfileViewset(APIView):
     permissions_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = CompleteProfileSerializer(data=request.data, context={"request": request})
+        serializer = CompleteCustomerProfileSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception = True)
         customer = serializer.save()
         return Response ({"detail" : "Profile completed"} , status = status.HTTP_201_CREATED,)
@@ -285,32 +275,55 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializers.data)
 
 # Endpoints for changing email/password and resending verification email
+
 class ChangeEmailViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = ChangeEmailSerializer
+    throttle_scope = "account_change"  
 
-    # This endpoint allows users to change their email. It will send a new verification email to the new address and deactivate the account until verified.
     def create(self, request):
-        # We can use the ChangeEmailSerializer for validating the new email by treating it as a "new_email" field, since it already has email validation logic.
-        serializer = self.serializer_class(
-            data=request.data,
-            context={'request': request}
-        )
+        serializer = self.serializer_class(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
-    
+
         user = request.user
-        new_email = serializer.validated_data['new_email'].strip().lower()
+        new_email = serializer.validated_data["new_email"].strip().lower()
+        password = serializer.validated_data["password"]
 
+        # 1) Password verification
+        if not user.check_password(password):
+            # Attach error to the 'password' field for consistent client handling
+            return Response({"password": ["Incorrect password."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 2) Uniqueness check
         if User.objects.filter(email__iexact=new_email).exclude(id=user.id).exists():
-            return Response({"detail": "Email already in use."}, status=400)
+            return Response({"new_email": ["Email already in use."]}, status=status.HTTP_400_BAD_REQUEST)
 
-        user.email = new_email
-        user.is_active = False  # Deactivate until email is verified
-        user.save()
+        # 3) Apply changes atomically
+        with transaction.atomic():
+            user.email = new_email
+            user.is_active = False  # Deactivate until verified
+            user.save(update_fields=["email", "is_active"])
 
-        EmailAddress.objects.add_email(request, user, new_email, confirm=True)
+            # Create the email
+            email_addr, created = EmailAddress.objects.get_or_create( user=user, email=new_email, defaults={"verified": False, "primary": False},)
+            # Make new email primary.
+            EmailAddress.objects.filter(user = user).exclude(email__iexact=new_email).update(primary=False)
+            
+            if not email_addr.primary:
+                email_addr.primary = True
+                email_addr.save(update_fields=["primary"])
+                        # Delete old email from 
 
-        return Response({"message": "Email changed successfully. Please verify your new email."}, status=200)
+            EmailAddress.objects.filter(user=user).exclude(email__iexact=new_email).delete()
+
+            # Send confirmation email
+            email_addr.send_confirmation(request)
+
+        return Response(
+            {"message": "Email changed successfully. Please verify your new email."},
+            status=status.HTTP_200_OK,
+        )
+
 
 # This endpoint allows users to change their password. 
 # It requires the user to provide their current password and the new password. 
