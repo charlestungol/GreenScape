@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.shortcuts import redirect
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie, csrf_exempt
 
 # --- Django Allauth ---
 from allauth.account.models import EmailAddress
@@ -24,6 +24,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 # --- Google Identity (for Google Sign-in / Sign-up) ---
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+
+# --- Google Capcha helper ---
+from ..auth.recaptcha import verify_recaptcha
 
 # --- Project (local) ---
 from .serializers import (
@@ -70,7 +73,7 @@ def _jwt_cookie_settings():
 # They ensure that the cookies are set with the correct attributes so that they work properly across different browsers and contexts.
 def set_refresh_cookie(response: str, refresh_token: str):
     cfg = _jwt_cookie_settings()
-    response.set_cookie(cfg["cookie_refresh"], refresh_token, **cfg["cookie_kwargs"])
+    response.set_cookie(cfg["cookie_refresh"], refresh_token, expires=cfg["expires_at"], **cfg["cookie_kwargs"])
     return response
 
 # When logging out, we need to clear the JWT cookies. 
@@ -525,3 +528,35 @@ class GoogleSignInView(APIView):
         }, status=status.HTTP_200_OK)
 
         return set_refresh_cookie(resp, str(refresh))
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RecaptchaGateAPIView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request, *args, **kwargs):
+        # 1) reCAPTCHA gate — must pass
+        recaptcha_token = request.data.get("recaptchaToken")
+        ok, google_payload = verify_recaptcha(recaptcha_token, request.META.get("REMOTE_ADDR", ""))
+
+        if not ok:
+            return Response({
+                "ok" : False, "reason" : "recaptcha-failed", "google" : google_payload
+            }, status.status.HTTP_400_BAD_REQUEST)
+        
+        # 2) Proceed with JWT to validate credentials
+        sjwt_resp = super().post(request, *args, **kwargs)
+        if sjwt_resp.status_code != 200:
+            return sjwt_resp
+        
+        # Get access key
+        access = sjwt_resp.data.get("access")
+        # Get the refresh token
+        refresh = sjwt_resp.daga.get("refresh")
+
+        # 3) Place refresh into cookie, and access into body.
+        final = Response({"ok" : True, "access": access}, status=200)
+
+        set_refresh_cookie(final, refresh)
+
+        return final

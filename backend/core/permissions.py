@@ -1,5 +1,5 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
-from django.contrib.auth.models import Group
+from core.models import Address, Customer, Employee
 
 # READ for everyone, WRITE for authenticated users.
 class IsAuthenticatedOrReadOnly(BasePermission):
@@ -32,7 +32,6 @@ class IsOwnerOrAdmin(BasePermission):
 
         # ----- Ownership checks by model -----
         # Address: caller owns it if their Customer/Employee points to this address.
-        from core.models import Address, Customer, Employee
         if isinstance(obj, Address):
             owns_as_customer = Customer.objects.filter(user_id=u.id, addressid_id=obj.pk).exists()
             owns_as_employee = Employee.objects.filter(user_id=u.id, addressid_id=obj.pk).exists()

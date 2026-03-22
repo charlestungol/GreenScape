@@ -29,7 +29,7 @@ def sync_employee_group(sender, instance: Employee, **kwargs):
     user.groups.remove(*Group.objects.filter(name__in=["Admin", "Supervisor", "Staff"]))
     user.groups.add(group)
 
-    # Optional: Decide who gets is_staff
+    # Decide who gets is_staff
     # If you only want Admin/Supervisor to access Django admin:
-    user.is_staff = group_name in {"Admin", "Supervisor"}
+    user.is_staff = group_name in {"Admin"}
     user.save(update_fields=["is_staff"])
