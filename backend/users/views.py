@@ -552,7 +552,7 @@ class RecaptchaGateAPIView(APIView):
         # Get access key
         access = sjwt_resp.data.get("access")
         # Get the refresh token
-        refresh = sjwt_resp.daga.get("refresh")
+        refresh = sjwt_resp.data.get("refresh")
 
         # 3) Place refresh into cookie, and access into body.
         final = Response({"ok" : True, "access": access}, status=200)
