@@ -49,9 +49,6 @@ ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = "http://localhost:5173"
 # Optional: either remove or list plain field names (no asterisks). Often you can omit this and control via serializers/forms.
 # ACCOUNT_SIGNUP_FIELDS = ["first_name", "last_name"]
 
-# When user click verifiy email link, the email will be verified immediately without asking user to click another confirm button.
-ACCOUNT_CONFIRM_EMAIL_ON_GET = True
-
 if DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 else:

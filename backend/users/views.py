@@ -1,3 +1,6 @@
+# --- Helper ---
+import datetime
+
 # --- Django core ---
 from django.conf import settings
 from django.contrib import messages
@@ -26,7 +29,10 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 # --- Google Capcha helper ---
-from ..auth.recaptcha import verify_recaptcha
+
+from .recaptcha import (
+    verify_recaptcha,
+)
 
 # --- Project (local) ---
 from .serializers import (
@@ -71,9 +77,19 @@ def _jwt_cookie_settings():
 
 # These functions are used in the login/logout views to set and clear the JWT tokens in cookies. 
 # They ensure that the cookies are set with the correct attributes so that they work properly across different browsers and contexts.
-def set_refresh_cookie(response: str, refresh_token: str):
+def set_refresh_cookie(response, refresh_token):
     cfg = _jwt_cookie_settings()
-    response.set_cookie(cfg["cookie_refresh"], refresh_token, expires=cfg["expires_at"], **cfg["cookie_kwargs"])
+
+    # Decode refresh token to extract exp
+    token = RefreshToken(refresh_token)
+    expires_at = datetime.datetime.fromtimestamp(token["exp"])
+
+    response.set_cookie(
+        cfg["cookie_refresh"],
+        refresh_token,
+        expires=expires_at,
+        **cfg["cookie_kwargs"]
+    )
     return response
 
 # When logging out, we need to clear the JWT cookies. 

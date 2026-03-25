@@ -168,7 +168,7 @@ class Employee(models.Model):
     lastname = models.CharField(db_column="LastName", max_length=20,null=True, blank=True)
     phonenumber = models.CharField(db_column="PhoneNumber", max_length=10, null=True, blank=True)
     staffstatus = models.CharField(db_column="StaffStatus", max_length=20, null=True, blank=True)
-    roleid = models.ForeignKey(Group, models.DO_NOTHING, db_column='RoleId')  # Field name made lowercase.
+    roleid = models.ForeignKey(Group, models.DO_NOTHING, db_column='RoleId')
 
     class Meta:
         managed = True

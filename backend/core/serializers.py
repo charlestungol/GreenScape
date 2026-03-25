@@ -64,7 +64,7 @@ class CustomerSerializer(serializers.ModelSerializer):
     lastname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
     email = serializers.EmailField(
     source="user.email",
-    validators=[strip_string, prevent_control_characters, validate_max_length(200)],
+    validators=[strip_string, prevent_control_characters, validate_max_length(100)],
     required=False
     )
     phonenumber = serializers.CharField(validators=[validate_phone])
