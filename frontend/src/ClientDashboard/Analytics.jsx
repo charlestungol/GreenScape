@@ -272,7 +272,7 @@ function Analytics() {
               </div>
             </div>
             <div>
-              <h3 className="sectionHeader">Recent Activity</h3>
+              <h3 className="sectionHeaderAnalytics">Recent Transactions</h3>
               
               {expenses.length === 0 ? (
                 <div className="emptyState">
@@ -286,7 +286,6 @@ function Analytics() {
                       <div className="transactionDetails">
                         <div className="transactionName">
                           {expense.name}
-                          <span className="transactionCategory">{expense.category}</span>
                         </div>
                         <div className="transactionMeta">
                           <span className="transactionDate">{formatDate(expense.date)}</span>

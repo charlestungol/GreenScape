@@ -284,7 +284,7 @@ function ClientProfile() {
           </div>
         </div>
       </div>
-    </div>\
+    </div>
     </div>
   );
 }
