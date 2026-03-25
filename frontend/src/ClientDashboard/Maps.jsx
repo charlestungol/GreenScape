@@ -147,73 +147,76 @@ function Maps() {
   };
 
   /* ================= HANDLE LOCATION CONFIRMATION ================= */
-  const handleConfirmLocation = async () => {
-    if (!selectedPosition || !selectedAddress) return;
+const handleConfirmLocation = async () => {
+  if (!selectedPosition || !selectedAddress) return;
+  
+  setIsConfirming(true);
+  setError("");
+  
+  try {
+    // Parse the address into components
+    const { street, city, province, postalcode } = parseAddress(selectedAddress);
     
-    setIsConfirming(true);
-    setError("");
+    // Get user info from localStorage
+    const firstName = localStorage.getItem('first_name') || '';
+    const lastName = localStorage.getItem('last_name') || '';
+    const userName = `${firstName} ${lastName}`.trim() || 'Customer';
     
-    try {
-      // Parse the address into components
-      const { street, city, province, postalcode } = parseAddress(selectedAddress);
-      
-      // Get user info from localStorage
-      const firstName = localStorage.getItem('first_name') || '';
-      const lastName = localStorage.getItem('last_name') || '';
-      const userName = `${firstName} ${lastName}`.trim() || 'Customer';
-      
-      // Prepare the location data
-      const locationData = {
-        name: userName,
-        street: street,
-        city: city,
-        province: province,
-        postalcode: postalcode
-      };
+    // Prepare the location data
+    const locationData = {
+      name: userName,
+      street: street,
+      city: city,
+      province: province,
+      postalcode: postalcode
+    };
 
-      console.log("Saving location:", locationData);
-      
-      // Send to your ServiceLocation API
-      const response = await AxiosInstance.post('core/service-locations/', locationData);
-      
-      console.log("Location saved successfully:", response.data);
-      
-      // Show success message
-      setShowSuccess(true);
-      
-      // Close after 2 seconds
-      setTimeout(() => {
-        setShowMap(false);
-        setSelectedPosition(null);
-        setSelectedAddress("");
-        setSearchQuery("");
-        setShowSuccess(false);
-        setIsConfirming(false);
-      }, 2000);
-      
-    } catch (err) {
-      console.error("Error saving location:", err);
-      
-      if (err.response) {
-        if (err.response.status === 401) {
-          setError("Please log in to save locations");
-        } else if (err.response.status === 400) {
-          const errors = err.response.data;
-          let errorMsg = "Validation error:\n";
-          Object.entries(errors).forEach(([key, val]) => {
-            errorMsg += `- ${key}: ${Array.isArray(val) ? val.join(', ') : val}\n`;
-          });
-          setError(errorMsg);
-        } else {
-          setError("Failed to save location. Please try again.");
-        }
-      } else {
-        setError("Network error. Please check your connection.");
-      }
-      
+    console.log("Saving location:", locationData);
+    
+    // Send to your ServiceLocation API
+    const response = await AxiosInstance.post('core/service-locations/', locationData);
+    
+    console.log("Location saved successfully:", response.data);
+    
+    // DISPATCH CUSTOM EVENT to notify ServiceLocations component
+    window.dispatchEvent(new CustomEvent('locationAdded'));
+    
+    // Show success message
+    setShowSuccess(true);
+    
+    // Close after 2 seconds
+    setTimeout(() => {
+      setShowMap(false);
+      setSelectedPosition(null);
+      setSelectedAddress("");
+      setSearchQuery("");
+      setShowSuccess(false);
       setIsConfirming(false);
+    }, 2000);
+    
+  } catch (err) {
+    console.error("Error saving location:", err);
+    
+    if (err.response) {
+      if (err.response.status === 401) {
+        setError("Please log in to save locations");
+      } else if (err.response.status === 400) {
+        const errors = err.response.data;
+        let errorMsg = "Validation error:\n";
+        Object.entries(errors).forEach(([key, val]) => {
+          errorMsg += `- ${key}: ${Array.isArray(val) ? val.join(', ') : val}\n`;
+        });
+        setError(errorMsg);
+      } else {
+        setError("Failed to save location. Please try again.");
+      }
+    } else {
+      setError("Network error. Please check your connection.");
     }
-  };
+    
+    setIsConfirming(false);
+  }
+};
 
   /* ================= CLOSE MAP ================= */
   const handleCloseMap = () => {
@@ -299,7 +302,7 @@ function Maps() {
             {selectedAddress && (
               <div className="location-display">
                 <p className="location-text">
-                  📍 {selectedAddress}
+                  {selectedAddress}
                 </p>
               </div>
             )}
