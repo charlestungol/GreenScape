@@ -97,6 +97,11 @@ class CustomerSerializer(serializers.ModelSerializer):
             from django.contrib.auth import get_user_model
             User = get_user_model()
             email = user_data["email"]
+
+            if User.objects.filter(email=email).exists():
+                raise serializers.ValidationError(
+                    {"email": "A client with this email already exists."}
+                )
             
             # Create user — no password, they can set one later via invite/reset
             user = User.objects.create_user(email=email, password=None)
