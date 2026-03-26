@@ -80,6 +80,7 @@ const EmployeeLogin = () => {
           placeholder="Employee Number"
           value={employeeNumber}
           onChange={e => setEmployeeNumber(e.target.value)}
+          maxLength={20}
         />
 
         <input
@@ -87,6 +88,7 @@ const EmployeeLogin = () => {
           placeholder="Email"
           value={email}
           onChange={e => setEmail(e.target.value)}
+          maxLength={254}
         />
 
         <input
@@ -94,6 +96,7 @@ const EmployeeLogin = () => {
           placeholder="Password"
           value={password}
           onChange={e => setPassword(e.target.value)}
+          maxLength={50}
         />
 
         <button onClick={handleLogin}>LOGIN</button>

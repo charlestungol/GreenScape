@@ -223,6 +223,7 @@ function RequestQuote() {
                 placeholder="Enter your full name"
                 required
                 disabled={loading}
+                maxLength={254}
               />
             </div>
 
@@ -236,6 +237,7 @@ function RequestQuote() {
                 placeholder="Enter phone number"
                 required
                 disabled={loading}
+                maxLength={10}
               />
             </div>
           </div>
@@ -251,6 +253,7 @@ function RequestQuote() {
                 placeholder="Enter your email"
                 required
                 disabled={loading}
+                maxLength={254}
               />
             </div>
 
@@ -263,6 +266,7 @@ function RequestQuote() {
                 onChange={handleInputChange}
                 placeholder="Enter product type"
                 disabled={loading}
+                maxLength={100}
               />
             </div>
           </div>
@@ -282,6 +286,7 @@ function RequestQuote() {
               placeholder="Enter street address"
               required
               disabled={loading}
+              maxLength={100}
             />
           </div>
 
@@ -296,6 +301,7 @@ function RequestQuote() {
                 placeholder="Enter city"
                 required
                 disabled={loading}
+                maxLength={100}
               />
             </div>
 
@@ -309,6 +315,7 @@ function RequestQuote() {
                 placeholder="Enter province"
                 required
                 disabled={loading}
+                maxLength={100}
               />
             </div>
           </div>
@@ -324,6 +331,7 @@ function RequestQuote() {
                 placeholder="Enter postal code"
                 required
                 disabled={loading}
+                maxLength={20}
               />
             </div>
 
@@ -336,6 +344,7 @@ function RequestQuote() {
                 onChange={handleInputChange}
                 placeholder="Enter plumbing details"
                 disabled={loading}
+                maxLength={50}
               />
             </div>
           </div>

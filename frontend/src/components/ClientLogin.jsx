@@ -106,6 +106,7 @@ const handleGoogleLogin = () => {
           placeholder="Email"
           value={email}
           onChange={e => setEmail(e.target.value)}
+          maxLength={254}
         />
 
         <input
@@ -113,6 +114,7 @@ const handleGoogleLogin = () => {
           placeholder="Password"
           value={password}
           onChange={e => setPassword(e.target.value)}
+          maxLength={50}
         />
 
         <button onClick={handleLogin}>LOGIN</button>
