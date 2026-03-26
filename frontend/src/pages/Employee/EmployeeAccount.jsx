@@ -87,7 +87,7 @@ export default function EmployeeAccount() {
   const handleSaveProfile = async () => {
     try {
       if (employeeId) {
-        await AxiosInstance.patch(`core/employees/${employeeId}/`, {
+        await AxiosInstance.patch(`core/employees/me/`, {
           firstname: profile.firstname,
           lastname: profile.lastname,
           phonenumber: profile.phonenumber,
