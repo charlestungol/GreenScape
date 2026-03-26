@@ -4,9 +4,9 @@ import "../components/clientCss/Dashboard.css";
 
 function Budget() {
   const getInitialBudget = () => {
+    // CHECKS IF THERE'S A LOGGED IN USER
     const userId = localStorage.getItem("user_id");
     let savedBudget = 0;
-    
     // Try to get from user-specific storage first
     if (userId) {
       const userBudget = localStorage.getItem(`user_${userId}_userBudget`);
@@ -110,7 +110,6 @@ function Budget() {
           >
             <h3 className="budgetFormTitle">Budget Settings</h3>
             
-            {/* Mode Selection - styled like category chips */}
             <div className="modeSelection categoryChips">
               <button 
                 className={`categoryChip ${mode === "set" ? "active" : ""}`}
@@ -153,7 +152,6 @@ function Budget() {
               </button>
             </div>
 
-            {/* Additional Budget Actions */}
             {budget > 0 && (
               <div className="budgetActions">
                 <button 
