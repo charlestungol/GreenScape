@@ -34,10 +34,10 @@ export default function EmployeeAccount() {
     confirm: "",
   });
 
+  const [emailCurrentPassword, setEmailCurrentPassword] = useState("");
   const [previewImage, setPreviewImage] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Confirmation dialog state
   const [emailConfirmOpen, setEmailConfirmOpen] = useState(false);
   const [passwordConfirmOpen, setPasswordConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -104,7 +104,18 @@ export default function EmployeeAccount() {
     }
   };
 
-  // ── Email confirmation ──
+  const handleUpdateEmailClick = () => {
+    if (!profile.email) {
+      alert("Please enter a new email address.");
+      return;
+    }
+    if (!emailCurrentPassword) {
+      alert("Please enter your current password to update your email.");
+      return;
+    }
+    setEmailConfirmOpen(true);
+  };
+
   const handleEmailConfirm = async () => {
     setSaving(true);
     try {
@@ -114,12 +125,16 @@ export default function EmployeeAccount() {
         });
       }
       try {
-        await AxiosInstance.post("change-email/", { email: profile.email });
+        await AxiosInstance.post("change-email/", {
+          email: profile.email,
+          current_password: emailCurrentPassword,
+        });
       } catch (emailErr) {
         console.warn("Email update endpoint warning:", emailErr);
       }
       localStorage.setItem("email", profile.email);
       setEmailConfirmOpen(false);
+      setEmailCurrentPassword("");
       alert("Email updated successfully.");
     } catch (error) {
       console.error("Email update error:", error);
@@ -129,7 +144,6 @@ export default function EmployeeAccount() {
     }
   };
 
-  // ── Password confirmation ──
   const handlePasswordConfirm = async () => {
     setSaving(true);
     try {
@@ -142,13 +156,12 @@ export default function EmployeeAccount() {
       setPassword({ old_password: "", new_password: "", confirm: "" });
     } catch (error) {
       console.error("Password change error:", error);
-      alert("Password update failed. Make sure your current password is correct and that new password falls within guidelines");
+      alert("Password update failed. Make sure your current password is correct and that new password falls within guidelines.");
     } finally {
       setSaving(false);
     }
   };
 
-  // ── Validate before opening password dialog ──
   const handleChangePasswordClick = () => {
     if (!password.old_password || !password.new_password || !password.confirm) {
       alert("Please fill in all password fields.");
@@ -161,12 +174,13 @@ export default function EmployeeAccount() {
     setPasswordConfirmOpen(true);
   };
 
+  // ── Shared style tokens (mirrored from AdminDashboard) ──
   const btnStyle = {
     bgcolor: GREEN,
     "&:hover": { bgcolor: GREEN_MID },
     borderRadius: 2,
     textTransform: "none",
-    fontWeight: 700,
+    fontWeight: 800,
   };
 
   const outlinedBtnStyle = {
@@ -174,15 +188,19 @@ export default function EmployeeAccount() {
     borderColor: GREEN,
     borderRadius: 2,
     textTransform: "none",
-    fontWeight: 700,
+    fontWeight: 800,
     "&:hover": { borderColor: GREEN_MID, color: GREEN_MID },
   };
 
-  const cancelBtnStyle = { color: "text.secondary", textTransform: "none" };
+  const cancelBtnStyle = {
+    color: "text.secondary",
+    textTransform: "none",
+    fontWeight: 800,
+  };
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN, mb: 2 }}>
+      <Typography variant="h4" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
         Account Settings
       </Typography>
 
@@ -192,11 +210,16 @@ export default function EmployeeAccount() {
         <DialogContent>
           <DialogContentText>
             Are you sure you want to change your email to{" "}
-            <strong>{profile.email}</strong>? You may need to verify your new email address.
+            <strong>{profile.email}</strong>? You may need to verify your new
+            email address.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setEmailConfirmOpen(false)} disabled={saving} sx={cancelBtnStyle}>
+          <Button
+            onClick={() => setEmailConfirmOpen(false)}
+            disabled={saving}
+            sx={cancelBtnStyle}
+          >
             Cancel
           </Button>
           <Button
@@ -212,15 +235,23 @@ export default function EmployeeAccount() {
       </Dialog>
 
       {/* ── Password Confirmation Dialog ── */}
-      <Dialog open={passwordConfirmOpen} onClose={() => !saving && setPasswordConfirmOpen(false)}>
+      <Dialog
+        open={passwordConfirmOpen}
+        onClose={() => !saving && setPasswordConfirmOpen(false)}
+      >
         <DialogTitle sx={{ fontWeight: 800, color: GREEN }}>Change Password</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to change your password? You will need to use your new password next time you log in.
+            Are you sure you want to change your password? You will need to use
+            your new password next time you log in.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setPasswordConfirmOpen(false)} disabled={saving} sx={cancelBtnStyle}>
+          <Button
+            onClick={() => setPasswordConfirmOpen(false)}
+            disabled={saving}
+            sx={cancelBtnStyle}
+          >
             Cancel
           </Button>
           <Button
@@ -236,16 +267,23 @@ export default function EmployeeAccount() {
       </Dialog>
 
       {loading ? (
-        <Typography>Loading account...</Typography>
+        <Typography sx={{ color: GREEN }}>Loading account...</Typography>
       ) : (
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
           {/* ── Profile Info ── */}
-          <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+          <Paper elevation={1} sx={{ p: 2, borderRadius: 2, display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
               Profile Information
             </Typography>
 
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 3 }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                mb: 2,
+              }}
+            >
               <Avatar
                 src={previewImage || localStorage.getItem("profileImage") || ""}
                 sx={{ width: 100, height: 100, mb: 2, border: `2px solid ${GREEN}` }}
@@ -258,12 +296,13 @@ export default function EmployeeAccount() {
                 <input type="file" hidden accept="image/*" onChange={handleImageChange} />
               </Button>
 
-              <Typography variant="caption" sx={{ mt: 1, opacity: 0.7 }}>
-                Preview works now. Saving profile pictures to backend still needs an image upload endpoint.
+              <Typography variant="body2" sx={{ mt: 1, opacity: 0.7, color: GREEN }}>
+                Preview works now. Saving profile pictures to backend still needs
+                an image upload endpoint.
               </Typography>
             </Box>
 
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2, flexGrow: 1 }}>
               <TextField
                 label="First Name"
                 value={profile.firstname}
@@ -282,29 +321,37 @@ export default function EmployeeAccount() {
                 onChange={(e) => handleProfileChange("phonenumber", e.target.value)}
                 fullWidth
               />
-              <Button variant="contained" onClick={handleSaveProfile} sx={btnStyle}>
+              <Button variant="contained" onClick={handleSaveProfile} sx={{ ...btnStyle, mt: "auto" }}>
                 Save Profile
               </Button>
             </Box>
           </Paper>
 
           {/* ── Security ── */}
-          <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+          <Paper elevation={1} sx={{ p: 2, borderRadius: 2, display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
               Security
             </Typography>
 
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2, flexGrow: 1 }}>
+              {/* ── Email Section ── */}
               <TextField
-                label="Email"
+                label="New Email"
                 type="email"
                 value={profile.email}
                 onChange={(e) => handleProfileChange("email", e.target.value)}
                 fullWidth
               />
+              <TextField
+                label="Current Password"
+                type="password"
+                value={emailCurrentPassword}
+                onChange={(e) => setEmailCurrentPassword(e.target.value)}
+                fullWidth
+              />
               <Button
                 variant="outlined"
-                onClick={() => setEmailConfirmOpen(true)}
+                onClick={handleUpdateEmailClick}
                 sx={outlinedBtnStyle}
               >
                 Update Email
@@ -312,25 +359,32 @@ export default function EmployeeAccount() {
 
               <Divider sx={{ my: 1 }} />
 
+              {/* ── Password Section ── */}
               <TextField
                 label="Current Password"
                 type="password"
                 value={password.old_password}
-                onChange={(e) => setPassword((prev) => ({ ...prev, old_password: e.target.value }))}
+                onChange={(e) =>
+                  setPassword((prev) => ({ ...prev, old_password: e.target.value }))
+                }
                 fullWidth
               />
               <TextField
                 label="New Password"
                 type="password"
                 value={password.new_password}
-                onChange={(e) => setPassword((prev) => ({ ...prev, new_password: e.target.value }))}
+                onChange={(e) =>
+                  setPassword((prev) => ({ ...prev, new_password: e.target.value }))
+                }
                 fullWidth
               />
               <TextField
                 label="Confirm New Password"
                 type="password"
                 value={password.confirm}
-                onChange={(e) => setPassword((prev) => ({ ...prev, confirm: e.target.value }))}
+                onChange={(e) =>
+                  setPassword((prev) => ({ ...prev, confirm: e.target.value }))
+                }
                 fullWidth
               />
               <Button variant="contained" onClick={handleChangePasswordClick} sx={btnStyle}>
