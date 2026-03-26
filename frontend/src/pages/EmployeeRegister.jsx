@@ -70,14 +70,16 @@ const Register = () => {
           type="text"
           placeholder="Employee Number"
           value={employeeNumber}
-          onChange={(e) => setEmployeeNumber(e.target.value)}
+          onChange={e => setEmployeeNumber(e.target.value)}
+          maxLength={20}
         />
 
         <input
           type="text"
           placeholder="Email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={e => setEmail(e.target.value)}
+          maxLength={254}
         />
 
         <select
@@ -99,10 +101,24 @@ const Register = () => {
           type="password"
           placeholder="Password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={e => setPassword(e.target.value)}
+          maxLength={50}
         />
 
-        <button onClick={handleRegister}>Create Employee Account</button>
+        <input
+          type="password"
+          placeholder="Confirm Password"
+          value={confirmPassword}
+          onChange={e => setConfirmPassword(e.target.value)}
+          maxLength={50}
+        />
+
+        <button onClick={handleRegister}>
+          Create Employee Account
+        </button>
+
+        {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
+        {success && <p style={{ color: 'green', marginTop: '10px' }}>{success}</p>}
 
         {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
         {success && <p style={{ color: "green", marginTop: "10px" }}>{success}</p>}

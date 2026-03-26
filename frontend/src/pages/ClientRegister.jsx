@@ -96,6 +96,7 @@ const ClientRegister = () => {
       placeholder="First Name"
       value={firstname}
       onChange={e => setFirstName(e.target.value)}
+      maxLength={100}
     />
 
     <input
@@ -103,6 +104,7 @@ const ClientRegister = () => {
       placeholder="Last Name"
       value={lastname}
       onChange={e => setLastName(e.target.value)}
+      maxLength={100}
     />
 
     <input
@@ -110,6 +112,7 @@ const ClientRegister = () => {
       placeholder="Email"
       value={email}
       onChange={e => setEmail(e.target.value)}
+      maxLength={254}
     />
 
     <input
@@ -117,6 +120,7 @@ const ClientRegister = () => {
       placeholder="Phone Number"
       value={phonenumber}
       onChange={e => setPhoneNum(e.target.value)}
+      maxLength={10}
     />
 
     <input
@@ -124,6 +128,7 @@ const ClientRegister = () => {
       placeholder="Password"
       value={password}
       onChange={e => setPassword(e.target.value)}
+      maxLength={50}
     />
 
     <input
@@ -131,6 +136,7 @@ const ClientRegister = () => {
       placeholder="Confirm Password"
       value={confirmPassword}
       onChange={e => setConfirmPassword(e.target.value)}
+      maxLength={50}
     />
   </div>
 
@@ -143,6 +149,7 @@ const ClientRegister = () => {
       onChange={e =>
         setAddress({ ...address, street: e.target.value })
       }
+      maxLength={100}
     />
 
     <input
@@ -152,6 +159,7 @@ const ClientRegister = () => {
       onChange={e =>
         setAddress({ ...address, city: e.target.value })
       }
+      maxLength={100}
     />
 
     <input
@@ -161,6 +169,7 @@ const ClientRegister = () => {
       onChange={e =>
         setAddress({ ...address, province: e.target.value })
       }
+      maxLength={100}
     />
 
     <input
@@ -170,6 +179,7 @@ const ClientRegister = () => {
       onChange={e =>
         setAddress({ ...address, postalcode: e.target.value })
       }
+      maxLength={20}
     />
   </div>
 

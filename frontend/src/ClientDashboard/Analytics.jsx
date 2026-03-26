@@ -7,11 +7,13 @@ import {
   Legend, CartesianGrid
 } from "recharts";
 
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
       <div className="custom-tooltip">
         <p className="tooltip-label">{label}</p>
+        {/* RENDERS THE COLOR OF THE DOT, LABEL AND DOLLAR VALUE FOR EACH */}
         {payload.map((entry, index) => (
           <p key={index} className="tooltip-value" style={{ color: entry.color }}>
             <span className="tooltip-color-dot" style={{ background: entry.color }} />
@@ -31,6 +33,7 @@ function Analytics() {
   const [chartType, setChartType] = useState('bar');
   const modalContentRef = useRef(null);
 
+  // GET'S THE USER EXPENSE FROM THE LOCAL STORAGE
   const getExpenses = () => {
     try {
       const saved = localStorage.getItem("userExpenses");
@@ -40,6 +43,7 @@ function Analytics() {
     }
   };
 
+  // READS THE USER'S BUDGET AND RAW EXPENSES
   const buildMonthlyData = () => {
     const budget = Number(localStorage.getItem("userBudget")) || 0;
     const expensesData = getExpenses();
@@ -55,7 +59,6 @@ function Analytics() {
     });
 
     const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    
     return Object.keys(monthly)
       .map((month) => ({
         name: month,
@@ -65,6 +68,7 @@ function Analytics() {
       .sort((a, b) => monthOrder.indexOf(a.name) - monthOrder.indexOf(b.name));
   };
 
+  // FORMATTER HELPERS
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -82,16 +86,21 @@ function Analytics() {
     });
   };
 
+  // ADDS UP ALL THE BUDGET ACROSS ALL MONTHS
   const totalBudget = data.reduce((sum, month) => sum + month.budget, 0);
+  // ADDS ALL EXPENSES ACROSS ALL MONTHS
   const totalExpensesAmount = data.reduce((sum, month) => sum + month.expenses, 0);
+  //COPIES THE EXPENSES ARRAY, REVERSES IT WHERE IT SHOWS THE NEWEST FIRST AND THEN TAKES THE TOP 10
   const recentExpenses = expenses.slice().reverse().slice(0, 10);
 
+  //HANDLES THE OVERLAY WHEN THE USER CLICKS OUTSIDE THE MODAL, IT CLOSES
   const handleOverlayClick = (e) => {
     if (modalContentRef.current && !modalContentRef.current.contains(e.target)) {
       setShowReport(false);
     }
   };
 
+  //FOR CLOSING THE MODAL USING THE ESC BUTTON AND PREVENTS THE SCROLLING OF THE MAIN PAGE IF THE MODAL IS OPEN
   useEffect(() => {
     const handleEscKey = (e) => {
       if (e.key === 'Escape' && showReport) {
@@ -110,6 +119,7 @@ function Analytics() {
     };
   }, [showReport]);
 
+  //FOR DATA LOADING AND LIVE UPDATES TO KEEP THE CHART IN SYNC IN REAL TIME 
   useEffect(() => {
     const update = () => {
       setData(buildMonthlyData());
@@ -131,6 +141,7 @@ function Analytics() {
     <div className="analyticsWrapper">
       <div className="analytics-header">   
         <div className="chart-toggle-group">
+          {/* BUTTONS FOR THE CHART TYPE (BAR OR LINE) */}
           <button 
             className={`chart-toggle-btn ${chartType === 'bar' ? 'active' : ''}`}
             onClick={() => setChartType('bar')}
@@ -145,12 +156,14 @@ function Analytics() {
           </button>
         </div>
       </div>
+
       <div
         className="chartsRow clickableChart"
         onClick={() => setShowReport(true)}
       >
         <ResponsiveContainer width="100%" height={300}>
           {chartType === 'bar' ? (
+            // BAR CHART
           <BarChart data={data} barCategoryGap="30%">
             <CartesianGrid strokeDasharray="3 3" stroke="#e0e8e5" vertical={false} />
             <XAxis 
@@ -190,6 +203,7 @@ function Analytics() {
             />
           </BarChart>
           ) : (
+            // LINE CHART
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
               <XAxis 
