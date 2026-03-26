@@ -104,17 +104,17 @@ export default function EmployeeAccount() {
     }
   };
 
-  const handleUpdateEmailClick = () => {
-    if (!profile.email) {
-      alert("Please enter a new email address.");
-      return;
-    }
-    if (!emailCurrentPassword) {
-      alert("Please enter your current password to update your email.");
-      return;
-    }
-    setEmailConfirmOpen(true);
-  };
+  const handleUpdateEmailClick = async () => {
+  if (!profile.email) {
+    alert("Please enter a new email address.");
+    return;
+  }
+  if (!emailCurrentPassword) {
+    alert("Please enter your current password to update your email.");
+    return;
+  }
+    setEmailConfirmOpen(true); // only opens if password was correct
+};
 
   const handleEmailConfirm = async () => {
     setSaving(true);
@@ -308,18 +308,21 @@ export default function EmployeeAccount() {
                 value={profile.firstname}
                 onChange={(e) => handleProfileChange("firstname", e.target.value)}
                 fullWidth
+                slotProps={{ htmlInput: { maxLength: 50 } }}
               />
               <TextField
                 label="Last Name"
                 value={profile.lastname}
                 onChange={(e) => handleProfileChange("lastname", e.target.value)}
                 fullWidth
+                slotProps={{ htmlInput: { maxLength: 50 } }}
               />
               <TextField
                 label="Phone Number"
                 value={profile.phonenumber}
                 onChange={(e) => handleProfileChange("phonenumber", e.target.value)}
                 fullWidth
+                slotProps={{ htmlInput: { maxLength: 12 } }}
               />
               <Button variant="contained" onClick={handleSaveProfile} sx={{ ...btnStyle, mt: "auto" }}>
                 Save Profile
@@ -341,6 +344,7 @@ export default function EmployeeAccount() {
                 value={profile.email}
                 onChange={(e) => handleProfileChange("email", e.target.value)}
                 fullWidth
+                slotProps={{ htmlInput: { maxLength: 50 } }}
               />
               <TextField
                 label="Current Password"
@@ -348,6 +352,7 @@ export default function EmployeeAccount() {
                 value={emailCurrentPassword}
                 onChange={(e) => setEmailCurrentPassword(e.target.value)}
                 fullWidth
+                slotProps={{ htmlInput: { maxLength: 16 } }}
               />
               <Button
                 variant="outlined"
@@ -368,6 +373,7 @@ export default function EmployeeAccount() {
                   setPassword((prev) => ({ ...prev, old_password: e.target.value }))
                 }
                 fullWidth
+                slotProps={{ htmlInput: { maxLength: 16 } }}
               />
               <TextField
                 label="New Password"
@@ -377,6 +383,7 @@ export default function EmployeeAccount() {
                   setPassword((prev) => ({ ...prev, new_password: e.target.value }))
                 }
                 fullWidth
+                slotProps={{ htmlInput: { maxLength: 16 } }}
               />
               <TextField
                 label="Confirm New Password"
@@ -386,6 +393,7 @@ export default function EmployeeAccount() {
                   setPassword((prev) => ({ ...prev, confirm: e.target.value }))
                 }
                 fullWidth
+                slotProps={{ htmlInput: { maxLength: 16 } }}
               />
               <Button variant="contained" onClick={handleChangePasswordClick} sx={btnStyle}>
                 Change Password
