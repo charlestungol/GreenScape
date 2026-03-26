@@ -120,7 +120,7 @@ export default function EmployeeAccount() {
     setSaving(true);
     try {
       if (employeeId) {
-        await AxiosInstance.patch(`core/employees/${employeeId}/`, {
+        await AxiosInstance.patch(`core/employees/me/`, {
           email: profile.email,
         });
       }
