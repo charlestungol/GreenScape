@@ -58,14 +58,7 @@ function RequestQuote() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    console.log('=== SUBMITTING QUOTE ===');
-    
     const token = localStorage.getItem('access');
-    const userId = localStorage.getItem('user_id');
-    
-    console.log('Token exists:', !!token);
-    console.log('User ID:', userId);
-    console.log('Token first 20 chars:', token?.substring(0, 20) + '...');
     
     if (!token) {
       setPopupMessage({ 
@@ -100,8 +93,6 @@ function RequestQuote() {
         sensor: formData.sensor,
         status: "pending"
       };
-      
-      console.log('Sending data:', quoteData);
 
       const response = await AxiosInstance.post("core/request-quotes/", quoteData);
 
@@ -139,13 +130,10 @@ function RequestQuote() {
       });
 
     } catch (error) {
-      console.error('=== ERROR DETAILS ===');
       console.error('Error:', error);
-  
       if (error.response) {
         console.error('Status:', error.response.status);
         console.error('Data:', error.response.data);
-        
         if (error.response.status === 401 || error.response.status === 403) {
           setPopupMessage({ 
             type: "error", 
@@ -165,8 +153,7 @@ function RequestQuote() {
         setPopupMessage({ type: "error", text: "No response from server. Please check your connection." });
       } else {
         setPopupMessage({ type: "error", text: `Error: ${error.message}` });
-      }
-      
+      } 
       setShowPopup(true);
       setTimeout(() => {
         setShowPopup(false);
@@ -223,6 +210,7 @@ function RequestQuote() {
                 placeholder="Enter your full name"
                 required
                 disabled={loading}
+                maxLength={254}
               />
             </div>
 
@@ -236,6 +224,7 @@ function RequestQuote() {
                 placeholder="Enter phone number"
                 required
                 disabled={loading}
+                maxLength={10}
               />
             </div>
           </div>
@@ -251,6 +240,7 @@ function RequestQuote() {
                 placeholder="Enter your email"
                 required
                 disabled={loading}
+                maxLength={254}
               />
             </div>
 
@@ -263,6 +253,7 @@ function RequestQuote() {
                 onChange={handleInputChange}
                 placeholder="Enter product type"
                 disabled={loading}
+                maxLength={100}
               />
             </div>
           </div>
@@ -282,6 +273,7 @@ function RequestQuote() {
               placeholder="Enter street address"
               required
               disabled={loading}
+              maxLength={100}
             />
           </div>
 
@@ -296,6 +288,7 @@ function RequestQuote() {
                 placeholder="Enter city"
                 required
                 disabled={loading}
+                maxLength={100}
               />
             </div>
 
@@ -309,6 +302,7 @@ function RequestQuote() {
                 placeholder="Enter province"
                 required
                 disabled={loading}
+                maxLength={100}
               />
             </div>
           </div>
@@ -324,6 +318,7 @@ function RequestQuote() {
                 placeholder="Enter postal code"
                 required
                 disabled={loading}
+                maxLength={20}
               />
             </div>
 
@@ -336,6 +331,7 @@ function RequestQuote() {
                 onChange={handleInputChange}
                 placeholder="Enter plumbing details"
                 disabled={loading}
+                maxLength={50}
               />
             </div>
           </div>

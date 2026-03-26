@@ -691,67 +691,404 @@ html:has(.dashboardContainer) {
 }
 
 /* ============================================
-   RUNNING & FINISHED SERVICES
+  SERVICE LOCATION
    ============================================ */
 
-.finishedList,
-.runningList {
-  margin-top: 15px;
+.service-locations-card {
+  width: 335px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  border: 2px solid #ddd;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  margin-top: 10px;
+  height: 150px;
+  font-size: 20px;
+  text-align: center;
+  padding: 20px;
 }
 
-.serviceItem {
-  margin: 5px 0;
+.service-locations-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.service-locations-card-header .locationWrapper p{
+  font-size: 20px;
+  color: #1c3d37;
+  text-align: center;
+  margin-top: 0;
+}
+
+.service-locations-card-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.locations-count {
+  font-size: 35px;
+  color: #1c3d37;
+  margin: 0;
+}
+
+
+/* Service Locations Overlay */
+.service-locations-overlay-content {
+  background: white;
+  border-radius: 24px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.3s ease;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Header */
+.service-locations-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.header-title-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.service-locations-header h2 {
+  margin: 0;
+  color: #1c3d37;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.close-overlay-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  color: #666;
+}
+
+.close-overlay-button:hover {
+  background: #f0f0f0;
+  color: #1c3d37;
+}
+
+/* Content Area */
+.service-locations-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 28px;
+  max-height: calc(85vh - 140px);
+}
+
+.service-locations-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.service-locations-content::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 3px;
+}
+
+.service-locations-content::-webkit-scrollbar-thumb {
+  background: #1c3d37;
+  border-radius: 3px;
+}
+
+/* Loading State */
+.loading-container {
+  text-align: center;
+  padding: 60px 40px;
+}
+
+.loading-container p {
+  margin-top: 16px;
+  color: #8a9e98;
   font-size: 14px;
 }
 
-/* Overlay Modal */
-.overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 999;
-}
-
-.overlayContent {
-  background: white;
-  padding: 25px;
-  width: 300px;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+/* Error State */
+.error-container {
   text-align: center;
+  padding: 40px;
 }
 
-.overlayContent h2 {
-  color: #06632b;
+.error-message {
+  background: #fee;
+  border: 1px solid #fcc;
+  color: #c33;
+  padding: 14px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
 }
 
-.modalItem {
-  padding: 10px 0;
-  border-bottom: 1px solid #ececec;
-}
-
-.modalItem:last-child {
-  border-bottom: none;
-}
-
-.closeBtn {
-  margin-top: 15px;
-  padding: 8px 15px;
-  border: none;
-  background: #06632b;
+.retry-button {
+  background-color: #1c3d37;
   color: white;
+  border: none;
+  padding: 10px 24px;
   border-radius: 8px;
   cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 
-.closeBtn:hover {
-  background-color: #054e22;
+.retry-button:hover {
+  background-color: #0f2c27;
+  transform: translateY(-2px);
+}
+
+/* Empty State */
+.empty-locations {
+  text-align: center;
+  padding: 60px 40px;
+}
+
+.empty-icon {
+  font-size: 64px;
+  color: #ccc;
+  margin-bottom: 20px;
+}
+
+.empty-locations p {
+  margin: 8px 0;
+  color: #666;
+  font-size: 16px;
+}
+
+.empty-subtext {
+  font-size: 14px !important;
+  color: #8a9e98 !important;
+}
+
+/* Locations List */
+.locations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Location Item */
+.location-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #e8ecea;
+  border-radius: 16px;
+  padding: 16px;
+  transition: all 0.3s ease;
+}
+
+.location-item:hover {
+  border-color: #c0d6cc;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateX(4px);
+}
+
+.location-icon-wrapper svg {
+  font-size: 24px;
+}
+
+.location-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.location-details h3 {
+  margin: 0 0 6px 0;
+  color: #1c3d37;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.location-street {
+  margin: 0 0 4px 0;
+  color: #2c3e50;
+  font-size: 14px;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.location-city-province {
+  margin: 0;
+  color: #8a9e98;
+  font-size: 13px;
+}
+
+.location-postal-code {
+  margin: 10px 0 0 0;
+  color: #1c3d37;
+  font-weight: 500;
+  font-size: 12px;
+  background: #f5f7f5;
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+/* Delete Button */
+.delete-location-btn {
+  background: none;
+  border: 1px solid #ffcdd2;
+  padding: 8px 16px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #9e2c2c;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.delete-location-btn:hover:not(:disabled) {
+  background: #9e2c2c;
+  color: white;
+  border-color: #9e2c2c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+}
+
+.delete-location-btn.deleting {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background: #f5f5f5;
+  color: #999;
+  border-color: #e0e0e0;
+}
+
+.delete-location-btn svg {
+  font-size: 18px;
+}
+
+/* Success Message */
+.success-message {
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  color: #2e7d32;
+  padding: 12px 16px;
+  margin: 0 28px 20px 28px;
+  border-radius: 10px;
+  animation: slideDown 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Footer */
+.service-locations-footer {
+  padding: 20px 28px;
+  border-top: 1px solid #e8ecea;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.close-footer-btn {
+  padding: 10px 28px;
+  background: #f5f5f5;
+  color: #666;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.close-footer-btn:hover {
+  background: #9e2c2c;
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Spinner */
+.spinner-small {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: #666;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .service-locations-overlay-content {
+    width: 95%;
+    max-height: 90vh;
+  }
+  
+  .service-locations-header {
+    padding: 18px 20px;
+  }
+  
+  .service-locations-content {
+    padding: 16px 20px;
+  }
+  
+  .location-item {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+  }
+  
+  .location-details {
+    text-align: center;
+  }
+  
+  .delete-location-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .location-icon-wrapper {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .location-icon-wrapper svg {
+    font-size: 28px;
+  }
 }
 
 /* ============================================
@@ -765,7 +1102,8 @@ html:has(.dashboardContainer) {
   width: 335px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
   text-align: center;
-  height: 35px;
+  height: 40px;
+  margin-top: 5px;
 }
 
 .quoteWrapper p {
@@ -788,6 +1126,7 @@ html:has(.dashboardContainer) {
   width: 185px;
   cursor: pointer;
   display: inline-block;
+  height: 100px;
 }
 
 .mapLocation {
@@ -945,6 +1284,7 @@ html:has(.dashboardContainer) {
   font-size: 14px;
   line-height: 1.5;
   word-break: break-word;
+  text-align: center;
 }
 
 /* Success Message */
@@ -1052,6 +1392,7 @@ html:has(.dashboardContainer) {
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
   text-align: center;
   width: 185px;
+  height: 100px;
 }
 
 .timeWrapper p {
@@ -1144,6 +1485,7 @@ html:has(.dashboardContainer) {
   background: white;
   transition: all 0.2s ease;
   position: relative;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   border: 2px solid #ddd;
@@ -1342,7 +1684,7 @@ html:has(.dashboardContainer) {
 }
 
 /* Section Headers */
-.sectionHeader {
+.sectionHeaderAnalytics {
   color: #1a3a32;
   font-size: 16px;
   font-weight: 600;
@@ -1351,6 +1693,7 @@ html:has(.dashboardContainer) {
   border-bottom: 1px solid #f0f0f0;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
