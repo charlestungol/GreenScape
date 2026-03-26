@@ -13,6 +13,7 @@ const Register = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const navigate = useNavigate();
 
@@ -116,9 +117,6 @@ const Register = () => {
         <button onClick={handleRegister}>
           Create Employee Account
         </button>
-
-        {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
-        {success && <p style={{ color: 'green', marginTop: '10px' }}>{success}</p>}
 
         {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
         {success && <p style={{ color: "green", marginTop: "10px" }}>{success}</p>}

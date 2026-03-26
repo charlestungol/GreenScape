@@ -72,7 +72,7 @@ export default function EmployeeManagement() {
       alert("Role updated successfully.");
     } catch (err) {
       console.error("Error updating role:", err);
-      alert("Failed to update role.");
+      alert("Failed to update role.", employee.role);
     } finally {
       setSavingId(null);
     }
