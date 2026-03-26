@@ -1,6 +1,7 @@
-import "./App.css";
-import { Routes, Route } from "react-router-dom";
-import NavbarWrapper from "./components/NavbarWrapper";
+import './App.css';
+import { Routes, Route } from 'react-router-dom';
+import NavbarWrapper from './components/NavbarWrapper';
+import ScrollToTop from './components/ScrollToTop';
 
 // Public pages
 import Landing from "./pages/LandingPage";
@@ -10,10 +11,12 @@ import EmployeeRegister from "./pages/EmployeeRegister";
 import ClientRegister from "./pages/ClientRegister";
 
 // Client pages
-import Home from "./pages/ClientHome";
-import Services from "./pages/Services";
-import Booking from "./pages/Booking";
-import Settings from "./pages/Settings";
+import Home from './pages/Client/ClientHome';
+import ClientProfile from './pages/Client/ClientProfile';
+import Services from './pages/Client/Services';
+import Booking from './pages/Client/Booking';
+import RequestQuote from './pages/Client/RequestQuote';
+import Settings from './pages/Client/Settings';
 
 // Employee/admin pages
 import EmployeeHome from "./pages/EmployeeHome";
@@ -29,15 +32,17 @@ import ClientView from "./pages/Employee/ClientView";
 import EmployeeAccount from "./pages/Employee/EmployeeAccount";
 
 // Service info pages
-import IrrigationInstallation from "./services-info/Irrigation";
-import LandscapeLighting from "./services-info/Landscape";
-import MaintenanceManagement from "./services-info/Maintenance";
-import StormWaterManangement from "./services-info/Stormwater";
+import IrrigationInstallation from './components/services-info/Irrigation';
+import LandscapeLighting from './components/services-info/Landscape';
+import MaintenanceManagement from './components/services-info/Maintenance';
+import StormWaterManangement from './components/services-info/Stormwater';
 
 import RouteProtection from "./components/RouteProtection";
 
 function App() {
   return (
+    <>
+    <ScrollToTop />
     <Routes>
       {/* Public pages (no Navbar) */}
       <Route path="/" element={<Landing />} />
@@ -58,6 +63,14 @@ function App() {
           }
         />
         <Route
+          path="/client-profile"
+          element={
+            <RouteProtection allowedRole="client">
+              <ClientProfile/>
+            </RouteProtection>
+          }
+        />
+        <Route
           path="/services"
           element={
             <RouteProtection>
@@ -70,6 +83,14 @@ function App() {
           element={
             <RouteProtection>
               <Booking />
+            </RouteProtection>
+          }
+        />
+        <Route
+          path="/request-quote"
+          element={
+            <RouteProtection>
+              <RequestQuote />
             </RouteProtection>
           }
         />
@@ -192,6 +213,7 @@ function App() {
         />
       </Route>
     </Routes>
+    </>
   );
 }
 

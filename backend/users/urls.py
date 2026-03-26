@@ -12,7 +12,8 @@ from .views import (
     LogoutView,
     LogoutAllView,
     GoogleSignInView,
-    CompleteCustomerProfileViewset
+    CompleteCustomerProfileViewset,
+    CookieTokenRefreshView,
 )
 
 router = DefaultRouter()
@@ -29,8 +30,9 @@ urlpatterns = [
     path('accounts/', include("allauth.urls")),
     path('resend-verification/', ResendVerificationView.as_view(), name = 'resend-verification'),
     path("email-verified/", EmailVerifiedRedirectView, name="email_verified"),
-    path("auth/google/", GoogleSignInView.as_view(), name="google-signin"),
+    path("google/", GoogleSignInView.as_view(), name="google-signin"),
     path("customers/complete-profile/", CompleteCustomerProfileViewset.as_view(), name="complete-profile"),
+    path("refresh/", CookieTokenRefreshView.as_view(), name = 'token-refresh')
 ]
 
 urlpatterns += router.urls

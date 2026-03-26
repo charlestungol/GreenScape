@@ -1,11 +1,12 @@
 import { useState } from "react";
 import "../App.css";
+import "../components/clientCss/Dashboard.css";
 
 function Budget() {
   const getInitialBudget = () => {
+    // CHECKS IF THERE'S A LOGGED IN USER
     const userId = localStorage.getItem("user_id");
     let savedBudget = 0;
-    
     // Try to get from user-specific storage first
     if (userId) {
       const userBudget = localStorage.getItem(`user_${userId}_userBudget`);
@@ -34,7 +35,7 @@ function Budget() {
   const [budget, setBudget] = useState(getInitialBudget());
   const [input, setInput] = useState("");
   const [showOverlay, setShowOverlay] = useState(false);
-  const [mode, setMode] = useState("set"); // "set", "add"
+  const [mode, setMode] = useState("set"); 
 
   const handleSave = () => {
     const value = Number(input);
@@ -48,7 +49,7 @@ function Budget() {
       case "add":
         newBudget = budget + value;
         break;
-      default: // "set"
+      default: 
         newBudget = value;
     }
     
@@ -77,6 +78,20 @@ function Budget() {
     setShowOverlay(false);
   };
 
+  const handleReset = () => {
+    if (window.confirm("Are you sure you want to reset your budget to $0?")) {
+      setInput("");
+      setBudget(0);
+      const userId = localStorage.getItem("user_id");
+      localStorage.setItem("userBudget", "0");
+      if (userId) {
+        localStorage.setItem(`user_${userId}_userBudget`, "0");
+      }
+      window.dispatchEvent(new Event("budgetUpdated"));
+      setShowOverlay(false);
+    }
+  };
+
   return (
     <>
       <div 
@@ -84,27 +99,26 @@ function Budget() {
         onClick={() => setShowOverlay(true)}
       >
         <p>BUDGET</p>
-        <p className="budgetAmount">${budget.toLocaleString()}</p>
+        <p>${budget.toLocaleString()}</p>
       </div>
 
       {showOverlay && (
         <div className="budgetOverlay" onClick={cancelEdit}>
           <div 
-            className="budgetInputArea" 
+            className="budgetForm" 
             onClick={(e) => e.stopPropagation()}
           >
-            <h3>Update Budget</h3>
+            <h3 className="budgetFormTitle">Budget Settings</h3>
             
-            {/* Mode Selection */}
-            <div className="modeSelection">
+            <div className="modeSelection categoryChips">
               <button 
-                className={mode === "set" ? "active" : ""}
+                className={`categoryChip ${mode === "set" ? "active" : ""}`}
                 onClick={() => setMode("set")}
               >
                 Set New
               </button>
               <button 
-                className={mode === "add" ? "active" : ""}
+                className={`categoryChip ${mode === "add" ? "active" : ""}`}
                 onClick={() => setMode("add")}
               >
                 Add
@@ -123,13 +137,31 @@ function Budget() {
               Current: ${budget.toLocaleString()}
             </p>
             
-            <div className="buttonGroup">
-              <button onClick={handleSave}>
-                {mode === "set" ? "Set Budget" : 
-                 mode === "add" ? "Add to Budget" : "Subtract from Budget"}
+            <div className="budgetFormButtons">
+              <button 
+                className="budgetFormButton add" 
+                onClick={handleSave}
+              >
+                {mode === "set" ? "Set Budget" : "Add to Budget"}
               </button>
-              <button onClick={cancelEdit}>Cancel</button>
+              <button 
+                className="budgetFormButton cancel" 
+                onClick={cancelEdit}
+              >
+                Cancel
+              </button>
             </div>
+
+            {budget > 0 && (
+              <div className="budgetActions">
+                <button 
+                  className="budgetButton reset"
+                  onClick={handleReset}
+                >
+                  Reset Budget
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

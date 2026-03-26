@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import "../clientCss/Dashboard.css";
+import { useEffect, useState, useRef } from "react"; 
+import "../components/clientCss/Dashboard.css";
 import {
   BarChart, Bar,
   LineChart, Line,
@@ -7,12 +7,13 @@ import {
   Legend, CartesianGrid
 } from "recharts";
 
-// Custom tooltip outside component
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
       <div className="custom-tooltip">
         <p className="tooltip-label">{label}</p>
+        {/* RENDERS THE COLOR OF THE DOT, LABEL AND DOLLAR VALUE FOR EACH */}
         {payload.map((entry, index) => (
           <p key={index} className="tooltip-value" style={{ color: entry.color }}>
             <span className="tooltip-color-dot" style={{ background: entry.color }} />
@@ -30,8 +31,9 @@ function Analytics() {
   const [data, setData] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [chartType, setChartType] = useState('bar');
+  const modalContentRef = useRef(null);
 
-  // Define getExpenses at the top
+  // GET'S THE USER EXPENSE FROM THE LOCAL STORAGE
   const getExpenses = () => {
     try {
       const saved = localStorage.getItem("userExpenses");
@@ -41,6 +43,7 @@ function Analytics() {
     }
   };
 
+  // READS THE USER'S BUDGET AND RAW EXPENSES
   const buildMonthlyData = () => {
     const budget = Number(localStorage.getItem("userBudget")) || 0;
     const expensesData = getExpenses();
@@ -55,9 +58,7 @@ function Analytics() {
       monthly[month] = (monthly[month] || 0) + amount;
     });
 
-    // Sort months in order
     const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    
     return Object.keys(monthly)
       .map((month) => ({
         name: month,
@@ -67,7 +68,7 @@ function Analytics() {
       .sort((a, b) => monthOrder.indexOf(a.name) - monthOrder.indexOf(b.name));
   };
 
-  // Format date for display
+  // FORMATTER HELPERS
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -77,7 +78,6 @@ function Analytics() {
     });
   };
 
-  // Format time for display
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString('en-US', {
@@ -86,11 +86,40 @@ function Analytics() {
     });
   };
 
-  // Calculate totals
+  // ADDS UP ALL THE BUDGET ACROSS ALL MONTHS
   const totalBudget = data.reduce((sum, month) => sum + month.budget, 0);
+  // ADDS ALL EXPENSES ACROSS ALL MONTHS
   const totalExpensesAmount = data.reduce((sum, month) => sum + month.expenses, 0);
+  //COPIES THE EXPENSES ARRAY, REVERSES IT WHERE IT SHOWS THE NEWEST FIRST AND THEN TAKES THE TOP 10
   const recentExpenses = expenses.slice().reverse().slice(0, 10);
 
+  //HANDLES THE OVERLAY WHEN THE USER CLICKS OUTSIDE THE MODAL, IT CLOSES
+  const handleOverlayClick = (e) => {
+    if (modalContentRef.current && !modalContentRef.current.contains(e.target)) {
+      setShowReport(false);
+    }
+  };
+
+  //FOR CLOSING THE MODAL USING THE ESC BUTTON AND PREVENTS THE SCROLLING OF THE MAIN PAGE IF THE MODAL IS OPEN
+  useEffect(() => {
+    const handleEscKey = (e) => {
+      if (e.key === 'Escape' && showReport) {
+        setShowReport(false);
+      }
+    };
+
+    if (showReport) {
+      document.addEventListener('keydown', handleEscKey);
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+      document.body.style.overflow = 'unset';
+    };
+  }, [showReport]);
+
+  //FOR DATA LOADING AND LIVE UPDATES TO KEEP THE CHART IN SYNC IN REAL TIME 
   useEffect(() => {
     const update = () => {
       setData(buildMonthlyData());
@@ -110,10 +139,9 @@ function Analytics() {
 
   return (
     <div className="analyticsWrapper">
-      {/* Header with Chart Toggle */}
-      <div className="analytics-header">    
-        {/* Chart Toggle Buttons */}
+      <div className="analytics-header">   
         <div className="chart-toggle-group">
+          {/* BUTTONS FOR THE CHART TYPE (BAR OR LINE) */}
           <button 
             className={`chart-toggle-btn ${chartType === 'bar' ? 'active' : ''}`}
             onClick={() => setChartType('bar')}
@@ -129,13 +157,13 @@ function Analytics() {
         </div>
       </div>
 
-      {/* Chart Container */}
       <div
         className="chartsRow clickableChart"
         onClick={() => setShowReport(true)}
       >
         <ResponsiveContainer width="100%" height={300}>
           {chartType === 'bar' ? (
+            // BAR CHART
           <BarChart data={data} barCategoryGap="30%">
             <CartesianGrid strokeDasharray="3 3" stroke="#e0e8e5" vertical={false} />
             <XAxis 
@@ -175,6 +203,7 @@ function Analytics() {
             />
           </BarChart>
           ) : (
+            // LINE CHART
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
               <XAxis 
@@ -217,43 +246,38 @@ function Analytics() {
           )}
         </ResponsiveContainer>
       </div>
-      {/* Analytics Overlay / Modal */}
       {showReport && (
-        <div className="overlay">
-          <div className="analyticsOverlayContent">
+        <div 
+          className="overlay" 
+          onClick={handleOverlayClick}  
+        >
+          <div 
+            ref={modalContentRef} 
+            className="analyticsOverlayContent"
+          >
             
-            {/* Header */}
             <div className="analyticsHeader">
               <h2>Analytics & Transactions</h2>
             </div>
-
-            {/* Summary Cards Grid */}
             <div className="summaryGrid">
-              {/* Total Budget Card */}
               <div className="summaryCard">
                 <div className="summaryCard-header">
                   <p className="summaryLabel">Total Budget</p>
                 </div>
                 <p className="summaryValue budgetValue">${totalBudget.toLocaleString()}</p>
               </div>
-              
-              {/* Total Spent Card */}
               <div className="summaryCard">
                 <div className="summaryCard-header">
                   <p className="summaryLabel">Total Spent</p>
                 </div>
                 <p className="summaryValue expenseValue">${totalExpensesAmount.toLocaleString()}</p>
               </div>
-              
-              {/* Remaining Card */}
               <div className="summaryCard">
                 <div className="summaryCard-header">
                   <p className="summaryLabel">Remaining</p>
                 </div>
                 <p className="summaryValue remainingValue">${(totalBudget - totalExpensesAmount).toLocaleString()}</p>
               </div>
-              
-              {/* Transactions Card */}
               <div className="summaryCard">
                 <div className="summaryCard-header">
                   <p className="summaryLabel">Transactions</p>
@@ -261,14 +285,12 @@ function Analytics() {
                 <p className="summaryValue transactionValue">{expenses.length}</p>
               </div>
             </div>
-
-            {/* Recent Transactions Section */}
             <div>
-              <h3 className="sectionHeader">Recent Activity</h3>
+              <h3 className="sectionHeaderAnalytics">Recent Transactions</h3>
               
               {expenses.length === 0 ? (
                 <div className="emptyState">
-                  <span className="emptyState-icon">s</span>
+                  <span className="emptyState-icon"></span>
                   <p className="emptyState-text">No transactions yet</p>
                 </div>
               ) : (
@@ -278,7 +300,6 @@ function Analytics() {
                       <div className="transactionDetails">
                         <div className="transactionName">
                           {expense.name}
-                          <span className="transactionCategory">{expense.category}</span>
                         </div>
                         <div className="transactionMeta">
                           <span className="transactionDate">{formatDate(expense.date)}</span>
@@ -291,14 +312,11 @@ function Analytics() {
                 </div>
               )}
             </div>
-
-            {/* Monthly Breakdown Section */}
             <div className="monthlyBreakdown">
               <h3 className="sectionHeader">Monthly Spending</h3>
               
               {data.length === 0 ? (
                 <div className="emptyState">
-                  <span className="emptyState-icon">📊</span>
                   <p className="emptyState-text">No monthly data available</p>
                 </div>
               ) : (
@@ -330,8 +348,6 @@ function Analytics() {
                 </div>
               )}
             </div>
-
-            {/* Close Button */}
             <button 
               className="analyticsCloseBtn"
               onClick={() => setShowReport(false)}

@@ -1,20 +1,25 @@
-import Card from '../components/ServicesCard';
+import Card from '../../components/ServicesCard';
 import { useNavigate } from 'react-router-dom';
-import '../clientCss/Services.css';
-import serviceImage1 from '../assets/img/service-img-1.jpg';
-import serviceImage2 from '../assets/img/service-img-2.jpg';
-import serviceImage3 from '../assets/img/service-img-3.png';
-import serviceImage4 from '../assets/img/service-img-4.jpg';
+import '../../components/clientCss/Services.css';
+import serviceImage1 from '../../assets/img/service-img-1.jpg';
+import serviceImage2 from '../../assets/img/service-img-2.jpg';
+import serviceImage3 from '../../assets/img/service-img-3.png';
+import serviceImage4 from '../../assets/img/service-img-4.jpg';
 
 const Services = () => {
   const navigate = useNavigate();
   const handleBookNow = () => {
     navigate('/booking');
   };
+
+  const generateQuote = () => {
+    navigate('/request-quote')
+  };
+
   return (
     <div>
       <div>
-        <p className="titleWrapper">SERVICES</p>
+        <p className="servicesTitle">SERVICES</p>
       </div>
       <div className='serviceContainer'>
         <div className="cards-grid">
@@ -62,7 +67,7 @@ const Services = () => {
           </p>
           <div className="cta-group">
             <button className="btn btn-primary" onClick={handleBookNow}>BOOK NOW</button>
-            <button className="btn btn-secondary">GENERATE QUOTE</button>
+            <button className="btn btn-secondary" onClick={generateQuote}>REQUEST QUOTE</button>
           </div>
         </div>
         <div className="warranty-section">

@@ -20,7 +20,6 @@ class Address(models.Model):
         managed = True
         db_table = 'Address'
 
-
 # -------------------------------
 # Customer and Customer related models.
 # -------------------------------
@@ -164,10 +163,6 @@ class Employee(models.Model):
     phonenumber = models.CharField(db_column="PhoneNumber", max_length=10, null=True, blank=True)
     staffstatus = models.CharField(db_column="StaffStatus", max_length=20, null=True, blank=True)
     roleid = models.ForeignKey(Group, models.DO_NOTHING, db_column='RoleId')  # Field name made lowercase.
-    class Meta:
-        managed = True
-        db_table = "Employee"
-
 # ---------------------------------------
 # Booking model
 # ---------------------------------------
@@ -175,9 +170,11 @@ class Booking(models.Model):
     bookingid = models.AutoField(db_column='BookingId', primary_key=True)  # Field name made lowercase.
     customerid = models.ForeignKey('Customer', models.DO_NOTHING, db_column='CustomerId')  # Field name made lowercase.
     serviceid = models.ForeignKey('Service', models.DO_NOTHING, db_column='ServiceId')  # Field name made lowercase.
-    siteid = models.ForeignKey('Site', models.DO_NOTHING, db_column='SiteId')  # Field name made lowercase.
+    siteid = models.ForeignKey('Site', models.DO_NOTHING, db_column='SiteId', null=True, blank=True)  # Field name made lowercase.
     appointmenttime = models.DateTimeField(db_column='AppointmentTime')  # Field name made lowercase.
     status = models.CharField(db_column='Status', max_length=15, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
+    email = models.EmailField(db_column='Email', max_length=30,null=False, blank=False, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    phonenum = models.CharField(db_column='PhoneNum', max_length=30, null=False, blank=False,db_collation='SQL_Latin1_General_CP1_CI_AS' )
 
     class Meta:
         managed = True
@@ -215,6 +212,55 @@ class Quotes(models.Model):
     class Meta:
         managed = True
         db_table = 'Quotes'
+
+
+# ---------------------------------------
+# RequestQuote model
+# ---------------------------------------
+class RequestQuote(models.Model):
+    requestquoteid = models.AutoField(db_column='RequestQuoteId', primary_key=True)
+    fullname = models.CharField(db_column='FullName', max_length=50, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    phonenumber = models.CharField(db_column='PhoneNumber', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    email = models.EmailField(db_column='Email', max_length=100, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    street = models.CharField(db_column='Street', max_length=100, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    city = models.CharField(db_column='City', max_length=100, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    province = models.CharField(db_column='Province', max_length=50, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    postalcode = models.CharField(db_column='PostalCode', max_length=20, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    producttype = models.CharField(db_column='ProductType', max_length=100, blank=True, null=True, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    plumbing = models.CharField(db_column='Plumbing', max_length=255, blank=True, null=True, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    zones = models.IntegerField(db_column='Zones', blank=True, null=True)
+    lighting = models.CharField(db_column='Lighting', max_length=10, blank=True, null=True, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    system = models.CharField(db_column='System', max_length=10, blank=True, null=True, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    wifi = models.CharField(db_column='WiFi', max_length=10, blank=True, null=True, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    sensor = models.CharField(db_column='Sensor', max_length=10, blank=True, null=True, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    status = models.CharField(db_column='Status', max_length=20, default='pending', db_collation='SQL_Latin1_General_CP1_CI_AS')
+    customerid = models.ForeignKey('Customer', models.DO_NOTHING, db_column='CustomerId', blank=True, null=True)
+
+    def __str__(self):
+        return f"Quote {self.requestquoteid} - {self.fullname}"
+
+    class Meta:
+        managed = True
+        db_table = 'RequestQuote'
+
+# ---------------------------------------
+# ServiceLocation model
+# ---------------------------------------
+class ServiceLocation(models.Model):
+    servicelocationid = models.AutoField(db_column='ServiceLocationId', primary_key=True)
+    street = models.CharField(db_column='Street', max_length=100, blank=True, null=True, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    city = models.CharField(db_column='City', max_length=100, blank=True, null=True, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    province = models.CharField(db_column='Province', max_length=50, blank=True, null=True, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    postalcode = models.CharField(db_column='PostalCode', max_length=20, blank=True, null=True, db_collation='SQL_Latin1_General_CP1_CI_AS')
+    customerid = models.ForeignKey('Customer', models.DO_NOTHING, db_column='CustomerId', blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.street}, {self.city}" or f"Location {self.servicelocationid}"
+
+    class Meta:
+        managed = True
+        db_table = 'ServiceLocation'
+
 
 # ---------------------------------------
 # schedule model
@@ -262,3 +308,4 @@ class Zone(models.Model):
     class Meta:
         managed = True
         db_table = 'Zone'
+

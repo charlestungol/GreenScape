@@ -39,11 +39,6 @@ const EmployeeLogin = () => {
     const userRole = response.data.user?.role || response.data.role || "employee";
     const access = response.data?.access || {}
     
-    console.log("Employee extracted values:");
-    console.log("userId:", userId);
-    console.log("userFirstName:", userFirstName);
-    console.log("userRole:", userRole);
-    
     // Store data
     localStorage.setItem("user_id", userId);
     localStorage.setItem("access", access);
@@ -85,6 +80,7 @@ const EmployeeLogin = () => {
           placeholder="Employee Number"
           value={employeeNumber}
           onChange={e => setEmployeeNumber(e.target.value)}
+          maxLength={20}
         />
 
         <input
@@ -92,6 +88,7 @@ const EmployeeLogin = () => {
           placeholder="Email"
           value={email}
           onChange={e => setEmail(e.target.value)}
+          maxLength={254}
         />
 
         <input
@@ -99,12 +96,13 @@ const EmployeeLogin = () => {
           placeholder="Password"
           value={password}
           onChange={e => setPassword(e.target.value)}
+          maxLength={50}
         />
 
-        <button onClick={handleLogin}>Login</button>
+        <button onClick={handleLogin}>LOGIN</button>
 
         <button onClick={() => navigate('/employee-register')}>
-          Sign Up
+          SIGN UP
         </button>
 
         {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}

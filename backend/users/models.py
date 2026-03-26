@@ -65,12 +65,6 @@ class CustomUser(AbstractUser):
 
     class Meta:
         db_table = "users_customuser"
-        constraints = [
-            models.UniqueConstraint(fields=["employee_number"], name="uq_employee_number_not_null", condition=models.Q(employee_number__isnull=False) & ~Q(employee_number=""),),
-            models.UniqueConstraint(fields=["google_sub"], name="uq_google_sub_present", condition=Q(google_sub__isnull=False) & ~Q(google_sub=""),),
-            models.CheckConstraint(name="ck_employee_has_number", check=Q(role="employee",  employee_number__isnull=False) & ~Q(employee_number="") | ~Q(role="employee"),),
-            models.CheckConstraint(name="ck_client_no_emp_number", check=Q(role="client", employee_number__isnull=True) | Q(role="client", employee_number="") | Q(role="client"),),
-        ]
     
     def __str__(self):
         label = self.email  or f"User#{self.pk}"
