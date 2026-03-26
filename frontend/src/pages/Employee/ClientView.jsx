@@ -19,6 +19,8 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd"
 import HomeIcon             from "@mui/icons-material/Home";
 import PersonIcon           from "@mui/icons-material/Person";
 import CheckCircleIcon      from "@mui/icons-material/CheckCircle";
+import { Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from "@mui/material";
+import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
  
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -27,13 +29,7 @@ const GREEN_LIGHT = "#e8f0ef";
 const GREEN_MID   = "#2e6b5e";
 const API_BASE = "http://localhost:8000/core";
 
-// ─── Axios instance ───────────────────────────────────────────────────────────
-const api = AxiosInstance.create({ baseURL: API_BASE });
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function mapCustomer(raw) {
@@ -106,7 +102,7 @@ function AddClientModal({ open, onClose, onCreated }) {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.post("/addresses/", addrForm);
+      const { data } = await AxiosInstance.post("/core/addresses/", addrForm);
       setCreatedAddr(data);
       setStep(1);
     } catch (err) {
@@ -125,7 +121,7 @@ function AddClientModal({ open, onClose, onCreated }) {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.post("/customers/", {
+      const { data } = await AxiosInstance.post("/core/customers/", {
         ...custForm,
         addressid: createdAddr.addressid,
       });
@@ -373,13 +369,15 @@ function PhotoLightbox({ photos, startIndex, onClose }) {
 }
 
 // ─── Detail / Edit Page ───────────────────────────────────────────────────────
-function ClientDetailPage({ client, onBack, onSave }) {
-  const [editing, setEditing]     = useState(false);
-  const [form, setForm]           = useState({ ...client });
-  const [saving, setSaving]       = useState(false);
-  const [saveError, setSaveError] = useState(null);
-  const [lightbox, setLightbox]   = useState(null);
-  const fileInputRef              = useRef(null);
+function ClientDetailPage({ client, onBack, onSave, onDelete }) {
+  const [editing, setEditing]       = useState(false);
+  const [form, setForm]             = useState({ ...client });
+  const [saving, setSaving]         = useState(false);
+  const [saveError, setSaveError]   = useState(null);
+  const [lightbox, setLightbox]     = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false); // ← new
+  const [deleting, setDeleting]     = useState(false);   // ← new
+  const fileInputRef                = useRef(null);
 
   const handleChange        = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
   const handleAddressChange = (field) => (e) => setForm(f => ({ ...f, address: { ...(f.address ?? {}), [field]: e.target.value } }));
@@ -400,7 +398,7 @@ function ClientDetailPage({ client, onBack, onSave }) {
           },
         }),
       };
-      const { data } = await api.patch(`/customers/${client.customerid}/`, payload);
+      const { data } = await AxiosInstance.patch(`/core/customers/${client.customerid}/`, payload);
       const updated = { ...mapCustomer(data), photos: form.photos };
       onSave(updated);
       setForm(updated);
@@ -409,6 +407,20 @@ function ClientDetailPage({ client, onBack, onSave }) {
       setSaveError(err.response?.data ? JSON.stringify(err.response.data) : err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ── DELETE /core/customers/{id}/
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await AxiosInstance.delete(`/core/customers/${client.customerid}/`);
+      onDelete(client.customerid); // remove from parent list and go back
+    } catch (err) {
+      setSaveError(err.response?.data ? JSON.stringify(err.response.data) : err.message);
+      setConfirmOpen(false);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -431,18 +443,45 @@ function ClientDetailPage({ client, onBack, onSave }) {
     { label: "Email",      key: "email" },      { label: "Phone",     key: "phonenumber" },
   ];
   const addressFields = [
-    { label: "Street", key: "street" }, { label: "City",        key: "city" },
-    { label: "Province", key: "province" }, { label: "Postal Code", key: "postalcode" },
+    { label: "Street",      key: "street" },  { label: "City",        key: "city" },
+    { label: "Province",    key: "province" }, { label: "Postal Code", key: "postalcode" },
   ];
 
   return (
     <Box sx={{ flex: 1, p: 3, overflowY: "auto", maxWidth: 680 }}>
       {lightbox !== null && <PhotoLightbox photos={form.photos} startIndex={lightbox} onClose={() => setLightbox(null)} />}
 
-      <Button startIcon={<ArrowBackIcon />} onClick={onBack} sx={{ color: GREEN, fontWeight: 700, mb: 2, textTransform: "none", pl: 0 }}>
+      {/* ── Confirm Delete Dialog ── */}
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+        <DialogTitle sx={{ fontWeight: 800, color: GREEN }}>Delete Client</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete <strong>{client.firstname} {client.lastname}</strong>?
+            This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setConfirmOpen(false)} sx={{ color: "text.secondary", textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleDelete}
+            disabled={deleting}
+            startIcon={deleting ? <CircularProgress size={14} color="inherit" /> : <DeleteForeverIcon />}
+            sx={{ bgcolor: "#c62828", "&:hover": { bgcolor: "#b71c1c" }, borderRadius: 2, textTransform: "none", fontWeight: 700 }}
+          >
+            {deleting ? "Deleting…" : "Yes, Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Button startIcon={<ArrowBackIcon />} onClick={onBack}
+        sx={{ color: GREEN, fontWeight: 700, mb: 2, textTransform: "none", pl: 0 }}>
         Back to Client List
       </Button>
 
+      {/* ── Header card ── */}
       <Paper elevation={0} sx={{ border: `1.5px solid ${GREEN_LIGHT}`, borderRadius: 3, p: 3, mb: 3 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
           <Avatar src={form.photos[0]?.dataUrl} sx={{ bgcolor: GREEN, width: 56, height: 56, fontWeight: 800, fontSize: "1.3rem" }}>
@@ -454,15 +493,28 @@ function ClientDetailPage({ client, onBack, onSave }) {
             </Typography>
             <Typography variant="body2" color="text.secondary">{form.email}</Typography>
           </Box>
+
+          {/* ── Edit + Delete buttons ── */}
           {!editing && (
-            <Tooltip title="Edit client">
-              <IconButton onClick={() => setEditing(true)} sx={{ color: GREEN, border: `1.5px solid ${GREEN_LIGHT}`, borderRadius: 2 }}>
-                <EditIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Tooltip title="Edit client">
+                <IconButton onClick={() => setEditing(true)}
+                  sx={{ color: GREEN, border: `1.5px solid ${GREEN_LIGHT}`, borderRadius: 2 }}>
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Delete client">
+                <IconButton onClick={() => setConfirmOpen(true)}
+                  sx={{ color: "#c62828", border: "1.5px solid #fecdd3", borderRadius: 2, "&:hover": { bgcolor: "#fef2f2" } }}>
+                  <DeleteForeverIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
           )}
         </Box>
+
         <Divider sx={{ mb: 2 }} />
+
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
           {personalFields.map(({ label, key }) => (
             <Box key={key}>
@@ -480,6 +532,7 @@ function ClientDetailPage({ client, onBack, onSave }) {
         </Box>
       </Paper>
 
+      {/* ── Address card ── */}
       <Paper elevation={0} sx={{ border: `1.5px solid ${GREEN_LIGHT}`, borderRadius: 3, p: 3, mb: 3 }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 700, color: GREEN, mb: 1.5 }}>Address</Typography>
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
@@ -499,6 +552,7 @@ function ClientDetailPage({ client, onBack, onSave }) {
         </Box>
       </Paper>
 
+      {/* ── Photos card ── */}
       <Paper elevation={0} sx={{ border: `1.5px solid ${GREEN_LIGHT}`, borderRadius: 3, p: 3 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, color: GREEN }}>
@@ -520,16 +574,23 @@ function ClientDetailPage({ client, onBack, onSave }) {
         ) : (
           <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 1.5 }}>
             {form.photos.map((photo, idx) => (
-              <Box key={photo.id} sx={{ position: "relative", borderRadius: 2, overflow: "hidden", aspectRatio: "1", cursor: "pointer", "&:hover .delete-btn": { opacity: 1 }, "&:hover img": { filter: "brightness(0.85)" } }}>
-                <Box component="img" src={photo.dataUrl} alt={photo.name} onClick={() => setLightbox(idx)} sx={{ width: "100%", height: "100%", objectFit: "cover", transition: "filter 0.15s", display: "block" }} />
-                <IconButton className="delete-btn" size="small" onClick={e => { e.stopPropagation(); handleDeletePhoto(photo.id); }}
-                  sx={{ position: "absolute", top: 4, right: 4, bgcolor: "rgba(0,0,0,0.6)", color: "#fff", opacity: 0, transition: "opacity 0.15s", width: 26, height: 26, "&:hover": { bgcolor: "rgba(200,0,0,0.8)" } }}>
+              <Box key={photo.id} sx={{ position: "relative", borderRadius: 2, overflow: "hidden", aspectRatio: "1", cursor: "pointer",
+                "&:hover .delete-btn": { opacity: 1 }, "&:hover img": { filter: "brightness(0.85)" } }}>
+                <Box component="img" src={photo.dataUrl} alt={photo.name} onClick={() => setLightbox(idx)}
+                  sx={{ width: "100%", height: "100%", objectFit: "cover", transition: "filter 0.15s", display: "block" }} />
+                <IconButton className="delete-btn" size="small"
+                  onClick={e => { e.stopPropagation(); handleDeletePhoto(photo.id); }}
+                  sx={{ position: "absolute", top: 4, right: 4, bgcolor: "rgba(0,0,0,0.6)", color: "#fff",
+                    opacity: 0, transition: "opacity 0.15s", width: 26, height: 26, "&:hover": { bgcolor: "rgba(200,0,0,0.8)" } }}>
                   <DeleteIcon sx={{ fontSize: 14 }} />
                 </IconButton>
               </Box>
             ))}
             <Box onClick={() => fileInputRef.current.click()}
-              sx={{ aspectRatio: "1", borderRadius: 2, border: `2px dashed ${GREEN_LIGHT}`, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "text.secondary", "&:hover": { borderColor: GREEN, color: GREEN, bgcolor: GREEN_LIGHT }, transition: "all 0.15s" }}>
+              sx={{ aspectRatio: "1", borderRadius: 2, border: `2px dashed ${GREEN_LIGHT}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", color: "text.secondary",
+                "&:hover": { borderColor: GREEN, color: GREEN, bgcolor: GREEN_LIGHT }, transition: "all 0.15s" }}>
               <AddPhotoAlternateIcon sx={{ fontSize: 28, opacity: 0.5 }} />
             </Box>
           </Box>
@@ -540,7 +601,8 @@ function ClientDetailPage({ client, onBack, onSave }) {
 
       {editing && (
         <Box sx={{ display: "flex", gap: 1.5, mt: 2.5 }}>
-          <Button variant="contained" startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+          <Button variant="contained"
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
             onClick={handleSave} disabled={saving}
             sx={{ bgcolor: GREEN, "&:hover": { bgcolor: GREEN_MID }, borderRadius: 2, textTransform: "none", fontWeight: 700 }}>
             {saving ? "Saving…" : "Save Changes"}
@@ -554,7 +616,6 @@ function ClientDetailPage({ client, onBack, onSave }) {
     </Box>
   );
 }
-
 // ─── Main List Page ───────────────────────────────────────────────────────────
 export default function EmployeeClientList() {
   const [clients, setClients]       = useState([]);
@@ -567,7 +628,7 @@ export default function EmployeeClientList() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    api.get("/customers/")
+    AxiosInstance.get("/core/customers/")
       .then(({ data }) => {
         if (cancelled) return;
         const raw = Array.isArray(data) ? data : (data.results ?? []);
@@ -588,11 +649,20 @@ export default function EmployeeClientList() {
 
   const handleSave    = (updated) => setClients(prev => prev.map(c => c.customerid === updated.customerid ? updated : c));
   const handleCreated = (newClient) => setClients(prev => [newClient, ...prev]);
+  const handleDelete = (deletedId) => {
+    setClients(prev => prev.filter(c => c.customerid !== deletedId));
+    setSelectedId(null); // go back to list
+  };
 
   if (selectedClient) {
     return (
       <Box sx={{ display: "flex", height: "100%" }}>
-        <ClientDetailPage client={selectedClient} onBack={() => setSelectedId(null)} onSave={handleSave} />
+        <ClientDetailPage
+          client={selectedClient}
+          onBack={() => setSelectedId(null)}
+          onSave={handleSave}
+          onDelete={handleDelete}
+        />
       </Box>
     );
   }

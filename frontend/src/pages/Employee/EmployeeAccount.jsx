@@ -7,10 +7,17 @@ import {
   Button,
   Divider,
   Avatar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  CircularProgress,
 } from "@mui/material";
 import AxiosInstance from "../../components/AxiosInstance";
 
 const GREEN = "#1c3d37";
+const GREEN_MID = "#2e6b5e";
 
 export default function EmployeeAccount() {
   const [employeeId, setEmployeeId] = useState(localStorage.getItem("employee_id") || "");
@@ -29,6 +36,11 @@ export default function EmployeeAccount() {
 
   const [previewImage, setPreviewImage] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Confirmation dialog state
+  const [emailConfirmOpen, setEmailConfirmOpen] = useState(false);
+  const [passwordConfirmOpen, setPasswordConfirmOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -82,15 +94,6 @@ export default function EmployeeAccount() {
           email: profile.email,
         });
       }
-
-      try {
-        await AxiosInstance.post("change-email/", {
-          email: profile.email,
-        });
-      } catch (emailErr) {
-        console.warn("Email update endpoint warning:", emailErr);
-      }
-
       localStorage.setItem("email", profile.email);
       localStorage.setItem("first_name", profile.firstname);
       localStorage.setItem("last_name", profile.lastname);
@@ -101,34 +104,81 @@ export default function EmployeeAccount() {
     }
   };
 
-  const handleChangePassword = async () => {
-    if (!password.old_password || !password.new_password || !password.confirm) {
-      alert("Please fill in all password fields.");
-      return;
+  // ── Email confirmation ──
+  const handleEmailConfirm = async () => {
+    setSaving(true);
+    try {
+      if (employeeId) {
+        await AxiosInstance.patch(`core/employees/${employeeId}/`, {
+          email: profile.email,
+        });
+      }
+      try {
+        await AxiosInstance.post("change-email/", { email: profile.email });
+      } catch (emailErr) {
+        console.warn("Email update endpoint warning:", emailErr);
+      }
+      localStorage.setItem("email", profile.email);
+      setEmailConfirmOpen(false);
+      alert("Email updated successfully.");
+    } catch (error) {
+      console.error("Email update error:", error);
+      alert("Email update failed.");
+    } finally {
+      setSaving(false);
     }
+  };
 
-    if (password.new_password !== password.confirm) {
-      alert("New password and confirm password do not match.");
-      return;
-    }
-
+  // ── Password confirmation ──
+  const handlePasswordConfirm = async () => {
+    setSaving(true);
     try {
       await AxiosInstance.post("change-password/", {
         old_password: password.old_password,
         new_password: password.new_password,
       });
-
+      setPasswordConfirmOpen(false);
       alert("Password changed successfully.");
-      setPassword({
-        old_password: "",
-        new_password: "",
-        confirm: "",
-      });
+      setPassword({ old_password: "", new_password: "", confirm: "" });
     } catch (error) {
       console.error("Password change error:", error);
-      alert("Password update failed.");
+      alert("Password update failed. Make sure your current password is correct and that new password falls within guidelines");
+    } finally {
+      setSaving(false);
     }
   };
+
+  // ── Validate before opening password dialog ──
+  const handleChangePasswordClick = () => {
+    if (!password.old_password || !password.new_password || !password.confirm) {
+      alert("Please fill in all password fields.");
+      return;
+    }
+    if (password.new_password !== password.confirm) {
+      alert("New password and confirm password do not match.");
+      return;
+    }
+    setPasswordConfirmOpen(true);
+  };
+
+  const btnStyle = {
+    bgcolor: GREEN,
+    "&:hover": { bgcolor: GREEN_MID },
+    borderRadius: 2,
+    textTransform: "none",
+    fontWeight: 700,
+  };
+
+  const outlinedBtnStyle = {
+    color: GREEN,
+    borderColor: GREEN,
+    borderRadius: 2,
+    textTransform: "none",
+    fontWeight: 700,
+    "&:hover": { borderColor: GREEN_MID, color: GREEN_MID },
+  };
+
+  const cancelBtnStyle = { color: "text.secondary", textTransform: "none" };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -136,10 +186,60 @@ export default function EmployeeAccount() {
         Account Settings
       </Typography>
 
+      {/* ── Email Confirmation Dialog ── */}
+      <Dialog open={emailConfirmOpen} onClose={() => !saving && setEmailConfirmOpen(false)}>
+        <DialogTitle sx={{ fontWeight: 800, color: GREEN }}>Update Email</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to change your email to{" "}
+            <strong>{profile.email}</strong>? You may need to verify your new email address.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setEmailConfirmOpen(false)} disabled={saving} sx={cancelBtnStyle}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleEmailConfirm}
+            disabled={saving}
+            endIcon={saving && <CircularProgress size={14} color="inherit" />}
+            sx={btnStyle}
+          >
+            {saving ? "Updating…" : "Yes, Update Email"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Password Confirmation Dialog ── */}
+      <Dialog open={passwordConfirmOpen} onClose={() => !saving && setPasswordConfirmOpen(false)}>
+        <DialogTitle sx={{ fontWeight: 800, color: GREEN }}>Change Password</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to change your password? You will need to use your new password next time you log in.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setPasswordConfirmOpen(false)} disabled={saving} sx={cancelBtnStyle}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handlePasswordConfirm}
+            disabled={saving}
+            endIcon={saving && <CircularProgress size={14} color="inherit" />}
+            sx={btnStyle}
+          >
+            {saving ? "Changing…" : "Yes, Change Password"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {loading ? (
         <Typography>Loading account...</Typography>
       ) : (
         <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+          {/* ── Profile Info ── */}
           <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
               Profile Information
@@ -148,17 +248,12 @@ export default function EmployeeAccount() {
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 3 }}>
               <Avatar
                 src={previewImage || localStorage.getItem("profileImage") || ""}
-                sx={{
-                  width: 100,
-                  height: 100,
-                  mb: 2,
-                  border: `2px solid ${GREEN}`,
-                }}
+                sx={{ width: 100, height: 100, mb: 2, border: `2px solid ${GREEN}` }}
               >
                 {!previewImage && profile.firstname?.[0]?.toUpperCase()}
               </Avatar>
 
-              <Button variant="outlined" component="label" sx={{ color: GREEN, borderColor: GREEN }}>
+              <Button variant="outlined" component="label" sx={outlinedBtnStyle}>
                 Upload Profile Picture
                 <input type="file" hidden accept="image/*" onChange={handleImageChange} />
               </Button>
@@ -175,27 +270,25 @@ export default function EmployeeAccount() {
                 onChange={(e) => handleProfileChange("firstname", e.target.value)}
                 fullWidth
               />
-
               <TextField
                 label="Last Name"
                 value={profile.lastname}
                 onChange={(e) => handleProfileChange("lastname", e.target.value)}
                 fullWidth
               />
-
               <TextField
                 label="Phone Number"
                 value={profile.phonenumber}
                 onChange={(e) => handleProfileChange("phonenumber", e.target.value)}
                 fullWidth
               />
-
-              <Button variant="contained" onClick={handleSaveProfile} sx={{ bgcolor: GREEN }}>
+              <Button variant="contained" onClick={handleSaveProfile} sx={btnStyle}>
                 Save Profile
               </Button>
             </Box>
           </Paper>
 
+          {/* ── Security ── */}
           <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
               Security
@@ -209,8 +302,11 @@ export default function EmployeeAccount() {
                 onChange={(e) => handleProfileChange("email", e.target.value)}
                 fullWidth
               />
-
-              <Button variant="outlined" onClick={handleSaveProfile} sx={{ color: GREEN, borderColor: GREEN }}>
+              <Button
+                variant="outlined"
+                onClick={() => setEmailConfirmOpen(true)}
+                sx={outlinedBtnStyle}
+              >
                 Update Email
               </Button>
 
@@ -223,7 +319,6 @@ export default function EmployeeAccount() {
                 onChange={(e) => setPassword((prev) => ({ ...prev, old_password: e.target.value }))}
                 fullWidth
               />
-
               <TextField
                 label="New Password"
                 type="password"
@@ -231,7 +326,6 @@ export default function EmployeeAccount() {
                 onChange={(e) => setPassword((prev) => ({ ...prev, new_password: e.target.value }))}
                 fullWidth
               />
-
               <TextField
                 label="Confirm New Password"
                 type="password"
@@ -239,8 +333,7 @@ export default function EmployeeAccount() {
                 onChange={(e) => setPassword((prev) => ({ ...prev, confirm: e.target.value }))}
                 fullWidth
               />
-
-              <Button variant="contained" onClick={handleChangePassword} sx={{ bgcolor: GREEN }}>
+              <Button variant="contained" onClick={handleChangePasswordClick} sx={btnStyle}>
                 Change Password
               </Button>
             </Box>
