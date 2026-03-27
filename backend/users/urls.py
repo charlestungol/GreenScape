@@ -14,6 +14,7 @@ from .views import (
     GoogleSignInView,
     CompleteCustomerProfileViewset,
     CookieTokenRefreshView,
+    RecaptchaGateAPIView
 )
 
 router = DefaultRouter()
@@ -32,7 +33,8 @@ urlpatterns = [
     path("email-verified/", EmailVerifiedRedirectView, name="email_verified"),
     path("google/", GoogleSignInView.as_view(), name="google-signin"),
     path("customers/complete-profile/", CompleteCustomerProfileViewset.as_view(), name="complete-profile"),
-    path("refresh/", CookieTokenRefreshView.as_view(), name = 'token-refresh')
+    path("refresh/", CookieTokenRefreshView.as_view(), name = 'token-refresh'),
+    path("recaptcha/verify", RecaptchaGateAPIView.as_view(), name="recaptcha-verify"),
 ]
 
 urlpatterns += router.urls

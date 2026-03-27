@@ -64,7 +64,7 @@ class CustomerSerializer(serializers.ModelSerializer):
     lastname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
     email = serializers.EmailField(
     source="user.email",
-    validators=[strip_string, prevent_control_characters, validate_max_length(200)],
+    validators=[strip_string, prevent_control_characters, validate_max_length(100)],
     required=False
     )
     phonenumber = serializers.CharField(validators=[validate_phone])
@@ -82,7 +82,34 @@ class CustomerSerializer(serializers.ModelSerializer):
         model = Customer
         fields = ["customerid", "address", "addressid", "firstname", "lastname", "email", "phonenumber"]
         read_only_fields = ["customerid"]
+    
+    @transaction.atomic
+    def create(self, validated_data):
+        # Pull out the nested user dict (comes from email's source="user.email")
+        user_data = validated_data.pop("user", None)
+        
+        # addressid is an Address instance (resolved by PrimaryKeyRelatedField)
+        # It's already in validated_data as the correct key, so just create directly
+        customer = Customer.objects.create(**validated_data)
+        
+        # If an email was provided, create a user and link it to the customer
+        if user_data and user_data.get("email"):
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            email = user_data["email"]
 
+            if User.objects.filter(email=email).exists():
+                raise serializers.ValidationError(
+                    {"email": "A client with this email already exists."}
+                )
+            
+            # Create user — no password, they can set one later via invite/reset
+            user = User.objects.create_user(email=email, password=None)
+            customer.user = user
+            customer.save(update_fields=["user"])
+        
+        return customer
+    
     @transaction.atomic
     def update(self, instance, validated_data):
         """
@@ -150,6 +177,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+    
 
     
 # Service Type

@@ -47,7 +47,7 @@ class Command(BaseCommand):
         # Create groups and apply permissions per role
         for role_name, actions in ROLE_POLICY.items():
             group, _ = Group.objects.get_or_create(name=role_name)
-            # Start clean (comment out if you prefer incremental)
+            # Start clean
             group.permissions.clear()
 
             for action_map in model_perms.values():

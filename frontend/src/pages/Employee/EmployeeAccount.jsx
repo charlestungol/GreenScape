@@ -1,331 +1,407 @@
-import React, { useState, useEffect } from "react";
-import { Box, Typography, Paper, TextField, Button, Divider, Avatar } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Typography,
+  Paper,
+  TextField,
+  Button,
+  Divider,
+  Avatar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  CircularProgress,
+} from "@mui/material";
 import AxiosInstance from "../../components/AxiosInstance";
 
+const GREEN = "#1c3d37";
+const GREEN_MID = "#2e6b5e";
+
 export default function EmployeeAccount() {
-  const navigate = useNavigate();
-
-  const userId = localStorage.getItem("user_id");
-  const storedFirst = (localStorage.getItem(`user_${userId}_first_name`) || "").trim();
-
+  const [employeeId, setEmployeeId] = useState(localStorage.getItem("employee_id") || "");
   const [profile, setProfile] = useState({
-    name: storedFirst || "Employee",
-    email: "employee@greenscape.com",
+    firstname: "",
+    lastname: "",
+    phonenumber: "",
+    email: localStorage.getItem("email") || "",
   });
 
   const [password, setPassword] = useState({
-    current: "",
-    next: "",
-    confirm: ""
+    old_password: "",
+    new_password: "",
+    confirm: "",
   });
 
-  const [imagePreview, setImagePreview] = useState(null);
-  const [profileImage, setProfileImage] = useState(null);
-  const [imageFile, setImageFile] = useState(null);
+  const [emailCurrentPassword, setEmailCurrentPassword] = useState("");
+  const [previewImage, setPreviewImage] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const [emailConfirmOpen, setEmailConfirmOpen] = useState(false);
+  const [passwordConfirmOpen, setPasswordConfirmOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-  const fetchProfileImage = async () => {
-    try {
-      const response = await AxiosInstance.get("/core/user-images/");
+    const loadProfile = async () => {
+      try {
+        const res = await AxiosInstance.get("core/employees/");
+        const rows = res.data?.results || res.data || [];
+        const myRow =
+          rows.find((r) => String(r.employeeid) === String(employeeId)) ||
+          rows[0] ||
+          null;
 
-      if (response.data.length > 0) {
-        const latestImage = response.data.at(-1);
-
-        setProfileImage(
-          `${process.env.REACT_APP_API_URL}/core/user-images/${latestImage.id}/bytes/`
-        );
+        if (myRow) {
+          setEmployeeId(String(myRow.employeeid));
+          setProfile({
+            firstname: myRow.firstname || "",
+            lastname: myRow.lastname || "",
+            phonenumber: myRow.phonenumber || "",
+            email: myRow.email || localStorage.getItem("email") || "",
+          });
+        }
+      } catch (error) {
+        console.error("Account load error:", error);
+      } finally {
+        setLoading(false);
       }
+    };
 
-    } catch (error) {
-      console.log("No profile image yet");
-    }
+    loadProfile();
+  }, [employeeId]);
+
+  const handleProfileChange = (field, value) => {
+    setProfile((prev) => ({ ...prev, [field]: value }));
   };
-
-  fetchProfileImage();
-}, []);
-
-  const handleUpload = async (file) => {
-  const formData = new FormData();
-  formData.append("image", file);
-
-  const response = await AxiosInstance.post(
-    "/core/user-images/",
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
-
-  return response.data;
-};
 
   const handleImageChange = (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  if (imagePreview) {
-    URL.revokeObjectURL(imagePreview);
-  }
-
-  setImageFile(file);
-  setImagePreview(URL.createObjectURL(file));
-};
-
-  const handleSaveProfile = async () => {
-  if (!imageFile) {
-    alert("Please select an image first.");
-    return;
-  }
-  try {
-    const data = await handleUpload(imageFile);
-
-    setProfileImage(
-      `${process.env.REACT_APP_API_URL}/core/user-images/${data.id}/bytes/`
-    );
-
-    setImagePreview(null);
-    setImageFile(null);
-
-    alert("Profile updated!");
-
-  } catch (error) {
-    console.error("Profile update error:", error);
-    alert("Failed to update profile");
-  }
-};
-  const handleChangePassword = () => {
-    if (!password.next || password.next !== password.confirm) {
-      alert("New password and confirm password must match.");
-      return;
+    const file = event.target.files?.[0];
+    if (file) {
+      const preview = URL.createObjectURL(file);
+      setPreviewImage(preview);
+      localStorage.setItem("profileImage", preview);
     }
-
-    alert("Password changed (frontend only). Connect to backend later.");
-
-    setPassword({ current: "",  next: "",  confirm: ""});
   };
 
-  const handleLogout = async () => {
+  const handleSaveProfile = async () => {
     try {
-      await AxiosInstance.post("/dj-rest-auth/logout/");
+      if (employeeId) {
+        await AxiosInstance.patch(`core/employees/me/`, {
+          firstname: profile.firstname,
+          lastname: profile.lastname,
+          phonenumber: profile.phonenumber,
+          email: profile.email,
+        });
+      }
+      localStorage.setItem("email", profile.email);
+      localStorage.setItem("first_name", profile.firstname);
+      localStorage.setItem("last_name", profile.lastname);
+      alert("Profile updated successfully.");
     } catch (error) {
-      console.log("Logout error:", error);
+      console.error("Profile update error:", error);
+      alert("Profile update failed.");
     }
+  };
 
-    if (userId) {
-      localStorage.removeItem(`user_${userId}_first_name`);
-      localStorage.removeItem(`user_${userId}_last_name`);
-      localStorage.removeItem(`user_${userId}_role`);
-      localStorage.removeItem(`user_${userId}_email`);
+  const handleUpdateEmailClick = async () => {
+  if (!profile.email) {
+    alert("Please enter a new email address.");
+    return;
+  }
+  if (!emailCurrentPassword) {
+    alert("Please enter your current password to update your email.");
+    return;
+  }
+    setEmailConfirmOpen(true); // only opens if password was correct
+};
+
+  const handleEmailConfirm = async () => {
+    setSaving(true);
+    try {
+      if (employeeId) {
+        await AxiosInstance.patch(`core/employees/me/`, {
+          email: profile.email,
+        });
+      }
+      try {
+        await AxiosInstance.post("change-email/", {
+          email: profile.email,
+          current_password: emailCurrentPassword,
+        });
+      } catch (emailErr) {
+        console.warn("Email update endpoint warning:", emailErr);
+      }
+      localStorage.setItem("email", profile.email);
+      setEmailConfirmOpen(false);
+      setEmailCurrentPassword("");
+      alert("Email updated successfully.");
+    } catch (error) {
+      console.error("Email update error:", error);
+      alert("Email update failed.");
+    } finally {
+      setSaving(false);
     }
+  };
 
-    localStorage.removeItem("user_id");
-    navigate("/");
+  const handlePasswordConfirm = async () => {
+    setSaving(true);
+    try {
+      await AxiosInstance.post("change-password/", {
+        old_password: password.old_password,
+        new_password: password.new_password,
+      });
+      setPasswordConfirmOpen(false);
+      alert("Password changed successfully.");
+      setPassword({ old_password: "", new_password: "", confirm: "" });
+    } catch (error) {
+      console.error("Password change error:", error);
+      alert("Password update failed. Make sure your current password is correct and that new password falls within guidelines.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChangePasswordClick = () => {
+    if (!password.old_password || !password.new_password || !password.confirm) {
+      alert("Please fill in all password fields.");
+      return;
+    }
+    if (password.new_password !== password.confirm) {
+      alert("New password and confirm password do not match.");
+      return;
+    }
+    setPasswordConfirmOpen(true);
+  };
+
+  // ── Shared style tokens (mirrored from AdminDashboard) ──
+  const btnStyle = {
+    bgcolor: GREEN,
+    "&:hover": { bgcolor: GREEN_MID },
+    borderRadius: 2,
+    textTransform: "none",
+    fontWeight: 800,
+  };
+
+  const outlinedBtnStyle = {
+    color: GREEN,
+    borderColor: GREEN,
+    borderRadius: 2,
+    textTransform: "none",
+    fontWeight: 800,
+    "&:hover": { borderColor: GREEN_MID, color: GREEN_MID },
+  };
+
+  const cancelBtnStyle = {
+    color: "text.secondary",
+    textTransform: "none",
+    fontWeight: 800,
   };
 
   return (
     <Box sx={{ p: 3 }}>
-
-      <Typography
-        variant="h4"
-        sx={{ fontWeight: 900, color: "#06632b", mb: 3 }}
-      >
-        My Account
+      <Typography variant="h4" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
+        Account Settings
       </Typography>
 
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 3
-        }}
-      >
-
-        {/* PROFILE CARD */}
-
-        <Paper elevation={2} sx={{ p: 3, borderRadius: 3 }}>
-
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 3,
-              mb: 3
-            }}
+      {/* ── Email Confirmation Dialog ── */}
+      <Dialog open={emailConfirmOpen} onClose={() => !saving && setEmailConfirmOpen(false)}>
+        <DialogTitle sx={{ fontWeight: 800, color: GREEN }}>Update Email</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to change your email to{" "}
+            <strong>{profile.email}</strong>? You may need to verify your new
+            email address.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setEmailConfirmOpen(false)}
+            disabled={saving}
+            sx={cancelBtnStyle}
           >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleEmailConfirm}
+            disabled={saving}
+            endIcon={saving && <CircularProgress size={14} color="inherit" />}
+            sx={btnStyle}
+          >
+            {saving ? "Updating…" : "Yes, Update Email"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-            <Box>
+      {/* ── Password Confirmation Dialog ── */}
+      <Dialog
+        open={passwordConfirmOpen}
+        onClose={() => !saving && setPasswordConfirmOpen(false)}
+      >
+        <DialogTitle sx={{ fontWeight: 800, color: GREEN }}>Change Password</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to change your password? You will need to use
+            your new password next time you log in.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setPasswordConfirmOpen(false)}
+            disabled={saving}
+            sx={cancelBtnStyle}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handlePasswordConfirm}
+            disabled={saving}
+            endIcon={saving && <CircularProgress size={14} color="inherit" />}
+            sx={btnStyle}
+          >
+            {saving ? "Changing…" : "Yes, Change Password"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
+      {loading ? (
+        <Typography sx={{ color: GREEN }}>Loading account...</Typography>
+      ) : (
+        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+          {/* ── Profile Info ── */}
+          <Paper elevation={1} sx={{ p: 2, borderRadius: 2, display: "flex", flexDirection: "column" }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
+              Profile Information
+            </Typography>
+
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                mb: 2,
+              }}
+            >
               <Avatar
-                src={imagePreview || profileImage || ""}
-                sx={{
-                  width: 96,
-                  height: 96,
-                  fontSize: 40,
-                  bgcolor: "#1e211f"
-                }}
+                src={previewImage || localStorage.getItem("profileImage") || ""}
+                sx={{ width: 100, height: 100, mb: 2, border: `2px solid ${GREEN}` }}
               >
-                {!(imagePreview || profileImage) && (profile.name?.[0]?.toUpperCase() || "E")}
+                {!previewImage && profile.firstname?.[0]?.toUpperCase()}
               </Avatar>
 
-              <Button
-                component="label"
-                size="small"
-                sx={{ mt: 1 }}
-              >
-                Upload Photo
-                <input
-                  hidden
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                />
+              <Button variant="outlined" component="label" sx={outlinedBtnStyle}>
+                Upload Profile Picture
+                <input type="file" hidden accept="image/*" onChange={handleImageChange} />
               </Button>
 
-            </Box>
-
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 900 }}>
-                {profile.name}
-              </Typography>
-
-              <Typography variant="body2" sx={{ opacity: 0.7 }}>
-                {profile.email}
+              <Typography variant="body2" sx={{ mt: 1, opacity: 0.7, color: GREEN }}>
+                Preview works now. Saving profile pictures to backend still needs
+                an image upload endpoint.
               </Typography>
             </Box>
 
-          </Box>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2, flexGrow: 1 }}>
+              <TextField
+                label="First Name"
+                value={profile.firstname}
+                onChange={(e) => handleProfileChange("firstname", e.target.value)}
+                fullWidth
+                slotProps={{ htmlInput: { maxLength: 50 } }}
+              />
+              <TextField
+                label="Last Name"
+                value={profile.lastname}
+                onChange={(e) => handleProfileChange("lastname", e.target.value)}
+                fullWidth
+                slotProps={{ htmlInput: { maxLength: 50 } }}
+              />
+              <TextField
+                label="Phone Number"
+                value={profile.phonenumber}
+                onChange={(e) => handleProfileChange("phonenumber", e.target.value)}
+                fullWidth
+                slotProps={{ htmlInput: { maxLength: 12 } }}
+              />
+              <Button variant="contained" onClick={handleSaveProfile} sx={{ ...btnStyle, mt: "auto" }}>
+                Save Profile
+              </Button>
+            </Box>
+          </Paper>
 
-          <Divider sx={{ mb: 2 }} />
+          {/* ── Security ── */}
+          <Paper elevation={1} sx={{ p: 2, borderRadius: 2, display: "flex", flexDirection: "column" }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
+              Security
+            </Typography>
 
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 900, color: "#06632b", mb: 2 }}
-          >
-            Edit Credentials
-          </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2, flexGrow: 1 }}>
+              {/* ── Email Section ── */}
+              <TextField
+                label="New Email"
+                type="email"
+                value={profile.email}
+                onChange={(e) => handleProfileChange("email", e.target.value)}
+                fullWidth
+                slotProps={{ htmlInput: { maxLength: 50 } }}
+              />
+              <TextField
+                label="Current Password"
+                type="password"
+                value={emailCurrentPassword}
+                onChange={(e) => setEmailCurrentPassword(e.target.value)}
+                fullWidth
+                slotProps={{ htmlInput: { maxLength: 16 } }}
+              />
+              <Button
+                variant="outlined"
+                onClick={handleUpdateEmailClick}
+                sx={outlinedBtnStyle}
+              >
+                Update Email
+              </Button>
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Divider sx={{ my: 1 }} />
 
-            <TextField
-              label="Name"
-              value={profile.name}
-              onChange={(e) =>
-                setProfile((p) => ({
-                  ...p,
-                  name: e.target.value
-                }))
-              }
-            />
-
-            <TextField
-              label="Email"
-              value={profile.email}
-              onChange={(e) =>
-                setProfile((p) => ({
-                  ...p,
-                  email: e.target.value
-                }))
-              }
-            />
-
-            <Button
-              variant="contained"
-              sx={{
-                mt: 1,
-                backgroundColor: "#06632b",
-                "&:hover": { backgroundColor: "#04481f" }
-              }}
-              onClick={handleSaveProfile}
-            >
-              Save Profile
-            </Button>
-
-          </Box>
-        </Paper>
-
-
-        {/* PASSWORD + LOGOUT */}
-
-        <Paper elevation={2} sx={{ p: 3, borderRadius: 3 }}>
-
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 900, color: "#06632b", mb: 2 }}
-          >
-            Change Password
-          </Typography>
-
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-
-            <TextField
-              label="Current Password"
-              type="password"
-              value={password.current}
-              onChange={(e) =>
-                setPassword((p) => ({
-                  ...p,
-                  current: e.target.value
-                }))
-              }
-            />
-
-            <TextField
-              label="New Password"
-              type="password"
-              value={password.next}
-              onChange={(e) =>
-                setPassword((p) => ({
-                  ...p,
-                  next: e.target.value
-                }))
-              }
-            />
-
-            <TextField
-              label="Confirm New Password"
-              type="password"
-              value={password.confirm}
-              onChange={(e) =>
-                setPassword((p) => ({
-                  ...p,
-                  confirm: e.target.value
-                }))
-              }
-            />
-
-            <Button
-              variant="outlined"
-              onClick={handleChangePassword}
-            >
-              Update Password
-            </Button>
-
-          </Box>
-
-          <Divider sx={{ my: 3 }} />
-
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 900, color: "#06632b", mb: 1 }}
-          >
-            Logout
-          </Typography>
-
-          <Button
-            color="error"
-            variant="contained"
-            onClick={handleLogout}
-          >
-            Log out
-          </Button>
-
-        </Paper>
-
-      </Box>
-
+              {/* ── Password Section ── */}
+              <TextField
+                label="Current Password"
+                type="password"
+                value={password.old_password}
+                onChange={(e) =>
+                  setPassword((prev) => ({ ...prev, old_password: e.target.value }))
+                }
+                fullWidth
+                slotProps={{ htmlInput: { maxLength: 16 } }}
+              />
+              <TextField
+                label="New Password"
+                type="password"
+                value={password.new_password}
+                onChange={(e) =>
+                  setPassword((prev) => ({ ...prev, new_password: e.target.value }))
+                }
+                fullWidth
+                slotProps={{ htmlInput: { maxLength: 16 } }}
+              />
+              <TextField
+                label="Confirm New Password"
+                type="password"
+                value={password.confirm}
+                onChange={(e) =>
+                  setPassword((prev) => ({ ...prev, confirm: e.target.value }))
+                }
+                fullWidth
+                slotProps={{ htmlInput: { maxLength: 16 } }}
+              />
+              <Button variant="contained" onClick={handleChangePasswordClick} sx={btnStyle}>
+                Change Password
+              </Button>
+            </Box>
+          </Paper>
+        </Box>
+      )}
     </Box>
   );
 }

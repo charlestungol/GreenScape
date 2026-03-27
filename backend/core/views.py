@@ -1,4 +1,3 @@
-
 # ---------------------------------------------------
 # Standard Library
 # ---------------------------------------------------
@@ -135,7 +134,7 @@ class AddressViewSet(viewsets.ModelViewSet):
         # Return no data if user is not a customer or staff (Security measure).
         return Address.objects.none()
 
-    # Only admin and supervisors can create address data. If customer or employee they use def usurp_me to update or create their own data.
+    # Only admin and supervisors can create address data. If customer or employee they use their own view to update or create their own data.
     def perform_create(self, serializer):
         user = self.request.user
         # If the user is not authenticated it will not allow access.
@@ -538,7 +537,7 @@ class CustomerServiceViewSet(viewsets.ModelViewSet):
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.select_related("customerid", "serviceid").all()
     serializer_class = BookingSerializer
-    permission_classes = [IsAuthenticated]  # Only authenticated users can access
+    permission_classes = [IsOwnerOrStaff]  # Only authenticated users can access
 
     # Getting data
     def get_queryset(self):
@@ -1190,7 +1189,7 @@ class UserImageViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
     # -----------------------------
-    # Get image: 302 redirect to signed URL (best for <img src>)
+    # Get image: 302 redirect to signed URL
     # -----------------------------
     @action(detail=True, methods=["get"], url_path="bytes")
     def get_bytes(self, request, pk=None):
@@ -1208,16 +1207,15 @@ class UserImageViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # 302 redirect to Supabase (bandwidth stays off your server)
+        # 302 redirect to Supabase
         return HttpResponseRedirect(signed)
 
     # -----------------------------
-    # Get image: JSON with signed URL (handy for SPA usage)
+    # Get image: JSON with signed URL
     # -----------------------------
     @action(detail=True, methods=["get"], url_path="url")
     def get_signed_url(self, request, pk=None):
         obj = self.get_object()
-
         user = request.user
         is_admin = user and user.is_authenticated and user.groups.filter(name__in=["Admin", "Supervisor"]).exists()
         if not is_admin and (not user or not user.is_authenticated or obj.user_id != user.id):
@@ -1238,7 +1236,7 @@ class UserImageViewSet(viewsets.ModelViewSet):
 class RequestQuoteViewSet(viewsets.ModelViewSet):
     queryset = RequestQuote.objects.all()
     serializer_class = RequestQuoteSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsOwnerOrStaff]
 
     def get_queryset(self):
         user = self.request.user
