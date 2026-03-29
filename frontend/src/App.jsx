@@ -17,6 +17,7 @@ import Services from './pages/Client/Services';
 import Booking from './pages/Client/Booking';
 import RequestQuote from './pages/Client/RequestQuote';
 import Settings from './pages/Client/Settings';
+import CompleteProfilePage from './pages/Client/CompleteProfilePage';
 
 // Employee/admin pages
 import EmployeeHome from "./pages/EmployeeHome";
@@ -49,6 +50,16 @@ function App() {
       <Route path="/employee-login" element={<EmployeeLogin />} />
       <Route path="/employee-register" element={<EmployeeRegister />} />
       <Route path="/client-register" element={<ClientRegister />} />
+
+      {/* Complete Profile Page */}
+      <Route
+          path="/complete-profile"
+          element={
+            <RouteProtection allowedRole="client">
+              <CompleteProfilePage />
+            </RouteProtection>
+          }
+      />
 
       {/* Pages with Navbar */}
       <Route element={<NavbarWrapper />}>

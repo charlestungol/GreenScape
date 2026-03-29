@@ -1,4 +1,3 @@
-
 # ---------------------------------------------------
 # Django Core & Authentication
 # ---------------------------------------------------
@@ -84,15 +83,10 @@ class ClientLoginSerializer(serializers.Serializer):
 # Serializer for client registration, includes fields for email, password, first name, last name, phone number, and address. 
 # Validates email and password, and creates a new user, address, and customer record in the database within an atomic transaction.
 class ClientRegisterSerializer(serializers.ModelSerializer):
-    first_name = serializers.CharField(required=True, write_only = True, validators=[strip_string, prevent_control_characters, validate_name])
-    last_name = serializers.CharField(required=True, write_only = True, validators=[strip_string, prevent_control_characters, validate_name])
-    phone = serializers.CharField(required=True, write_only = True, validators=[strip_string, prevent_control_characters, validate_phone])
-    address = AddressSerializer(required=True, write_only = True)
-    password = serializers.CharField(write_only=True, validators=[strip_string, validate_max_length(16)])
 
     class Meta:
         model = User
-        fields = ["id", "email", "password", "first_name", "last_name", "phone", "address"]
+        fields = ["id", "email", "password"]
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate_email(self, value):
@@ -112,10 +106,6 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        first_name = validated_data.pop("first_name", "").strip()
-        last_name = validated_data.pop("last_name", "").strip()
-        address_data = validated_data.pop("address")
-        phone_number = validated_data.pop('phone')
         email = validated_data.pop("email")
         password = validated_data.pop("password")
 
@@ -128,20 +118,7 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
             role="client"
         )
 
-        # Create Address
-        address = Address.objects.create(**address_data)
-
-        # Create Customer
-        customer = Customer.objects.create(
-            user = user,
-            firstname = first_name.strip(),
-            lastname = last_name.strip(),
-            phonenumber = phone_number.strip(),
-            addressid = address,
-        )
-
         return user
-
 
 class EmployeeLoginSerializer(serializers.Serializer):
     employee_number = serializers.CharField()
@@ -194,11 +171,7 @@ class EmployeeLoginSerializer(serializers.Serializer):
 # Create a user, and add an employee to db
 class EmployeeRegisterSerializer(serializers.ModelSerializer):
     group = serializers.ChoiceField(write_only=True, required=True, choices=ALLOWED_GROUPS, validators=[strip_string, prevent_control_characters, validate_max_length(254)])
-    # first_name = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
-    # last_name = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
     employee_number = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
-    # staff_status = serializers.ChoiceField( write_only=True, required=False, choices=[("Active", "Active"), ("Inactive", "Inactive")], default="Active")
-    # phone_number = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=10, validators=[strip_string, prevent_control_characters, validate_phone])
     password = serializers.CharField(write_only=True, validators=[strip_string, validate_max_length(16)])
 
     class Meta:
@@ -257,7 +230,7 @@ class CompleteCustomerProfileSerializer(serializers.Serializer):
         user = self.context["request"].user
         if not user or not user.is_authenticated:
             raise serializers.ValidationError("Authentication required.")
-        if hasattr(user, "cusomer") and user.customer is not None:
+        if hasattr(user, "customer") and user.customer is not None:
             raise serializers.ValidationError("Customer profile  already exists.")
         return attrs
     
