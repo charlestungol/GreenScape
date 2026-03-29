@@ -13,7 +13,8 @@ from .views import (
     GoogleSignInView,
     CompleteCustomerProfileViewSet,
     CookieTokenRefreshView,
-    RecaptchaGateAPIView
+    RecaptchaGateAPIView,
+    UserManagementViewSet,
 )
 
 router = DefaultRouter()
@@ -21,6 +22,7 @@ router.register('register/client', ClientRegisterViewSet, basename='client-regis
 router.register('register/employee', EmployeeRegisterViewSet, basename='employee-register')
 router.register('login/client', ClientLoginViewSet, basename='client-login')
 router.register('login/employee', EmployeeLoginViewSet, basename='employee-login')
+router.register(r'users', UserManagementViewSet, basename='users')
 
 urlpatterns = [
     path('change-password/', ChangePasswordViewSet.as_view({'post': 'create'}), name='change-password'),

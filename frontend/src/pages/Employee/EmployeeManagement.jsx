@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import AxiosInstance from "../../components/AxiosInstance";
+import AddEmployeeModal from "../../components/AddEmployeeModal";
 
 const roles = ["Admin", "Supervisor", "Staff"];
 
@@ -28,19 +29,54 @@ export default function EmployeeManagement() {
   const [savingId, setSavingId] = useState(null);
 
   const [openAddDialog, setOpenAddDialog] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({
-    firstname: "",
-    lastname: "",
-    phonenumber: "",
-    role: "",
-  });
+  // const [newEmployee, setNewEmployee] = useState({
+  //   firstname: "",
+  //   lastname: "",
+  //   phonenumber: "",
+  //   role: "",
+  // });
 
-  const loadEmployees = async () => {
+  function mapEmployee(raw) {
+    return {
+      employeeid: raw.employeeid,
+      user_id: raw.user_id,           
+      firstname: raw.firstname ?? "",
+      lastname: raw.lastname ?? "",
+      name: `${raw.firstname ?? ""} ${raw.lastname ?? ""}`.trim(),
+      email: raw.email ?? "",
+      employee_number: raw.employee_number ?? "",
+      phonenumber: raw.phonenumber ?? "",
+      role: raw.role ?? "Staff",
+    };
+  }
+  const loadEmployees = async () => { 
     try {
-      const res = await AxiosInstance.get("core/employees/");
-      setEmployees(res.data?.results ?? res.data ?? []);
+      // Fetch both endpoints in parallel
+      const [empRes, usersRes] = await Promise.all([
+        AxiosInstance.get("core/employees/"),
+        AxiosInstance.get("users/"),
+      ]);
+      
+      const rawEmployees =
+        empRes.data?.results ?? empRes.data ?? [];
+
+      const users = usersRes.data?.results ?? usersRes.data ?? [];
+
+      // Build a lookup table: user_id → role
+      const roleByUserId = users.reduce((acc, user) => {
+        acc[user.id] = user.role;
+        return acc;
+      }, {});
+
+      // Merge role into employee objects
+      const merged = rawEmployees.map((emp) => ({
+        ...mapEmployee(emp),
+        role: roleByUserId[emp.user_id] ?? "Staff", //safe fallback
+      }));
+
+      setEmployees(merged);
     } catch (err) {
-      console.error("Error loading employees:", err);
+      console.error("Error loading employees:", err.response?.status);
       alert("Failed to load employees.");
     }
   };
@@ -61,51 +97,17 @@ export default function EmployeeManagement() {
     try {
       setSavingId(employee.employeeid);
 
-      // Update role separately
       await AxiosInstance.patch(
-        `core/employees/${employee.employeeid}/role/`,
-        {
-          role: employee.role,
-        }
+        `/users/${employee.user_id}/group/`,
+        { group: employee.role }          // ✅ FIX
       );
 
       alert("Role updated successfully.");
     } catch (err) {
       console.error("Error updating role:", err);
-      alert("Failed to update role.", employee.role);
+      alert("Failed to update role.");
     } finally {
       setSavingId(null);
-    }
-  };
-
-  const handleAddEmployee = async () => {
-    const { firstname, lastname, phonenumber, role } = newEmployee;
-
-    if (!firstname || !lastname || !phonenumber || !role) {
-      alert("Please fill all fields.");
-      return;
-    }
-
-    try {
-      await AxiosInstance.post("core/employees/", {
-        firstname,
-        lastname,
-        phonenumber,
-        role,
-      });
-
-      alert("Employee added successfully.");
-      setOpenAddDialog(false);
-      setNewEmployee({
-        firstname: "",
-        lastname: "",
-        phonenumber: "",
-        role: "",
-      });
-      loadEmployees();
-    } catch (err) {
-      console.error("Error adding employee:", err);
-      alert("Failed to add employee.");
     }
   };
 
@@ -154,13 +156,12 @@ export default function EmployeeManagement() {
                 <TableCell>{emp.lastname}</TableCell>
                 <TableCell>{emp.email}</TableCell>
                 <TableCell>{emp.phonenumber}</TableCell>
-
                 {/* ROLE DROPDOWN */}
                 <TableCell>
                   <TextField
                     select
                     size="small"
-                    value={emp.role || ""}
+                    value={emp.role}
                     onChange={(e) =>
                       updateEmployeeField(
                         emp.employeeid,
@@ -202,64 +203,11 @@ export default function EmployeeManagement() {
       </Paper>
 
       {/* ADD EMPLOYEE DIALOG */}
-      <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)}>
-        <DialogTitle>Add Employee</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="First Name"
-            margin="dense"
-            value={newEmployee.firstname}
-            onChange={(e) =>
-              setNewEmployee({ ...newEmployee, firstname: e.target.value })
-            }
-          />
-
-          <TextField
-            fullWidth
-            label="Last Name"
-            margin="dense"
-            value={newEmployee.lastname}
-            onChange={(e) =>
-              setNewEmployee({ ...newEmployee, lastname: e.target.value })
-            }
-          />
-
-          <TextField
-            fullWidth
-            label="Phone"
-            margin="dense"
-            value={newEmployee.phonenumber}
-            onChange={(e) =>
-              setNewEmployee({ ...newEmployee, phonenumber: e.target.value })
-            }
-          />
-
-          <TextField
-            select
-            fullWidth
-            label="Role"
-            margin="dense"
-            value={newEmployee.role}
-            onChange={(e) =>
-              setNewEmployee({ ...newEmployee, role: e.target.value })
-            }
-          >
-            {roles.map((r) => (
-              <MenuItem key={r} value={r}>
-                {r}
-              </MenuItem>
-            ))}
-          </TextField>
-        </DialogContent>
-
-        <DialogActions>
-          <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleAddEmployee}>
-            Add
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <AddEmployeeModal
+        open={openAddDialog}
+        onClose={() => setOpenAddDialog(false)}
+        onCreated={() => loadEmployees()}
+      />
     </Box>
   );
 }

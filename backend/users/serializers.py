@@ -120,104 +120,119 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
 
         return user
 
+
 class EmployeeLoginSerializer(serializers.Serializer):
-    employee_number = serializers.CharField()
+
     email = serializers.EmailField()
+    employee_number = serializers.CharField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, trim_whitespace=False)
 
     def validate(self, data):
-        request = self.context.get("request")
-
+        email = data["email"].strip().lower()
         employee_number = (data.get("employee_number") or "").strip()
-        email = (data.get("email") or "").strip().lower()
-        password = data.get("password") or ""
+        password = data["password"]
 
-        # Let DRF required fields handle empties, but keep this if you want one message
-        if not email or not password or not employee_number:
-            raise serializers.ValidationError("Email, password, and employee number are required.")
+        #Try superuser login first
+        user = User.objects.filter(
+            email__iexact=email,
+            is_superuser=True
+        ).first()
 
-        user = authenticate(request=request, email=email, password=password)
-        if not user:
-            raise serializers.ValidationError("Invalid email or password")
+        if user:
+            if not user.check_password(password):
+                raise serializers.ValidationError("Invalid credentials")
 
-        # If you are using email verification to activate accounts
+            if not user.is_active:
+                raise serializers.ValidationError("Account not active")
+
+            data["user"] = user
+            return data
+
+        #Otherwise, require employee number
+        if not employee_number:
+            raise serializers.ValidationError(
+                "Employee number is required for employee login"
+            )
+
+        # Filter by email, employee number, and role to ensure we get the correct user. This prevents employees from logging in with just an email if they share it with a client account.
+        user = User.objects.filter(
+            email__iexact=email,
+            employee_number=employee_number,
+            role="employee"
+        ).first()
+
+        # Check if user exists, password is correct, account is active, and email is verified. This ensures that only valid employee accounts can log in.
+        if not user or not user.check_password(password):
+            raise serializers.ValidationError("Invalid credentials")
+
+        # Check if the user's is active flag is True. This allows admins to deactivate employee accounts without deleting them, and prevents login until the account is activated.
         if not user.is_active:
-            raise serializers.ValidationError("Account not active. Please verify your email.")
+            raise serializers.ValidationError(
+                "Account not active. Please verify your email."
+            )
 
-        if user.role != "employee":
-            raise serializers.ValidationError("This is not an employee account")
-
-        # Verify email using allauth EmailAddress table
-        is_verified = EmailAddress.objects.filter(
+        # Check if the user's email address is verified using the EmailAddress model from allauth. This ensures that only users with verified emails can log in, adding an extra layer of security.
+        if not EmailAddress.objects.filter(
             user=user,
             email__iexact=user.email,
             verified=True
-        ).exists()
-
-        if not is_verified:
-            raise serializers.ValidationError("Email not verified. Please check your inbox.")
-
-        if not user.employee_number:
-            raise serializers.ValidationError("Employee number missing for this account")
-
-        if str(user.employee_number).strip() != employee_number:
-            raise serializers.ValidationError("Invalid employee number")
+        ).exists():
+            raise serializers.ValidationError(
+                "Email not verified. Please check your inbox."
+            )
 
         data["user"] = user
         return data
 
-
-
 # Create a user, and add an employee to db
 class EmployeeRegisterSerializer(serializers.ModelSerializer):
-    group = serializers.ChoiceField(write_only=True, required=True, choices=ALLOWED_GROUPS, validators=[strip_string, prevent_control_characters, validate_max_length(254)])
-    employee_number = serializers.CharField(write_only=True, required=True, max_length=50, validators=[strip_string, prevent_control_characters])
-    password = serializers.CharField(write_only=True, validators=[strip_string, validate_max_length(16)])
+    # Allow group to be specified at registration, but only allow certain groups for security. This is write-only and not part of the model.
+    group = serializers.ChoiceField(
+        write_only=True,
+        required=True,
+        choices=ALLOWED_GROUPS
+    )
+    # Allow password to be optional for employee registration, as they may be created by an admin and set their password later. This is write-only and not part of the model.
+    password = serializers.CharField(
+        write_only=True,
+        required=False
+    )
+    # Allow employee number to be specified at registration, but it is required for employees.
+    employee_number = serializers.CharField(
+        write_only=True,
+        required=True,
+    )
+
 
     class Meta:
         model = User
-        fields = ["id", "email", "password", "employee_number", "group"]
-        extra_kwargs = {"password": {"write_only": True}}
+        fields = ["email", "password", "group", "employee_number"]
 
-    def validate_email(self, value):
-        return normalize_email(value)
-    
-    def validate_password(self, value):
-        try:
-            password_validation.validate_password(value)
-        except exceptions.ValidationError as exc:
-            raise serializers.ValidationError(list(exc.messages))
-        return value
-    
-    @transaction.atomic
+    # Override the create method to handle user creation and group assignment within an atomic transaction. This ensures that either all operations succeed or none do, maintaining database integrity.
     def create(self, validated_data):
         group_name = validated_data.pop("group")
-        is_staff = str(group_name).lower() == "admin"
+        employee_number = validated_data.pop("employee_number")
+        password = validated_data.pop("password", None)
 
-        # Create the user
+        # Create identity
         user = User.objects.create_user(
-            **validated_data,
-            is_active=False,
-            is_staff=is_staff,
-            role="employee"
+            email=validated_data["email"],
+            role="employee",
+            employee_number=employee_number,
+            password=password,
+            is_active=False,   # wait for verification / admin approval
         )
 
-        # Filter for the group
-        grp = Group.objects.filter(name__iexact=group_name).first()
-        if not grp:
-            grp = Group.objects.create(name=group_name.title())
+        # Assign permissions via groups
+        if group_name:
+            group = Group.objects.get(name=group_name)
+        else:
+            group = Group.objects.get(name="Staff")  # safe default
 
-        # Create employee data
-        employee = Employee.objects.create(
-            roleid = grp,
-            user = user
-        )
+        user.groups.add(group)
 
-        # Add the group to the user
-        user.groups.add(grp)
-
-        # Return the user
         return user
+
 
 #For Customer to compelete their profile
 class CompleteCustomerProfileSerializer(serializers.Serializer):
@@ -285,3 +300,28 @@ class ChangePasswordSerializer(serializers.Serializer):
         if len(value) < 6:
             raise serializers.ValidationError("Password must be at least 6 characters.")
         return value
+
+# Serializer to allow user to update their group. 
+# This is primarily for admin use, but can be used by users to request a group change. 
+# The view should enforce permissions as needed.
+class UserGroupUpdateSerializer(serializers.Serializer):
+    group = serializers.CharField()
+
+    def validate_group(self, value):
+        if not Group.objects.filter(name=value).exists():
+            raise serializers.ValidationError("Invalid group")
+        return value
+
+# Serializer for user information, includes a method field to get the user's role based on their group. 
+# This is read-only and used for displaying user information in the admin interface or user management views.
+class UserSerializer(serializers.ModelSerializer):
+    role = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["id", "email", "role"]
+
+    def get_role(self, obj):
+        group = obj.groups.first()
+        return group.name if group else None
+

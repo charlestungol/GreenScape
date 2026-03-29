@@ -218,19 +218,22 @@ class CustomerViewSet(viewsets.ModelViewSet):
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related("addressid").all()
     serializer_class = EmployeeSerializer
-    premisssion_classes = [IsAdminOrSuperAdmin]
+    permission_classes = [IsAuthenticated]
 
-    # Only admin can view ALL employee data; others see only their own.
+    # Delete is only Super Admin, Create/Update is Admin and Supervisor
     def get_queryset(self):
         user = self.request.user
-        if not (user and user.is_authenticated):
+
+        if not user.is_authenticated:
             return Employee.objects.none()
 
-        if user.groups.filter(name__in=["Admin"]).exists():
+        # Admins & SuperAdmins see all employees
+        if user.groups.filter(name__in=["Admin", "SuperAdmin"]).exists():
             return Employee.objects.select_related("addressid").all()
 
-        # For Employees, return only their own record
+        #Regular employees see only themselves
         return Employee.objects.select_related("addressid").filter(user_id=user.id)
+
 
     # Only admin and supervisors can create employee data.
     def perform_create(self, serializer):
@@ -250,12 +253,12 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You do not have permission to perform this action.")
         serializer.save()
 
-    # Only admin and supervisors can delete employee data.
+    # Only admin and SuperAdmin can delete employee data.
     def perform_destroy(self, instance):
         user = self.request.user
         if not (user and user.is_authenticated):
             raise PermissionDenied("You do not have permission to perform this action.")
-        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+        if not user.groups.filter(name__in=["SuperAdmin"]).exists():
             raise PermissionDenied("You do not have permission to perform this action.")
         return super().perform_destroy(instance)
     

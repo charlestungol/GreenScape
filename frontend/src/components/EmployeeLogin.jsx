@@ -17,7 +17,7 @@ const EmployeeLogin = () => {
   const handleLogin = async () => {
     setError("");
 
-    if (!employeeNumber || !email || !password) {
+    if (!email || !password) {
       setError("Please fill in all fields.");
       return;
     }

@@ -6,6 +6,7 @@ import traceback
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.db import transaction
 from django.shortcuts import redirect
 from django.utils.decorators import method_decorator
@@ -16,10 +17,11 @@ from allauth.account.models import EmailAddress
 
 # --- Django REST Framework ---
 from rest_framework import exceptions, permissions, status, views, viewsets
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+from rest_framework.decorators import action
 
 # --- SimpleJWT ---
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
@@ -44,6 +46,8 @@ from .serializers import (
     EmployeeLoginSerializer,
     EmployeeRegisterSerializer,
     CompleteCustomerProfileSerializer,
+    UserGroupUpdateSerializer,
+    UserSerializer,
 
 )
 
@@ -578,3 +582,51 @@ class RecaptchaGateAPIView(APIView):
         set_refresh_cookie(final, refresh)
 
         return final
+
+
+class UserManagementViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    serializer_class = UserSerializer
+    queryset = User.objects.all().order_by("id")
+
+    @action(detail=True, methods=["patch"], url_path="group")
+    def set_group(self, request, pk=None):
+        target_user = User.objects.get(pk=pk)
+        serializer = UserGroupUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        new_role = serializer.validated_data["group"]
+        actor = request.user
+
+        # ─── PERMISSION RULES ─────────────────────────
+
+        if actor.groups.filter(name="SuperAdmin").exists():
+            if new_role not in ["Staff", "Supervisor", "Admin"]:
+                return Response(
+                    {"detail": "Admins cannot assign this role."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        elif actor.groups.filter(name="SuperAdmin").exists():
+            pass  # SuperAdmin can assign everything
+
+        else:
+            return Response(
+                {"detail": "You do not have permission to change roles."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # ─── APPLY GROUP CHANGE ───────────────────────
+
+        role_groups = Group.objects.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        )
+        target_user.groups.remove(*role_groups)
+
+        new_group = Group.objects.get(name=new_role)
+        target_user.groups.add(new_group)
+
+        return Response(
+            {"detail": f"User role updated to {new_role}."},
+            status=status.HTTP_200_OK,
+        )
