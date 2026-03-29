@@ -145,7 +145,7 @@ class EmployeeAccessPermission(BasePermission):
         if not user.is_authenticated:
             return False
 
-        # ✅ Allow Staff to PATCH their own /me profile
+        #Allow Staff to PATCH their own /me profile
         if getattr(view, "action", None) == "me":
             return user.groups.filter(
                 name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
