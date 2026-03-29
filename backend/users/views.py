@@ -1,6 +1,5 @@
 # --- Helper ---
 import datetime
-import traceback
 
 # --- Django core ---
 from django.conf import settings
@@ -22,6 +21,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 
 # --- SimpleJWT ---
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
@@ -156,7 +156,7 @@ class ClientLoginViewSet(viewsets.ViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # ✅ Customer profile may or may not exist
+        # Customer profile may or may not exist
         cust = getattr(user, "customer", None)
         profile_ready = bool(cust)
 
@@ -223,6 +223,7 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
                 "email": user.email,
                 "group": group_name,
                 "employee_number": getattr(user, "employee_number", ""),
+                "role": user.role,
             },
             "profile_ready": True,
         }
@@ -292,12 +293,6 @@ class EmployeeRegisterViewSet(viewsets.ModelViewSet):
                 )
             return Response(EmployeeRegisterSerializer(user).data, status=201)
         return Response({"detail": f"Registration failed. Please check your input. {self.get_serializer(user).data}"}, status=400)
-
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.exceptions import PermissionDenied
 
 class CompleteCustomerProfileViewSet(APIView):
     permission_classes = [IsAuthenticated]
@@ -446,7 +441,7 @@ def EmailVerifiedRedirectView(request):
 class LogoutView(APIView):
     permission_classes = [permissions.AllowAny]
 
-    # The post method handles the logout process. It first defines the cookie names for access and refresh tokens based on the REST_AUTH settings.
+    # The post method handles the logout process.
     def post(self, request):
         # Default response
         response = Response({"detail": "Successfully logged out"}, status=status.HTTP_200_OK)

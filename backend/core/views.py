@@ -216,20 +216,33 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related("addressid").all()
     serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = None  # Disable pagination for employee list
 
-    # Delete is only Super Admin, Create/Update is Admin and Supervisor
+    def get_permissions(self):
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+        if self.request.method in ["POST", "PATCH", "PUT"]:
+            return [EmployeeAccessPermission()]
+        return [IsOwnerOrAdminOrStaffReadOnly()]
+
     def get_queryset(self):
+        # Get the current user
         user = self.request.user
-
+        # If suer not authenticated, return empty queryset
         if not user.is_authenticated:
             return Employee.objects.none()
 
-        # Admins & SuperAdmins see all employees
-        if user.groups.filter(name__in=["Admin", "SuperAdmin"]).exists():
-            return Employee.objects.select_related("addressid").all()
+        base_qs = Employee.objects.select_related("addressid").filter(
+            user__is_active=True,
+            user__role="employee",
+        )
 
-        #Regular employees see only themselves
-        return Employee.objects.select_related("addressid").filter(user_id=user.id)
+        # Admins, Supervisors, and SuperAdmins manage employees
+        if user.groups.filter(name__in=["Admin", "Supervisor", "SuperAdmin"]).exists():
+            return base_qs
+
+        # Regular employees only see themselves
+        return base_qs.filter(user=user)
 
 
     # Only admin and supervisors can create employee data.
@@ -264,7 +277,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     # Check if user is an employee
     def get_employee_for_user(self, user):
         return (Employee.objects
-                .select_related("user", "addressid", "roleid")
+                .select_related("user", "addressid")
                 .filter(user_id=user.id)
                 .first())
 
@@ -286,35 +299,38 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             } if addr else None),
         }
 
-        # GET/PATCH /core/employees/me/
-    @action(
-        detail=False,
-        methods=["get", "patch"],
-        url_path="me",
-        permission_classes=[IsAuthenticated],
-    )
+    # GET/PATCH /core/employees/me/
+    @action(detail=False,methods=["get", "patch"],url_path="me",permission_classes=[IsAuthenticated],)
     def me(self, request):
         user = request.user
 
-        # ✅ Only real employees
-        if not user.groups.filter(name__in=["Staff", "Supervisor"]).exists():
+        #Only operational employees
+        if not user.groups.filter(name__in=["Staff", "Supervisor", "Admin"]).exists():
             return Response(
-                {"detail": "Only employees can access this endpoint."},
+                {"detail": "Employee profile not applicable."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-
-        # ✅ Lazily create Employee record (NO roleid)
-        employee, _ = Employee.objects.get_or_create(user=user)
-
+        employee = Employee.objects.filter(user=user).first()
+        #GET → fetch only
         if request.method == "GET":
+            if not employee:
+                return Response(
+                    {"detail": "Employee profile not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
             serializer = self.get_serializer(employee)
             return Response(serializer.data, status=status.HTTP_200_OK)
+        #PATCH → create OR update
+        if not employee:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(user=user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        # ✅ PATCH (partial update only)
+        #PATCH existing
         serializer = self.get_serializer(employee, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 

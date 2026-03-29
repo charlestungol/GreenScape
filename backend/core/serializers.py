@@ -273,29 +273,39 @@ class UserImageSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(f"/core/profiles/{obj.id}/bytes/")
 
 # Employee Serializer
+# Employee Serializer
 class EmployeeSerializer(serializers.ModelSerializer):
-    # Validators
     user_id = serializers.IntegerField(source="user.id", read_only=True)
-    firstname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
-    lastname = serializers.CharField(validators=[validate_name, validate_max_length(50)])
-    phonenumber = serializers.CharField(validators=[validate_phone])
-    email = serializers.EmailField(
-    source="user.email",
-    validators=[strip_string, prevent_control_characters, validate_max_length(200)],
-    required=False
+    firstname = serializers.CharField(
+        allow_null=True,
+        allow_blank=True,
+        required=False
     )
-    address = AddressSerializer(source="addressid", read_only = True)
-
+    lastname = serializers.CharField(
+        allow_null=True,
+        allow_blank=True,
+        required=False
+    )
+    phonenumber = serializers.CharField(
+        allow_null=True,
+        allow_blank=True,
+        required=False
+    )
+    email = serializers.EmailField(
+        source="user.email",
+        read_only=True
+    )
+    address = AddressSerializer(source="addressid", read_only=True)
     addressid = serializers.PrimaryKeyRelatedField(
-        queryset = Address.objects.all(),
-        write_only = True,
-        allow_null = True,
-        required = False
+        queryset=Address.objects.all(),
+        write_only=True,
+        allow_null=True,
+        required=False
     )
 
     class Meta:
         model = Employee
-        fields = ["employeeid", "user_id", "address", "addressid", "firstname", "lastname", "phonenumber", "email", "staffstatus"]
+        fields = ["employeeid","user_id","firstname","lastname","phonenumber","email","address","addressid",]
         read_only_fields = ["employeeid"]
 
 # Booking Serializer

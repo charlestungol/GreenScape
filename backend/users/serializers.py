@@ -167,7 +167,7 @@ class EmployeeLoginSerializer(serializers.Serializer):
         groups = set(user.groups.values_list("name", flat=True))
 
         # Only real employees must provide employee_number
-        if groups & {"Staff", "Supervisor"}:
+        if groups & {"Staff", "Supervisor", "Admin"}:
             if not employee_number:
                 raise serializers.ValidationError({
                     "employee_number": "Employee number is required."
