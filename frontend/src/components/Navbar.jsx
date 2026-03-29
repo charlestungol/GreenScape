@@ -34,7 +34,7 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 
 const GREEN = "#1c3d37";
 const drawerWidth = 300;
-const EMPLOYEE_ROLES = ["employee", "admin", "supervisor", "staff"];
+const EMPLOYEE_ROLES = ["employee", "admin", "supervisor", "staff", "superadmin"];
 
 const theme = createTheme({
   typography: {
@@ -152,14 +152,16 @@ export default function Navbar({ content }) {
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  const normalizeRole = (role) => {
-    const lower = (role || "").toLowerCase();
+  const normalizeRole = (group) => {
+    const lower = (group || "").toLowerCase();
     return EMPLOYEE_ROLES.includes(lower) ? "employee" : "client";
   };
 
+
   const getUserData = () => {
-    const rawRole = localStorage.getItem("role") || localStorage.getItem("group") || "client";
+    
+    const rawRole = localStorage.getItem("group") || `client`;
+
     const role = normalizeRole(rawRole);
 
     let displayName = "User";

@@ -122,9 +122,12 @@ class ClientRegisterSerializer(serializers.ModelSerializer):
 
 
 class EmployeeLoginSerializer(serializers.Serializer):
-
     email = serializers.EmailField()
-    employee_number = serializers.CharField(required=False, allow_blank=True)
+    employee_number = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+    )
     password = serializers.CharField(write_only=True, trim_whitespace=False)
 
     def validate(self, data):
@@ -132,46 +135,25 @@ class EmployeeLoginSerializer(serializers.Serializer):
         employee_number = (data.get("employee_number") or "").strip()
         password = data["password"]
 
-        #Try superuser login first
-        user = User.objects.filter(
-            email__iexact=email,
-            is_superuser=True
-        ).first()
+        #Authenticate by email + password
+        user = authenticate(
+            request=self.context.get("request"),
+            email=email,
+            password=password,
+        )
 
-        if user:
-            if not user.check_password(password):
-                raise serializers.ValidationError("Invalid credentials")
+        if not user:
+            raise serializers.ValidationError("Invalid credentials")
 
-            if not user.is_active:
-                raise serializers.ValidationError("Account not active")
+        if not user.is_active:
+            raise serializers.ValidationError("Account not active")
 
+        #SUPERUSER BYPASS (VERY IMPORTANT)
+        if user.is_superuser:
             data["user"] = user
             return data
 
-        #Otherwise, require employee number
-        if not employee_number:
-            raise serializers.ValidationError(
-                "Employee number is required for employee login"
-            )
-
-        # Filter by email, employee number, and role to ensure we get the correct user. This prevents employees from logging in with just an email if they share it with a client account.
-        user = User.objects.filter(
-            email__iexact=email,
-            employee_number=employee_number,
-            role="employee"
-        ).first()
-
-        # Check if user exists, password is correct, account is active, and email is verified. This ensures that only valid employee accounts can log in.
-        if not user or not user.check_password(password):
-            raise serializers.ValidationError("Invalid credentials")
-
-        # Check if the user's is active flag is True. This allows admins to deactivate employee accounts without deleting them, and prevents login until the account is activated.
-        if not user.is_active:
-            raise serializers.ValidationError(
-                "Account not active. Please verify your email."
-            )
-
-        # Check if the user's email address is verified using the EmailAddress model from allauth. This ensures that only users with verified emails can log in, adding an extra layer of security.
+        #Email verification for all non-superusers
         if not EmailAddress.objects.filter(
             user=user,
             email__iexact=user.email,
@@ -181,6 +163,20 @@ class EmployeeLoginSerializer(serializers.Serializer):
                 "Email not verified. Please check your inbox."
             )
 
+        #Role logic based on GROUPS
+        groups = set(user.groups.values_list("name", flat=True))
+
+        # Only real employees must provide employee_number
+        if groups & {"Staff", "Supervisor"}:
+            if not employee_number:
+                raise serializers.ValidationError({
+                    "employee_number": "Employee number is required."
+                })
+
+            if user.employee_number != employee_number:
+                raise serializers.ValidationError("Invalid credentials")
+
+        #Admin / SuperAdmin skip employee_number checks
         data["user"] = user
         return data
 

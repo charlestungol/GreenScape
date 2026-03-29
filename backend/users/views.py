@@ -196,7 +196,10 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
     throttle_scope = "login"
 
     def create(self, request):
-        serializer = self.serializer_class(data=request.data, context={"request": request})
+        serializer = self.serializer_class(
+            data=request.data,
+            context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data["user"]
@@ -205,12 +208,20 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 
+        #Resolve role from GROUPS or superuser
+        group = user.groups.first()
+        group_name = (
+            "SuperAdmin"
+            if user.is_superuser
+            else group.name if group else None
+        )
+
         payload = {
             "access": access_token,
             "user": {
                 "id": user.id,
                 "email": user.email,
-                "role": user.role,
+                "group": group_name,
                 "employee_number": getattr(user, "employee_number", ""),
             },
             "profile_ready": True,

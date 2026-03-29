@@ -1,15 +1,12 @@
 # ---------------------------------------------------
 # Standard Library
 # ---------------------------------------------------
-import mimetypes
 import os
-import uuid
 
 # ---------------------------------------------------
 # Django
 # ---------------------------------------------------
 from django.contrib.auth.models import Group
-from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 
@@ -20,7 +17,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
 # ---------------------------------------------------
@@ -289,125 +286,37 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             } if addr else None),
         }
 
-    # GET/PATCH /core/employees/me/
-    @action(detail=False, methods=["get", "patch", "put"], url_path="me", permission_classes=[IsAuthenticated])
+        # GET/PATCH /core/employees/me/
+    @action(
+        detail=False,
+        methods=["get", "patch"],
+        url_path="me",
+        permission_classes=[IsAuthenticated],
+    )
     def me(self, request):
-        instance = get_object_or_404(Employee, user=request.user)
-        # Get user data
         user = request.user
-        # Check if user is in staff group 
-        is_employee = (
-            getattr(user, "role", "").lower() == "employee"
-            or user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists()
-        )
-        # Check if if user is employee
-        if not is_employee:
-            return Response({"details" : "Only employees have access"}, status = status.HTTP_403_FORBIDDEN)
-        # Get employee data instance
-        employee = self.get_employee_for_user(user)
-        # Create  employee instance if  none
-        if employee is None:
-            staff_group = Group.objects.filter(name__iexact="Staff").first()
-            employee = Employee.objects.create(
-                user=user,
-                roleid=staff_group if staff_group else None,
+
+        # ✅ Only real employees
+        if not user.groups.filter(name__in=["Staff", "Supervisor"]).exists():
+            return Response(
+                {"detail": "Only employees can access this endpoint."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
+        # ✅ Lazily create Employee record (NO roleid)
+        employee, _ = Employee.objects.get_or_create(user=user)
+
         if request.method == "GET":
-            data = self.get_serializer(instance).data
-            return Response(data, status=status.HTTP_200_OK)
-        
-        def _clean_str(v):
-            return v.strip() if isinstance(v, str) else v
+            serializer = self.get_serializer(employee)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
-        # --- PATCH: partial profile + optional nested address ---
-        if request.method == "PATCH":
-            data = request.data or {}
+        # ✅ PATCH (partial update only)
+        serializer = self.get_serializer(employee, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
 
-            # Partial updates
-            first = _clean_str(data.get("firstname"))
-            last = _clean_str(data.get("lastname"))
-            phone = _clean_str(data.get("phonenumber"))
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-            changed = []
-            if first is not None and first != employee.firstname:
-                employee.firstname = first; changed.append("firstname")
-            if last is not None and last != employee.lastname:
-                employee.lastname = last; changed.append("lastname")
-            if phone is not None and getattr(employee, "phonenumber", None) != phone:
-                employee.phonenumber = phone; changed.append("phonenumber")
-            if changed:
-                employee.save(update_fields=changed)
-
-            addr_payload = data.get("address") or {}
-            if addr_payload:
-                pc = addr_payload.get("postalcode")
-                if pc:
-                    addr_payload["postalcode"] = pc.replace(" ", "").upper()
-
-                if employee.addressid is None:
-                    addr_ser = AddressSerializer(data=addr_payload)
-                    addr_ser.is_valid(raise_exception=True)
-                    employee.addressid = addr_ser.save()
-                    employee.save(update_fields=["addressid"])
-                else:
-                    addr_ser = AddressSerializer(employee.addressid, data=addr_payload, partial=True)
-                    addr_ser.is_valid(raise_exception=True)
-                    addr_ser.save()
-
-            return Response(self._profile_payload(employee), status=status.HTTP_200_OK)
-
-        # Should not reach here
-        return Response({"detail": "Method not allowed."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
-    # PATCH /core/employees/{id}/role/
-    @action(
-        detail=True,
-        methods=["patch"],
-        url_path="role",
-        permission_classes=[IsAdminOrSuperAdmin],
-    )
-    def change_role(self, request, pk=None):
-        user = request.user
-        employee = self.get_object()
-
-        new_role = request.data.get("role")
-
-        if new_role not in ["Staff", "Supervisor", "Admin", "SuperAdmin"]:
-            return Response({"detail": "Invalid role."}, status=400)
-
-        #ADMIN RULES
-        if user.groups.filter(name="Admin").exists():
-            # Admin can only assign Staff or Supervisor
-            if new_role not in ["Staff", "Supervisor"]:
-                return Response(
-                    {"detail": "Admins cannot assign this role."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-
-        #SUPERADMIN RULES
-        elif user.groups.filter(name="SuperAdmin").exists():
-            # SuperAdmin can assign anything
-            pass
-        # Apply role
-        try:
-            group = Group.objects.get(name=new_role)
-        except Group.DoesNotExist:
-            return Response({"detail": "Role not found."}, status=400)
-
-        employee.user.groups.clear()
-        employee.user.groups.add(group)
-
-        # Sync Employee.roleid if present
-        if hasattr(employee, "roleid"):
-            employee.roleid = group
-            employee.save(update_fields=["roleid"])
-
-        return Response(
-            {"detail": f"Role updated to {new_role}."},
-            status=status.HTTP_200_OK
-        )
 
 # -----------------------------------------------------------------------------
 # Service type view -- allows for CRUD
