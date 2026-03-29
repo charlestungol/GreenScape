@@ -1,15 +1,12 @@
 # ---------------------------------------------------
 # Standard Library
 # ---------------------------------------------------
-import mimetypes
 import os
-import uuid
 
 # ---------------------------------------------------
 # Django
 # ---------------------------------------------------
 from django.contrib.auth.models import Group
-from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 
@@ -20,7 +17,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
 # ---------------------------------------------------
@@ -82,10 +79,17 @@ from .serializers import (
 # Project: Permissions
 # ---------------------------------------------------
 from .permissions import (
-    IsAuthenticatedOrReadOnly,
-    IsOwnerOrAdmin,
-    IsOwnerOrStaff,
-    isAdmin,  # if this is a function, consider renaming to `is_admin` for PEP8
+    IsAdminOnly,
+    IsAdminOrSuperAdmin,
+    IsOwner,
+    IsOwnerOrStaffReadOnly,
+    IsStaff,
+    IsSuperAdminOnly,
+    IsSupervisorOrAdmin,
+    EmployeeAccessPermission,
+    ClientAccessPermission,
+    IsOwnerOrAdminOrStaffReadOnly,
+    IsOwnerOrSuperAdmin,
 )
 
 
@@ -100,49 +104,47 @@ from .permissions import (
 class AddressViewSet(viewsets.ModelViewSet):
     queryset = Address.objects.all()
     serializer_class = AddressSerializer
-    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
+
+    # Permission, allow delete only if owner or Super Admin
+    def get_permissions(self):
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+        return [IsOwnerOrAdminOrStaffReadOnly()]
 
     def get_queryset(self):
         user = self.request.user
-        # If the user is not authenticated, data get, is denied.
-        if not (user and user.is_authenticated):
-            # No data given
+
+        if not user.is_authenticated:
             return Address.objects.none()
-        
-        # If user is staff return all data
-        if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+
+        # Admin / Supervisor / SuperAdmin → see all addresses
+        if user.groups.filter(name__in=["Admin", "Supervisor", "SuperAdmin"]).exists():
             return Address.objects.all()
-        
-        address_ids = []
-        
-        # If user is a customer return the users data.
-                # Filters employees data
-        if user.groups.filter(name__in=["Staff"]).exists():
-            employee = Employee.objects.filter(user_id=user.id).first()
-            if employee and employee.addressid:
-                address_ids.append(employee.addressid)
-        else:
-            customer = Customer.objects.filter(user_id=user.id).first()
-            if customer and customer.addressid:
-                address_ids.append(customer.addressid)
 
-        # Return addresses related to the user if they are a customer or employee.
-        if address_ids:
+        # Staff → see ALL customer addresses + own employee address
+        if user.groups.filter(name="Staff").exists():
+            # Get all customer address IDs
+            customer_address_ids = Customer.objects.exclude(
+                addressid__isnull=True
+            ).values_list("addressid_id", flat=True)
+
+            # Get this staff member's own employee address
+            employee = Employee.objects.filter(user_id=user.id).select_related("addressid").first()
+            employee_address_id = employee.addressid_id if employee and employee.addressid else None
+
+            address_ids = list(customer_address_ids)
+            if employee_address_id:
+                address_ids.append(employee_address_id)
+
             return Address.objects.filter(pk__in=address_ids)
-            
-        
-        # Return no data if user is not a customer or staff (Security measure).
-        return Address.objects.none()
 
-    # Only admin and supervisors can create address data. If customer or employee they use their own view to update or create their own data.
-    def perform_create(self, serializer):
-        user = self.request.user
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            raise PermissionDenied("You do not have permission to perform this action.")
-        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        serializer.save()
+        # Customer → see own address only
+        customer = Customer.objects.filter(user_id=user.id).select_related("addressid").first()
+        if customer and customer.addressid:
+            return Address.objects.filter(pk=customer.addressid_id)
+
+        return Address.objects.none()
 
 # -----------------------------------------------------------------------------
 # Customer views -- Allows for CRUD --
@@ -150,34 +152,47 @@ class AddressViewSet(viewsets.ModelViewSet):
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.select_related("addressid").all()
     serializer_class = CustomerSerializer
+    permission_classes = [IsAuthenticated]
 
-    # Sets it that only owner of the data, admin, or employee can edit. 
-    permission_classes = [IsOwnerOrStaff, DjangoModelPermissions]
-
-    # Getting data
+    # Delete is only Super Admin
+    def get_permissions(self):
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+        return [IsOwnerOrAdminOrStaffReadOnly()]
+    
     def get_queryset(self):
         user = self.request.user
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
+
+        if not user.is_authenticated:
             return Customer.objects.none()
-        
-        # If its a staff return all customer
-        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            return Customer.objects.select_related("addressid").all()
-        
-        # If its a customer, return customers data.
+
+        # Employees and admins see all customers
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
+            return Customer.objects.select_related("addressid")
+
+        # Customer sees only their own record
         customer = Customer.objects.filter(user_id=user.id).first()
         if customer:
-            return Customer.objects.select_related("addressid").filter(user_id=user.id)
-        
-        # If customer return his data using email
+            return Customer.objects.filter(pk=customer.pk).select_related("addressid")
+
         return Customer.objects.none()
     
-    # Only admin and supervisors can create customer data. If customer they use def me to update or create their own data.
-    def get_permissions(self):
-        if getattr(self, 'action', None) == 'me':
-            return [IsAuthenticated()]
-        return [IsOwnerOrStaff(), DjangoModelPermissions()]
+    # Allow a user to create themselves
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        # Admin / SuperAdmin can create arbitrary customers
+        if user.groups.filter(name__in=["Admin", "SuperAdmin"]).exists():
+            serializer.save()
+            return
+
+        # Regular user: allow self-creation ONLY ONCE
+        if Customer.objects.filter(user_id=user.id).exists():
+            raise PermissionDenied("Customer profile already exists.")
+
+        serializer.save(user=user)
 
     # Allows user to retrieve or update their own data using /me endpoint.
     @action(detail=False, methods=['get', 'patch'], permission_classes=[IsAuthenticated])
@@ -192,6 +207,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()  # no need to pass user, since instance is fixed
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
 # -----------------------------------------------------------------------------
 # Employee View -- Allows for CRUD --
 # -----------------------------------------------------------------------------
@@ -199,28 +215,22 @@ class CustomerViewSet(viewsets.ModelViewSet):
 class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related("addressid").all()
     serializer_class = EmployeeSerializer
-    premisssion_classes = [IsOwnerOrAdmin]
-    # Don't set class-level permission_classes if you're overriding get_permissions()
+    permission_classes = [IsAuthenticated]
 
-    # Only admin can view ALL employee data; others see only their own.
+    # Delete is only Super Admin, Create/Update is Admin and Supervisor
     def get_queryset(self):
         user = self.request.user
-        if not (user and user.is_authenticated):
+
+        if not user.is_authenticated:
             return Employee.objects.none()
 
-        if user.groups.filter(name__in=["Admin"]).exists():
+        # Admins & SuperAdmins see all employees
+        if user.groups.filter(name__in=["Admin", "SuperAdmin"]).exists():
             return Employee.objects.select_related("addressid").all()
 
-        # For Employees, return only their own record
+        #Regular employees see only themselves
         return Employee.objects.select_related("addressid").filter(user_id=user.id)
 
-    # # Permit reads for any authenticated user; writes require admin via your custom permission.
-    # def get_permissions(self):
-    #     if getattr(self, "action", None) == "me":
-    #         return [IsAuthenticated()]
-    #     if self.request.method in permissions.SAFE_METHODS:
-    #         return [IsAuthenticated()]
-    #     return [DjangoModelPermissions()]  # and we’ll hard-check admin/supervisor in perform_*.
 
     # Only admin and supervisors can create employee data.
     def perform_create(self, serializer):
@@ -240,12 +250,12 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You do not have permission to perform this action.")
         serializer.save()
 
-    # Only admin and supervisors can delete employee data.
+    # Only admin and SuperAdmin can delete employee data.
     def perform_destroy(self, instance):
         user = self.request.user
         if not (user and user.is_authenticated):
             raise PermissionDenied("You do not have permission to perform this action.")
-        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+        if not user.groups.filter(name__in=["SuperAdmin"]).exists():
             raise PermissionDenied("You do not have permission to perform this action.")
         return super().perform_destroy(instance)
     
@@ -276,113 +286,37 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             } if addr else None),
         }
 
-    # GET/PATCH /core/employees/me/
-    @action(detail=False, methods=["get", "patch", "put"], url_path="me", permission_classes=[IsAuthenticated])
+        # GET/PATCH /core/employees/me/
+    @action(
+        detail=False,
+        methods=["get", "patch"],
+        url_path="me",
+        permission_classes=[IsAuthenticated],
+    )
     def me(self, request):
-        instance = get_object_or_404(Employee, user=request.user)
-        # Get user data
         user = request.user
-        # Check if user is in staff group 
-        is_employee = (
-            getattr(user, "role", "").lower() == "employee"
-            or user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists()
-        )
-        # Check if if user is employee
-        if not is_employee:
-            return Response({"details" : "Only employees have access"}, status = status.HTTP_403_FORBIDDEN)
-        # Get employee data instance
-        employee = self.get_employee_for_user(user)
-        # Create  employee instance if  none
-        if employee is None:
-            staff_group = Group.objects.filter(name__iexact="Staff").first()
-            employee = Employee.objects.create(
-                user=user,
-                roleid=staff_group if staff_group else None,
-            )
 
-        if request.method == "GET":
-            data = self.get_serializer(instance).data
-            return Response(data, status=status.HTTP_200_OK)
-        
-        def _clean_str(v):
-            return v.strip() if isinstance(v, str) else v
-
-        # --- PATCH: partial profile + optional nested address ---
-        if request.method == "PATCH":
-            data = request.data or {}
-
-            # Partial updates
-            first = _clean_str(data.get("firstname"))
-            last = _clean_str(data.get("lastname"))
-            phone = _clean_str(data.get("phonenumber"))
-
-            changed = []
-            if first is not None and first != employee.firstname:
-                employee.firstname = first; changed.append("firstname")
-            if last is not None and last != employee.lastname:
-                employee.lastname = last; changed.append("lastname")
-            if phone is not None and getattr(employee, "phonenumber", None) != phone:
-                employee.phonenumber = phone; changed.append("phonenumber")
-            if changed:
-                employee.save(update_fields=changed)
-
-            addr_payload = data.get("address") or {}
-            if addr_payload:
-                pc = addr_payload.get("postalcode")
-                if pc:
-                    addr_payload["postalcode"] = pc.replace(" ", "").upper()
-
-                if employee.addressid is None:
-                    addr_ser = AddressSerializer(data=addr_payload)
-                    addr_ser.is_valid(raise_exception=True)
-                    employee.addressid = addr_ser.save()
-                    employee.save(update_fields=["addressid"])
-                else:
-                    addr_ser = AddressSerializer(employee.addressid, data=addr_payload, partial=True)
-                    addr_ser.is_valid(raise_exception=True)
-                    addr_ser.save()
-
-            return Response(self._profile_payload(employee), status=status.HTTP_200_OK)
-
-        # Should not reach here
-        return Response({"detail": "Method not allowed."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-
-    # PATCH /core/employees/{id}/role/
-    @action(detail=True, methods=["patch"], url_path="role", permission_classes=[isAdmin])
-    def change_role(self, request, pk=None):
-        user = request.user
-        employee = self.get_object()
-        target_user = employee.user 
-
-        is_admin = user.groups.filter(name="Admin").exists()
-
-        if not is_admin:
+        # ✅ Only real employees
+        if not user.groups.filter(name__in=["Staff", "Supervisor"]).exists():
             return Response(
-                {"detail": "You do not have permission to change roles."},
+                {"detail": "Only employees can access this endpoint."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        new_role = request.data.get("role")  # "Staff", "Supervisor", "Admin"
-        if new_role not in ["Staff", "Supervisor", "Admin"]:
-            return Response({"detail": "Invalid role."}, status=status.HTTP_400_BAD_REQUEST)
+        # ✅ Lazily create Employee record (NO roleid)
+        employee, _ = Employee.objects.get_or_create(user=user)
 
-        # Apply role via auth_group
-        try:
-            group = Group.objects.get(name=new_role)
-        except Group.DoesNotExist:
-            return Response({"detail": f"Group '{new_role}' does not exist."},
-                            status=status.HTTP_400_BAD_REQUEST)
+        if request.method == "GET":
+            serializer = self.get_serializer(employee)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
-        target_user.groups.clear()
-        target_user.groups.add(group)
+        # ✅ PATCH (partial update only)
+        serializer = self.get_serializer(employee, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
 
-        # Keep Employee.roleid in sync if you have that FK to Group
-        if hasattr(employee, "roleid"):
-            employee.roleid = group
-            employee.save(update_fields=["roleid"])
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-        return Response({"detail": f"Role updated to {new_role}."}, status=status.HTTP_200_OK)
 
 # -----------------------------------------------------------------------------
 # Service type view -- allows for CRUD
@@ -390,54 +324,15 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 class ServiceTypeViewSet(viewsets.ModelViewSet):
     queryset = Servicetype.objects.all()
     serializer_class = ServiceTypeSerializer
-    permission_classes = [isAdmin, DjangoModelPermissions]
+    permission_classes = [AllowAny]
 
-    # Only admin and supervisors can view or edit service type data.
-    def get_queryset(self):
-        user = self.request.user
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            return Servicetype.objects.none()
-        
-        # If its a staff return all service type -- Only admin and supervisor can see all service type data.
-        if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
-            return Servicetype.objects.all()
-        
-        # If its a customer return no data.
-        return Servicetype.objects.none()
-
-    def perform_create(self, serializer):
-        user = self.request.user
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-
-        serializer.save()
-    
-    def perform_update(self, serializer):
-        user = self.request.user
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-
-        serializer.save()
-    
-    def perform_destroy(self, instance):
-        user = self.request.user
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        return super().perform_destroy(instance)
+    # Set permission so delete is only allowed for Super Admin, while other actions are allowed for Admin and Supervisors.
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [AllowAny()]
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+        return [IsSupervisorOrAdmin()]
 
 # -----------------------------------------------------------------------------
 # Service view -- allows for CRUD
@@ -445,19 +340,26 @@ class ServiceTypeViewSet(viewsets.ModelViewSet):
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
+    permission_classes = [permissions.AllowAny]
 
-    # Permission
     def get_permissions(self):
-
-        # Allows authenticated user to view services
+        # Public read
         if self.request.method in permissions.SAFE_METHODS:
-            return [IsAuthenticatedOrReadOnly()]
-        
-        # Allows admin to view or edit data.
-        return [isAdmin(), DjangoModelPermissions()]
+            return [permissions.AllowAny()]
+
+        # SuperAdmin only delete
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+
+        # POST (create) → Admin or SuperAdmin only
+        if self.request.method == "POST":
+            return [IsAdminOrSuperAdmin()]
+
+        # PATCH / PUT → Supervisor and above
+        return [IsSupervisorOrAdmin()]
     
-
-
+    def get_queryset(self):
+        return Service.objects.all()
 
 # -----------------------------------------------------------------------------
 # Customer's service view -- Allows for CRUD
@@ -465,71 +367,32 @@ class ServiceViewSet(viewsets.ModelViewSet):
 class CustomerServiceViewSet(viewsets.ModelViewSet):
     queryset = Customerservice.objects.select_related("customerid", "serviceid").all()
     serializer_class = CustomerServiceSerializer
-    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
-    #Secure perform_create
+    def get_permissions(self):
+        # DELETE → SuperAdmin only
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+
+        # ALL other methods → Owner OR Staff/Admin permissions
+        return [IsOwnerOrAdminOrStaffReadOnly()]
+    
     def perform_create(self, serializer):
-        
         user = self.request.user
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        # If user is staff allow them to create data for any customer.
-        if self.request.user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+
+        # Employees can create for any customer
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
             serializer.save()
             return
-        
-        # If user is a customer, allow them to create data for themselves only.
+
+        # Customer creates for themselves
         customer = Customer.objects.filter(user_id=user.id).first()
         if not customer:
             raise PermissionDenied("You do not have permission to perform this action.")
-        
+
         serializer.save(customerid=customer)
-
-    # Secure perform_update
-    def perform_update(self, serializer):
-        instance = self.get_object()
-
-        user = self.request.user
-
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        # If user is staff allow them to update data for any customer.
-        if self.request.user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            serializer.save()
-            return
-
-        # If user is a customer, allow them to update data for themselves only.
-        customer = Customer.objects.filter(user_id=user.id).first()
-        if not customer or instance.customerid != customer:
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        serializer.save(customerid=customer)
-
-    # Getting data
-    def get_queryset(self):
-        # Get the person trying to view or edit data.
-        user = self.request.user
-        # If the user is not authenticated, data get, is denied.
-        if not (user and user.is_authenticated):
-            # No data given
-            return Customerservice.objects.none()
-        
-        # If user is staff return all data
-        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            return self.queryset
-        
-        # If user is a customer return the users data .
-        # Filters customers data
-        customer = Customer.objects.filter(user_id=user.id).first()
-        if customer:
-            return self.queryset.filter(customerid=customer)
-        
-        #Return no data if user is not a customer or staff (Security measure).
-        return Customerservice.objects.none()
 
 # -----------------------------------------------------------------------------
 # Booking service view -- Allows for CRUD
@@ -537,64 +400,48 @@ class CustomerServiceViewSet(viewsets.ModelViewSet):
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.select_related("customerid", "serviceid").all()
     serializer_class = BookingSerializer
-    permission_classes = [IsOwnerOrStaff]  # Only authenticated users can access
+    permission_classes = [IsAuthenticated]  # Only authenticated users can access
+
+    def get_permissions(self):
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+        return [IsOwnerOrAdminOrStaffReadOnly()]
 
     # Getting data
     def get_queryset(self):
         user = self.request.user
-        # If the user is not authenticated, data get, is denied.
-        if not (user and user.is_authenticated):
-            # No data given
+
+        if not user.is_authenticated:
             return Booking.objects.none()
-        
-        # If user is staff return all data
-        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+
+        # Staff / Supervisor / Admin / SuperAdmin → all bookings
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
             return self.queryset
-        
-        # If user is a customer return the users data .
-        # Filters customers data
+
+        # Customer → own bookings only
         customer = Customer.objects.filter(user_id=user.id).first()
         if customer:
             return self.queryset.filter(customerid=customer)
-        # Uses users email instead to get customer data.
+
         return Booking.objects.none()
     
     def perform_create(self, serializer):
         user = self.request.user
 
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        # If user is staff allow them to create data for any customer.
-        if self.request.user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+        # Employees can create booking for any customer
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
             serializer.save()
             return
-        
-        # If user is a customer, allow them to create data for themselves only.
+
+        # Customer creates booking only for themselves
         customer = Customer.objects.filter(user_id=user.id).first()
         if not customer:
             raise PermissionDenied("You do not have permission to perform this action.")
-        serializer.save(customerid=customer)
 
-    def perform_update(self, serializer):
-        instance = self.get_object()
-        user = self.request.user
-
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        # If user is staff allow them to update data for any customer.
-        if self.request.user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            serializer.save()
-            return
-
-        # If user is a customer, allow them to update data for themselves only.
-        customer = Customer.objects.filter(user_id=user.id).first()
-        if not customer or instance.customerid != customer:
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
         serializer.save(customerid=customer)
     
 # -----------------------------------------------------------------------------
@@ -603,59 +450,50 @@ class BookingViewSet(viewsets.ModelViewSet):
 class InvoiceViewSet(viewsets.ModelViewSet):
     queryset = Invoice.objects.select_related("customerid").all()
     serializer_class = InvoiceSerializer
-    permission_classes = [IsAuthenticated, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
-    # Getting data
+    def get_permissions(self):
+        # DELETE → SuperAdmin only
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+
+        # POST / PATCH / PUT → Employees only
+        if self.request.method in ["POST", "PATCH", "PUT"]:
+            return [IsStaff()]  # or a broader employee permission
+
+        # GET → any authenticated user
+        return [IsAuthenticated()]
+    
     def get_queryset(self):
-
         user = self.request.user
-        # If the user is not authenticated, data get, is denied.
-        if not (user and user.is_authenticated):
-            # No data given
+
+        if not user.is_authenticated:
             return Invoice.objects.none()
-        
-        # If user is staff return all data
-        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+
+        # Employees → all invoices
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
             return self.queryset
-        
-        # If user is a customer return the users data .
-        # Filters customers data
+
+        # Customer → own invoices only
         customer = Customer.objects.filter(user_id=user.id).first()
-        # If customer return his data using user id
         if customer:
             return self.queryset.filter(customerid=customer)
-        
-        # Uses users email instead to get customer data.
+
         return Invoice.objects.none()
     
     def perform_create(self, serializer):
         user = self.request.user
 
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            raise PermissionDenied("You do not have permission to perform this action.")
-        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        # If user is staff allow them to create data for any customer.
-        if self.request.user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+        # Employees can create invoices
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
             serializer.save()
             return
-    
-    def perform_update(self, serializer):
-        user = self.request.user
 
-        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        serializer.save()
-
-    def perform_destroy(self, instance):
-        user = self.request.user
-        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        return super().perform_destroy(instance)
+        raise PermissionDenied("You do not have permission to perform this action.")
 
 # -----------------------------------------------------------------------------
 # Quote view -- Allows for CRUD
@@ -663,54 +501,50 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 class QuoteViewSet(viewsets.ModelViewSet):
     queryset = Quotes.objects.select_related("customerid").all()
     serializer_class = QuoteSerializer
-    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
-    # Getting data
+    def get_permissions(self):
+        # DELETE → SuperAdmin only
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+
+        # POST / PATCH / PUT → Employees only
+        if self.request.method in ["POST", "PATCH", "PUT"]:
+            return [IsStaff()]
+
+        # GET → any authenticated user
+        return [IsAuthenticated()]
+    
     def get_queryset(self):
         user = self.request.user
-        # If the user is not authenticated, data get, is denied.
-        if not (user and user.is_authenticated):
-            # No data given
+
+        if not user.is_authenticated:
             return Quotes.objects.none()
-        # If user is staff return all data
-        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+
+        # Employees → all quotes
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
             return self.queryset
-        
-        # If user is a customer return the users data .
-        # Filters customers data
+
+        # Customer → own quotes only
         customer = Customer.objects.filter(user_id=user.id).first()
         if customer:
             return self.queryset.filter(customerid=customer)
-        # Uses users email instead to get customer data.
-        return self.queryset.none()
+
+        return Quotes.objects.none()
     
-    # Secure perform_create only employee can do.
     def perform_create(self, serializer):
         user = self.request.user
 
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
+        # Employees create quotes for customers
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
+            serializer.save()
+            return
 
-        serializer.save()
-    
-    # Secure perform_update only employee can do.
-    def perform_update(self, serializer):
-        user = self.request.user
-        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        serializer.save()
-
-    # Secure perform_destroy only employee can do.
-    def perform_destroy(self, instance):
-        user = self.request.user
-        # Only Admin can delete a quote.
-        if not user.groups.filter(name__in=["Admin"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        return super().perform_destroy(instance)
+        raise PermissionDenied("Customers cannot create quotes.")
     
 # -----------------------------------------------------------------------------
 # Schedule view -- Allows for CRUD
@@ -718,298 +552,112 @@ class QuoteViewSet(viewsets.ModelViewSet):
 class ScheduleViewSet(viewsets.ModelViewSet):
     queryset = Schedule.objects.select_related("employeeid").all()
     serializer_class = ScheduleSerializer
-    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
-    # Getting data
+    def get_permissions(self):
+        # DELETE → SuperAdmin only
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+
+        # POST / PATCH / PUT → Supervisor and above
+        if self.request.method in ["POST", "PATCH", "PUT"]:
+            return [IsSupervisorOrAdmin()]
+
+        # GET → authenticated users (visibility limited in queryset)
+        return [IsAuthenticated()]
+    
     def get_queryset(self):
         user = self.request.user
-        # If the user is not authenticated, data get, is denied.
-        if not (user and user.is_authenticated):
-            # No data given
+
+        if not user.is_authenticated:
             return Schedule.objects.none()
-        # If user is staff return all data
-        if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
+
+        # Supervisor / Admin / SuperAdmin → all schedules
+        if user.groups.filter(
+            name__in=["Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
             return self.queryset
-        
-        # If user is a customer return the users data .
-        # Filters customers data
-        if user.groups.filter(name__in=["Staff"]).exists():
+
+        # Staff → only their own schedule
+        if user.groups.filter(name="Staff").exists():
             return self.queryset.filter(employeeid__user_id=user.id)
 
-        # If user is an employee return the users data .
         return Schedule.objects.none()
-    
-    # Only admin and supervisors can create schedule data.
-    def perform_create(self, serializer):
-        user = self.request.user
-
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        serializer.save()
-    
-    # Only admin and supervisors can update schedule data.
-    def perform_update(self, serializer):
-        user = self.request.user
-        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        serializer.save()
 
 ## -----------------------------------------------------------------------------
 # Site view -- Allows for CRUD
 # -----------------------------------------------------------------------------
+
 class SiteViewSet(viewsets.ModelViewSet):
-    queryset = Site.objects.all()
+    queryset = Site.objects.select_related("customerid", "addressid")
     serializer_class = SiteSerializer
-    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        # DELETE → SuperAdmin only
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+
+        # POST / PATCH / PUT → Employees only
+        if self.request.method in ["POST", "PATCH", "PUT"]:
+            return [IsStaff()]
+
+        # GET → authenticated users (visibility controlled in queryset)
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user
-        # If the user is not authenticated, data get, is denied.
-        if not (user and user.is_authenticated):
-            # No data given
+
+        if not user.is_authenticated:
             return Site.objects.none()
-        # If user is staff return all data
-        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
+
+        # Employees → all Sites
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
             return self.queryset
-        
-        # Un-comment if customer should be able to see site data. Currently, customers cannot see any site data for security measures.
 
-        # customer = Customer.objects.filter(user_id=user.id).first()
-        # if customer:
-        #     return self.queryset.filter(customerid=customer)
-        
+        # Customer → own Sites only
+        customer = Customer.objects.filter(user_id=user.id).first()
+        if customer:
+            return self.queryset.filter(customerid=customer)
+
         return Site.objects.none()
-    
-    # Only employees can create site data.
-    def perform_create(self, serializer):
-        user = self.request.user
 
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        serializer.save()
-    
-    # Only employees can update site data.
-    def perform_update(self, serializer):
-        user = self.request.user
-        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        serializer.save()
-    
-    # Only Admin and supervisors can delete site data.
-    def perform_destroy(self, instance):
-        user = self.request.user
-        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        return super().perform_destroy(instance)
     
 # -----------------------------------------------------------------------------
 # Zone view -- Allows for CRUD
 # -----------------------------------------------------------------------------
 class ZoneViewSet(viewsets.ModelViewSet):
-    queryset = Zone.objects.all()
+    queryset = Zone.objects.select_related("siteid", "siteid__customerid")
     serializer_class = ZoneSerializer
-    permission_classes = [IsOwnerOrAdmin, DjangoModelPermissions]
+    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        user = self.request.user
-        # If the user is not authenticated, data get, is denied.
-        if not (user and user.is_authenticated):
-            # No data given
-            return Zone.objects.none()
-        # If user is staff return all data
-        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            return self.queryset
-        
-        # Un-comment if customer should be able to see zone data. Currently, customers cannot see any zone data for security measures.
-
-        # customer = Customer.objects.filter(user_id=user.id).first()
-        # if customer:
-        #     return self.queryset.filter(customerid=customer)
-        
-        return Zone.objects.none()
-    
-    def perform_create(self, serializer):
-        user = self.request.user
-
-        # If the user is not authenticated it will not allow access.
-        if not (user and user.is_authenticated):
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        
-        serializer.save()
-
-    def perform_update(self, serializer):
-        user = self.request.user
-        if not user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        serializer.save()
-    
-    def perform_destroy(self, instance):
-        user = self.request.user
-        if not user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
-            raise PermissionDenied("You do not have permission to perform this action.")
-        return super().perform_destroy(instance)
-
-# -----------------------------------------------------------------------------
-#Service Image ViewSet
-# - list/retrieve give metadata (no raw bytes)
-# - POST /upload to attach a file to a service
-# - GET  /{id}/bytes to stream the image inline (no download dialog)
-# -----------------------------------------------------------------------------
-class ServiceImageViewSet(viewsets.ModelViewSet):
-    queryset = ServiceImage.objects.select_related("service").all()
-    serializer_class = ServiceImageSerializer
-    parser_classes = [MultiPartParser, FormParser]  # for upload
-    permission_classes = [DjangoModelPermissions]
-
-    # Check users permission
     def get_permissions(self):
-        # Allows view for authenticated user only
-        if self.request.method in permissions.SAFE_METHODS:
-            return [IsAuthenticatedOrReadOnly()]
-        # Allows admin to view or edit data.
-        return [isAdmin()]
-    
-    # Get data
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+
+        if self.request.method in ["POST", "PATCH", "PUT"]:
+            return [IsStaff()]
+
+        return [IsAuthenticated()]
+
     def get_queryset(self):
-        # Use super meaning admin to get a query set as qs
-        qs = super().get_queryset()
-        # Get service Id from the service image db
-        service_id = self.request.query_params.get("service")
-        # Filter from the service the service for that image
-        if service_id:
-            qs = qs.filter(serviceid_id=service_id)
-        # Return the query.
-        return qs
+        user = self.request.user
 
-    # To upload an image to a service.
-    def create(self, request, *args, **kwargs):
-        file_obj = request.FILES.get("image")
-        service_id = request.data.get("service")
-        filename = request.data.get("filename", file_obj.name if file_obj else "image")
+        if not user.is_authenticated:
+            return Zone.objects.none()
 
-        if not file_obj:
-            return Response({"detail": "No image file provided."}, status=status.HTTP_400_BAD_REQUEST)
-        if not service_id:
-            return Response({"detail": "Missing service."}, status=status.HTTP_400_BAD_REQUEST)
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
+            return self.queryset
 
-        raw = file_obj.read()
-        if len(raw) > 20 * 1024 * 1024:
-            return Response({"detail": "Image file is too large (Max 20MB)"}, status=status.HTTP_400_BAD_REQUEST)
+        customer = Customer.objects.filter(user_id=user.id).first()
+        if customer:
+            return self.queryset.filter(siteid__customerid=customer)
 
-        content_type = (
-            getattr(file_obj, "content_type", None)
-            or mimetypes.guess_type(filename)[0]
-            or "application/octet-stream"
-        )
-        if content_type not in ["image/jpeg", "image/png", "image/webp"]:
-            return Response({"detail": "Unsupported image type. Only JPEG, PNG, and WebP are allowed."},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        _, ext = os.path.splitext(filename)
-        ext = ext.lower() or ".bin"
-        storage_path = f"{service_id}/{uuid.uuid4().hex}{ext}"
-
-        try:
-            supabase().storage.from_(SERVICE_IMAGES_BUCKET).upload(
-                path=storage_path,
-                file=raw,
-                file_options={
-                    "content-type": content_type,
-                    "cache-control": "86400",
-                    "upsert": "false",
-                },
-            )
-        except Exception as e:
-            return Response({"detail": f"upload failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        obj = ServiceImage.objects.create(
-            service_id=int(service_id),
-            bucket=SERVICE_IMAGES_BUCKET,
-            storage_path=storage_path,
-            content_type=content_type,           
-            filename=filename,
-            size_bytes=len(raw),
-            uploaded_by=request.user if request.user.is_authenticated else None,
-        )
-
-        return Response(self.get_serializer(obj, context={"request": request}).data,
-                        status=status.HTTP_201_CREATED)
-
-    # To replace an existing image with a new one, deletes the old one from storage and db, then uploads the new one.
-    @action(detail=True, methods=["post"], url_name="replace")
-    def replace_file(self, request, pk=None):
-        obj = self.get_object()
-        file_obj = request.FILES.get("image")
-        if not file_obj:
-            return Response({"detail": "No image file provided."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        raw = file_obj.read()
-        if len(raw) > 20 * 1024 * 1024:  # Limit to 20MB
-            return Response({"detail": "Image file is too large (Max 20MB)"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        content_type = getattr(file_obj, "content_type", None) or mimetypes.guess_type(file_obj.name)[0] or "application/octet-stream"
-        if content_type not in ["image/jpeg", "image/png", "image/webp"]:
-            return Response({"detail": "Unsupported image type. Only JPEG, PNG, and WebP are allowed."}, status=status.HTTP_400_BAD_REQUEST)
-        _, ext = os.path.splitext(file_obj.name)
-        ext = ext.lower() or ".bin"
-        new_path = f"{obj.serviceid_id}/{uuid.uuid4().hex}{ext}"
-        up = supabase().storage.from_(SERVICE_IMAGES_BUCKET).upload(
-            path=new_path,
-            file=raw,
-            file_options={
-                "content-type": content_type,
-                "cache-control": "86400",
-                "upsert": "false"
-            },
-        )
-        if up.get("error"):
-            return Response({"detail": f"upload failed: {up['error']}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        old_path = obj.storage_path
-        obj.storage_path = new_path
-        obj.content_type = content_type
-        obj.size_bytes = len(raw)
-        obj.filename = getattr(file_obj, "name", obj.filename)
-        obj.save(update_fields=["storage_path", "content_type", "size_bytes", "filename"])
-        supabase().storage.from_(SERVICE_IMAGES_BUCKET).remove(path=old_path)
-
-        return Response(self.get_serializer(obj, context={"request": request}).data, status=status.HTTP_200_OK)
-    
-    def destroy(self, request, *args, **kwargs):
-        obj = self.get_object()
-        supabase().storage.from_(SERVICE_IMAGES_BUCKET).remove(path=obj.storage_path)
-        return super().destroy(request, *args, **kwargs)
-    
-    @action(detail=True, methods=["get"], url_name="bytes")
-    def get_bytes(self, request, pk=None):
-        obj = self.get_object()
-        public_url = f"{SUPABASE_URL}/storage/v1/object/public/{SERVICE_IMAGES_BUCKET}/{obj.storage_path}"
-        return HttpResponseRedirect(public_url)
-
-
-# -----------------------------------------------------------------------------
-# User profile Image ViewSet (private bucket)
-# - POST   /core/user-images/                -> upload (owner)
-# - GET    /core/user-images/                -> list (owner; admins see all)
-# - GET    /core/user-images/{id}/           -> retrieve metadata
-# - GET    /core/user-images/{id}/bytes/     -> 302 redirect to signed URL (good for <img src>)
-# - GET    /core/user-images/{id}/url/       -> JSON with signed_url (good for SPA)
-# - POST   /core/user-images/{id}/replace/   -> replace file (keep metadata fresh)
-# - DELETE /core/user-images/{id}/           -> delete file + row
-# -----------------------------------------------------------------------------
+        return Zone.objects.none()
 
 # -----------------------------------------------------------------------------
 # User profile Image ViewSet (private bucket)
@@ -1022,126 +670,81 @@ class ServiceImageViewSet(viewsets.ModelViewSet):
 # - DELETE /core/user-images/{id}/           -> delete file + row
 # -----------------------------------------------------------------------------
 class UserImageViewSet(viewsets.ModelViewSet):
-    queryset = UserImage.objects.select_related("user").all()
+    queryset = UserImage.objects.select_related("user")
     serializer_class = UserImageSerializer
     parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [IsAuthenticated]
 
-    # Allow read for authenticated users (but queryset limits to owner/admin).
-    # Writes require owner/admin.
+    # -----------------------------
+    # Permissions
+    # -----------------------------
     def get_permissions(self):
-        if self.request.method in permissions.SAFE_METHODS:
-            return [IsAuthenticatedOrReadOnly()]
-        return [IsOwnerOrAdmin()]
+        # DELETE → SuperAdmin only
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
 
+        # WRITE (upload / replace) → Owner only
+        if self.request.method not in permissions.SAFE_METHODS:
+            return [IsOwner()]
+
+        # READ → authenticated users (visibility limited in queryset)
+        return [IsAuthenticated()]
+
+    # -----------------------------
+    # Visibility
+    # -----------------------------
     def get_queryset(self):
         user = self.request.user
-        qs = UserImage.objects.select_related("user").all()
 
-        if not user or not user.is_authenticated:
-            return qs.none()
+        # SuperAdmin / Admin / Supervisor → see all
+        if user.groups.filter(name__in=["SuperAdmin", "Admin", "Supervisor"]).exists():
+            return self.queryset
 
-        if user.groups.filter(name__in=["Admin", "Supervisor"]).exists():
-            return qs
-
-        return qs.filter(user_id=user.id)
-
-    # -----------------------------
-    # Helpers
-    # -----------------------------
-    def _validate_and_extract_file(self, request):
-        file_obj = request.FILES.get("image")
-        filename = request.data.get("filename") or (file_obj.name if file_obj else "image")
-
-        if not file_obj:
-            raise PermissionDenied("No image file provided.")
-
-        raw = file_obj.read()
-        if len(raw) > 20 * 1024 * 1024:
-            raise PermissionDenied("Image file is too large (Max 20MB)")
-
-        content_type = (
-            getattr(file_obj, "content_type", None)
-            or mimetypes.guess_type(filename)[0]
-            or "application/octet-stream"
-        )
-        if content_type not in ["image/jpeg", "image/png", "image/webp"]:
-            raise PermissionDenied("Unsupported image type. Only JPEG, PNG, and WebP are allowed.")
-
-        return raw, filename, content_type
-
-    def _build_storage_path(self, user_id: int, filename: str) -> str:
-        _, ext = os.path.splitext(filename or "")
-        ext = ext.lower() or ".bin"
-        return f"{user_id}/{uuid.uuid4().hex}{ext}"
-
-    def _signed_url_for(self, path: str, expires: int = None) -> str:
-        """Create a short-lived signed URL for a private object; returns the URL as string."""
-        ttl = expires or int(os.getenv("SUPABASE_SIGNED_URL_TTL", "60"))  # default 60s
-        try:
-            # Supabase Python client response can differ by version/wrapper.
-            res = supabase().storage.from_(USER_IMAGES_BUCKET).create_signed_url(path, ttl)
-            # Common keys: 'signedURL', 'signed_url', or nested data
-            if isinstance(res, dict):
-                return res.get("signedURL") or res.get("signed_url") or res.get("data", {}).get("signedUrl") or res.get("data", {}).get("signedURL")
-            # If your wrapper returns a string directly:
-            if isinstance(res, str):
-                return res
-            raise RuntimeError("Unexpected response from create_signed_url")
-        except Exception as e:
-            raise RuntimeError(f"signed url failed: {str(e)}")
+        # Regular user → only own images
+        return self.queryset.filter(user=user)
 
     # -----------------------------
     # Create (Upload)
     # -----------------------------
     def create(self, request, *args, **kwargs):
-        if not request.user or not request.user.is_authenticated:
-            return Response({"detail": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED)
-
         raw, filename, content_type = self._validate_and_extract_file(request)
         storage_path = self._build_storage_path(request.user.id, filename)
 
-        try:
-            supabase().storage.from_(USER_IMAGES_BUCKET).upload(
-                path=storage_path,
-                file=raw,
-                file_options={
-                    "content-type": content_type,
-                    "cache-control": "86400",
-                    "upsert": "false",
-                },
-            )
-        except Exception as e:
-            return Response({"detail": f"upload failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        supabase().storage.from_(USER_IMAGES_BUCKET).upload(
+            path=storage_path,
+            file=raw,
+            file_options={
+                "content-type": content_type,
+                "cache-control": "86400",
+                "upsert": "false",
+            },
+        )
 
         obj = UserImage.objects.create(
             user=request.user,
             bucket=USER_IMAGES_BUCKET,
             storage_path=storage_path,
             content_type=content_type,
-            filename=filename,
-            size_bytes=len(raw),
+            file_name=filename,
+            size_byte=len(raw),
         )
 
         return Response(self.get_serializer(obj).data, status=status.HTTP_201_CREATED)
 
     # -----------------------------
-    # Replace (Upload new file, delete old)
+    # Replace (Owner only)
     # -----------------------------
     @action(detail=True, methods=["post"], url_path="replace")
     def replace_file(self, request, pk=None):
         obj = self.get_object()
 
-        # Additional check: owner or admin
-        user = request.user
-        is_admin = user and user.is_authenticated and user.groups.filter(name__in=["Admin", "Supervisor"]).exists()
-        if not is_admin and (not user or not user.is_authenticated or obj.user_id != user.id):
-            return Response({"detail": "You do not have permission to perform this action."},
-                            status=status.HTTP_403_FORBIDDEN)
+        if obj.user_id != request.user.id:
+            raise PermissionDenied("You can only replace your own image.")
 
         raw, filename, content_type = self._validate_and_extract_file(request)
         new_path = self._build_storage_path(obj.user_id, filename)
 
-        up = supabase().storage.from_(USER_IMAGES_BUCKET).upload(
+        supabase().storage.from_(USER_IMAGES_BUCKET).upload(
             path=new_path,
             file=raw,
             file_options={
@@ -1150,179 +753,170 @@ class UserImageViewSet(viewsets.ModelViewSet):
                 "upsert": "false",
             },
         )
-        if isinstance(up, dict) and up.get("error"):
-            return Response({"detail": f"upload failed: {up['error']}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # Best-effort remove of old blob
-        old_path = obj.storage_path
-        try:
-            # If your client requires a list: .remove([old_path])
-            supabase().storage.from_(USER_IMAGES_BUCKET).remove(path=old_path)
-        except Exception:
-            pass
+        supabase().storage.from_(USER_IMAGES_BUCKET).remove(path=obj.storage_path)
 
         obj.storage_path = new_path
         obj.content_type = content_type
-        obj.size_bytes = len(raw)
-        obj.filename = filename
-        obj.save(update_fields=["storage_path", "content_type", "size_bytes", "filename"])
+        obj.file_name = filename
+        obj.size_byte = len(raw)
+        obj.save()
 
-        return Response(self.get_serializer(obj).data, status=status.HTTP_200_OK)
+        return Response(self.get_serializer(obj).data)
 
     # -----------------------------
-    # Delete (Remove DB row and blob)
+    # Delete (SuperAdmin only)
     # -----------------------------
     def destroy(self, request, *args, **kwargs):
         obj = self.get_object()
 
-        user = request.user
-        is_admin = user and user.is_authenticated and user.groups.filter(name__in=["Admin", "Supervisor"]).exists()
-        if not is_admin and (not user or not user.is_authenticated or obj.user_id != user.id):
-            return Response({"detail": "You do not have permission to perform this action."},
-                            status=status.HTTP_403_FORBIDDEN)
-
-        try:
-            supabase().storage.from_(USER_IMAGES_BUCKET).remove(path=obj.storage_path)
-        except Exception:
-            pass
-
+        supabase().storage.from_(USER_IMAGES_BUCKET).remove(path=obj.storage_path)
         return super().destroy(request, *args, **kwargs)
 
     # -----------------------------
-    # Get image: 302 redirect to signed URL
+    # Get signed image URL
     # -----------------------------
     @action(detail=True, methods=["get"], url_path="bytes")
     def get_bytes(self, request, pk=None):
         obj = self.get_object()
 
-        # Enforce owner/admin to obtain a signed URL
-        user = request.user
-        is_admin = user and user.is_authenticated and user.groups.filter(name__in=["Admin", "Supervisor"]).exists()
-        if not is_admin and (not user or not user.is_authenticated or obj.user_id != user.id):
-            return Response({"detail": "You do not have permission to perform this action."},
-                            status=status.HTTP_403_FORBIDDEN)
+        if (
+            obj.user_id != request.user.id
+            and not request.user.groups.filter(
+                name__in=["SuperAdmin", "Admin", "Supervisor"]
+            ).exists()
+        ):
+            raise PermissionDenied("You do not have permission to view this image.")
 
-        try:
-            signed = self._signed_url_for(obj.storage_path)
-        except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        # 302 redirect to Supabase
-        return HttpResponseRedirect(signed)
-
-    # -----------------------------
-    # Get image: JSON with signed URL
-    # -----------------------------
-    @action(detail=True, methods=["get"], url_path="url")
-    def get_signed_url(self, request, pk=None):
-        obj = self.get_object()
-        user = request.user
-        is_admin = user and user.is_authenticated and user.groups.filter(name__in=["Admin", "Supervisor"]).exists()
-        if not is_admin and (not user or not user.is_authenticated or obj.user_id != user.id):
-            return Response({"detail": "You do not have permission to perform this action."},
-                            status=status.HTTP_403_FORBIDDEN)
-        try:
-            signed = self._signed_url_for(obj.storage_path)
-        except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        # Prevent caching stale URLs client-side
-        return Response({"signed_url": signed, "expires_in": int(os.getenv("SUPABASE_SIGNED_URL_TTL", "60"))})
-    
+        signed_url = self._signed_url_for(obj.storage_path)
+        return HttpResponseRedirect(signed_url)
 
 # ------------------------------
 # Request Quote Viewset
 # ------------------------------
+
 class RequestQuoteViewSet(viewsets.ModelViewSet):
     queryset = RequestQuote.objects.all()
     serializer_class = RequestQuoteSerializer
-    permission_classes = [IsOwnerOrStaff]
+    permission_classes = [AllowAny]  # public entry for leads
 
+    # ---------------------------------
+    # Permissions
+    # ---------------------------------
+    def get_permissions(self):
+        # DELETE → SuperAdmin only
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+
+        # UPDATE → employees only
+        if self.request.method in ["PATCH", "PUT"]:
+            return [IsStaff()]
+
+        # CREATE → anyone (even anonymous)
+        if self.request.method == "POST":
+            return [AllowAny()]
+
+        # READ → authenticated users only
+        return [IsAuthenticated()]
+
+    # ---------------------------------
+    # Visibility
+    # ---------------------------------
     def get_queryset(self):
         user = self.request.user
-        
-        # If user is not authenticated, return no quotes
+
+        # Anonymous users never list or retrieve
         if not user.is_authenticated:
             return RequestQuote.objects.none()
-        
-        # Staff can see all quotes
-        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            return RequestQuote.objects.all()
-        
-        # Customers can only see their own quotes
+
+        # Employees → all requests
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
+            return self.queryset
+
+        # Customer → own requests only
         customer = Customer.objects.filter(user=user).first()
         if customer:
-            return RequestQuote.objects.filter(customerid=customer)
-        
+            return self.queryset.filter(customerid=customer)
+
         return RequestQuote.objects.none()
 
+    # ---------------------------------
+    # Create (Lead submission)
+    # ---------------------------------
     def perform_create(self, serializer):
         user = self.request.user
-        
-        # If user is authenticated, link to their customer account
+
+        # Logged-in customer → attach ownership
         if user.is_authenticated:
             customer = Customer.objects.filter(user=user).first()
             if customer:
                 serializer.save(customerid=customer)
-            else:
-                # Authenticated but no customer profile? Save without customer
-                serializer.save()
-        else:
-            # Unauthenticated users can still submit quotes
-            serializer.save()
+                return
+
+        # Anonymous lead → save without customer
+        serializer.save()
+
 
 # ------------------------------
 # Service Location Viewset
 # ------------------------------
 class ServiceLocationViewSet(viewsets.ModelViewSet):
-    queryset = ServiceLocation.objects.all()
+    queryset = ServiceLocation.objects.select_related("customerid")
     serializer_class = ServiceLocationSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticated]
 
+    # ---------------------------------
+    # Permissions
+    # ---------------------------------
+    def get_permissions(self):
+        # DELETE → SuperAdmin only
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+
+        # POST / PATCH / PUT → Owner or employees
+        if self.request.method in ["POST", "PATCH", "PUT"]:
+            return [IsOwnerOrAdminOrStaffReadOnly()]
+
+        # GET → authenticated users (visibility handled in queryset)
+        return [IsAuthenticated()]
+
+    # ---------------------------------
+    # Visibility
+    # ---------------------------------
     def get_queryset(self):
         user = self.request.user
-        
-        # If user is not authenticated, return no locations
-        if not user.is_authenticated:
-            return ServiceLocation.objects.none()
-        
-        # Staff can see all locations
-        if user.groups.filter(name__in=["Admin", "Supervisor", "Staff"]).exists():
-            return ServiceLocation.objects.all()
-        
-        # Customers can only see their own locations
+
+        # Employees → all locations
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
+            return self.queryset
+
+        # Customer → own locations only
         customer = Customer.objects.filter(user=user).first()
         if customer:
-            return ServiceLocation.objects.filter(customerid=customer)
-        
+            return self.queryset.filter(customerid=customer)
+
         return ServiceLocation.objects.none()
 
+    # ---------------------------------
+    # Create (ownership assignment)
+    # ---------------------------------
     def perform_create(self, serializer):
         user = self.request.user
-        
-        # Must be authenticated to create a service location
-        if not user.is_authenticated:
-            raise PermissionDenied("You must be logged in to save a service location.")
-        
-        # Automatically assign to the logged-in user's customer account
-        customer = Customer.objects.filter(user=user).first()
-        if customer:
-            serializer.save(customerid=customer)
-        else:
-            raise PermissionDenied("No customer profile found. Please complete your profile first.")
-    
-    # Optional: Add custom action for getting user's locations
-    @action(detail=False, methods=['get'])
-    def my_locations(self, request):
-        """Get all locations for the current user"""
-        user = request.user
-        if not user.is_authenticated:
-            return Response({"detail": "Authentication required"}, status=401)
-        
+
+        # Employees can create for any customer
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
+            serializer.save()
+            return
+
+        # Customer creates only for self
         customer = Customer.objects.filter(user=user).first()
         if not customer:
-            return Response({"detail": "Customer profile not found"}, status=404)
-        
-        locations = self.get_queryset().filter(customerid=customer)
-        serializer = self.get_serializer(locations, many=True)
-        return Response(serializer.data)
+            raise PermissionDenied("Customer profile not found. Please complete your profile.")
+
+        serializer.save(customerid=customer)

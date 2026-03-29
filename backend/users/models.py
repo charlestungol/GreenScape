@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.base_user import BaseUserManager
-from django.db.models import Q
+from django.core.validators import RegexValidator
 
 class CustomManager(BaseUserManager):
 
@@ -41,10 +41,20 @@ class CustomUser(AbstractUser):
 
     # User email
     email = models.EmailField(max_length=200, unique=True)
-
     # Employee Number
-    employee_number = models.CharField(max_length=50, null=True, blank=True)
-    
+    employee_number = models.CharField(
+        max_length=20,
+        unique=True,
+        null=True,
+        blank=True,
+        validators=[
+            RegexValidator(
+                regex=r'^\d+$',
+                message="Employee number must contain digits only."
+            )
+        ],
+        help_text="Numeric employee identifier (employees only)",
+    )
     # Assign Google Account to user
     google_sub = models.CharField(max_length=255, null=True, blank=True, db_index=True)
     avatar_url = models.URLField(null=True, blank=True)

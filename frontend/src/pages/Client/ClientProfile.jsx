@@ -46,6 +46,14 @@ function ClientProfile() {
       const customer = response.data || {};
       const address = customer.address || {};
 
+      const firstName = customer?.firstname || "";
+      const lastName = customer?.lastname || "";
+      const email = customer?.email || "";
+      
+      localStorage.setItem("first_name", firstName);
+      localStorage.setItem("last_name", lastName);
+      localStorage.setItem("email", email);
+
       setUserInfo({
         email: customer?.email || "",
         first_name: customer?.firstname || "",

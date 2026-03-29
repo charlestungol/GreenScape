@@ -1,70 +1,158 @@
-from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework.permissions import BasePermission, SAFE_METHODS, IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from core.models import Address, Customer, Employee
 
-# READ for everyone, WRITE for authenticated users.
-class IsAuthenticatedOrReadOnly(BasePermission):
+# Allow Staff Only
+class IsStaff(BasePermission):
     def has_permission(self, request, view):
-        if request.method in SAFE_METHODS:
+        # Get user
+        user = request.user
+        # Check if employee is Staff only
+        if user.groups.filter(name="Staff").exists() and user.is_authenticated:
             return True
-        return bool(request.user and request.user.is_authenticated)
-
-
-# Business "admin": Admin or Supervisor (group-based).
-class isAdmin(BasePermission):
-    def has_permission(self, request, view):
-        u = request.user
-        return bool(
-            u and u.is_authenticated and
-            u.groups.filter(name__in=["Admin", "Supervisor"]).exists()
-        )
-
-
-# Owner OR Admin/Supervisor for object-level checks.
-# Ownership is determined via your actual schema (Customer/Employee/Address).
-class IsOwnerOrAdmin(BasePermission):
-    def has_object_permission(self, request, view, obj):
-        u = request.user
-        if not (u and u.is_authenticated):
-            return False
-        # Admin/Supervisor always allowed
-        if u.groups.filter(name__in=["Admin", "Supervisor"]).exists():
-            return True
-
-        # ----- Ownership checks by model -----
-        # Address: caller owns it if their Customer/Employee points to this address.
-        if isinstance(obj, Address):
-            owns_as_customer = Customer.objects.filter(user_id=u.id, addressid_id=obj.pk).exists()
-            owns_as_employee = Employee.objects.filter(user_id=u.id, addressid_id=obj.pk).exists()
-            return owns_as_customer or owns_as_employee
-
-        # Customer: row belongs to the caller if user_id matches.
-        from core.models import Customer as CustomerModel
-        if obj.__class__.__name__ == CustomerModel.__name__:
-            return getattr(obj, "user_id", None) == u.id
-
-        # Employee: row belongs to the caller if user_id matches.
-        from core.models import Employee as EmployeeModel
-        if obj.__class__.__name__ == EmployeeModel.__name__:
-            return getattr(obj, "user_id", None) == u.id
-
-        # Fallback: if the object carries a user_id field, compare it
-        if hasattr(obj, "user_id"):
-            return obj.user_id == u.id
-
+        # Dont allow  permission when not a Staff
         return False
 
-
-# Staff can READ any object (SAFE methods).
-# For writes, require Admin/Supervisor or ownership (like IsOwnerOrAdmin semantics).
-class IsOwnerOrStaff(BasePermission):
-    def has_object_permission(self, request, view, obj):
-        u = request.user
-        if not (u and u.is_authenticated):
-            return False
-
-        # Staff can read any object
-        if request.method in SAFE_METHODS and u.groups.filter(name="Staff").exists():
+# Allow permissions above Staff
+class IsSupervisorOrAdmin(BasePermission):
+    def has_permission(self, request, view):
+        # Get user
+        user = request.user
+        # Check if employee is Supervisor/Admin/SuperAdmin
+        if user.is_authenticated and user.groups.filter(name__in=["Supervisor", "Admin", "SuperAdmin"]).exists():
             return True
+        # Don't allow if user is not a supervisor, admin, or SuperAdmin
+        return False
 
-        # Delegate to IsOwnerOrAdmin for writes (and also for non-Staff reads)
-        return isAdmin().has_object_permission(request, view, obj)
+# Allow Admin only
+class IsAdminOnly(BasePermission):
+    def has_permission(self, request, view):
+        # Get user
+        user = request.user
+        # Check if user is an admin using django checks
+        if user.is_authenticated and user.groups.filter(name="Admin").exists():
+            return True
+        # Dont allow if user not a admin or super admin
+        return False
+    
+# Allow Admin and Super Admin
+class IsAdminOrSuperAdmin(BasePermission):
+    def has_permission(self, request, view):
+        # Get user
+        user = request.user
+        # Check if user is admin and super admin
+        if user.is_authenticated and user.groups.filter(name__in=["Admin", "SuperAdmin"]).exists():
+            return True
+        # Don't allow if user not an admin or super admin
+        return False
+    
+# Allow super admin only
+class IsSuperAdminOnly(BasePermission):
+    def has_permission(self, request, view):
+        # Get user
+        user = request.user
+        # Check if user is Super admin only
+        if user.is_authenticated and user.groups.filter(name="SuperAdmin").exists():
+            return True
+        # Dont allow if user not a super admin
+        return False
+    
+# Allow owner only
+class IsOwner(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        # Get the user
+        user = request.user
+        # Check if the user is authenticated, and the object is the users
+        if user.is_authenticated and getattr(obj, "user_id", None) == user.id:
+            return True
+        # If not its owner deny access.
+        return False
+
+# Allow owner access and Staff read only
+class IsOwnerOrStaffReadOnly(BasePermission):
+    def has_object_permission(self, request, view, obj ):
+        # Get user
+        user = request.user
+        # Check if user is authentifcated first
+        if not user.is_authenticated:
+            return False
+        # Check if user is authenticated and is staff, can view only
+        if request.method in SAFE_METHODS and user.groups.filter(name="Staff").exists():
+            return True
+        # Check if user is owner
+        if getattr(obj, "user_id", None) == user.id:
+            return True
+        # If not owner, or staff read only
+        return False
+    
+# Allow owner access, and Staff View, and other employee to edit.
+class IsOwnerOrAdminOrStaffReadOnly(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        # Get user
+        user = request.user
+        # Check if user is authenticated
+        if not user.is_authenticated:
+            return False
+        # Check if method is safe (View only)
+        if user.groups.filter(name="Staff").exists():
+            return request.method in SAFE_METHODS
+        # Check if the user is a Supervisor or admin
+        if user.groups.filter(name__in=["Supervisor", "Admin", "SuperAdmin"]).exists():
+            return True
+        # Check if the data belongs to user
+        if getattr(obj, "user_id", None) == user.id:
+            return True
+        # If not above deny
+        return False
+    
+# Is owner or Super Admin (Made for deleting Owner data but not other stuff)
+class IsOwnerOrSuperAdmin(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        # Get user
+        user = request.user
+        # Check if user is authenticated
+        if not user.is_authenticated:
+            return False
+        # Check if delete is from super admin or Owner
+        if user.groups.filter(name="SuperAdmin").exists():
+            return True
+        # Check if the user owns the the data.
+        return getattr(obj, "user_id", None) == user.id
+
+#Client data permissions
+class ClientAccessPermission(BasePermission):
+    def has_permission(self, request, view):
+        # Get user
+        user = request.user
+        # Check if user is authenticated first
+        if not user.is_authenticated:
+            return False
+        # Allow delete if user is SuperAdmin.
+        if request.method == "DELETE":
+            return user.groups.filter(name="SuperAdmin").exists()
+        # Return True if user is a Staff
+        if user.groups.filter(name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]).exists():
+            return True
+        # If not any of the one above deny
+        return False
+
+#Employee data permission
+class EmployeeAccessPermission(BasePermission):
+    def has_permission(self, request, view):
+        # Get user
+        user = request.user
+        # Check if user is authenticated
+        if not user.is_authenticated:
+            return False
+        # Allow delete if user is Super Admin
+        if request.method == "DELETE":
+            return user.groups.filter(name="SuperAdmin").exists()
+        # Return True if user is a staff
+        if user.groups.filter(name__in=["Supervisor","Admin","SuperAdmin"]).exists():
+            return True
+        # If not any of the above deny
+        return False
+
+        
+

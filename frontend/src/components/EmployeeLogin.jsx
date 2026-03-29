@@ -17,43 +17,60 @@ const EmployeeLogin = () => {
   const handleLogin = async () => {
     setError("");
 
-    if (!employeeNumber || !email || !password) {
+    if (!email || !password) {
       setError("Please fill in all fields.");
       return;
     }
 
     try {
+      //Login (single flow for all internal users)
       const response = await AxiosInstance.post("login/employee/", {
-        employee_number: employeeNumber,
         email,
         password,
+        employee_number: employeeNumber || null,
       });
 
-      const user = response.data?.user || {};
+      const { access, user } = response.data;
+      const group = user?.group;
 
-      localStorage.setItem("access", response.data?.access || "");
-      localStorage.setItem("user_id", user.id || "");
-      localStorage.setItem("email", user.email || "");
-      localStorage.setItem("role", user.role || "employee");
-      localStorage.setItem("employee_number", user.employee_number || "");
-      localStorage.setItem("employee_id", user.employee_id || "");
-      localStorage.setItem("first_name", user.first_name || "");
-      localStorage.setItem("last_name", user.last_name || "");
-      localStorage.setItem("group", user.group || "");
+      //Store auth/session info
+      localStorage.setItem("access", access);
+      localStorage.setItem("user_id", user.id);
+      localStorage.setItem("email", user.email);
+      localStorage.setItem("group", group || "");
+      console.log("Logged in user group:", group);
+      //Employee roles → enforce profile completion
+      if (group === "Staff" || group === "Supervisor") {
+        const meRes = await AxiosInstance.get("core/employees/me/");
+        const employee = meRes.data;
 
-      navigate("/employee/dashboard");
+        const profileComplete =
+          employee.firstname &&
+          employee.lastname &&
+          employee.phonenumber &&
+          employee.address;
+
+        if (!profileComplete) {
+          navigate("/employee/complete-profile");
+          return;
+        }
+
+        navigate("/employeeHome");
+        return;
+      }
+
+      //Admin roles → admin dashboard
+      if (group === "Admin" || group === "SuperAdmin") {
+        navigate("/employeeHome");
+        return;
+      }
+
+      //Fallback (misconfigured account)
+      setError("Your account has no assigned role. Please contact support.");
+
     } catch (err) {
       console.error(err.response || err);
-
-      if (err.response) {
-        setError(
-          typeof err.response.data === "string"
-            ? err.response.data
-            : JSON.stringify(err.response.data)
-        );
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
+      setError("Login failed. Please check your credentials.");
     }
   };
 
