@@ -91,7 +91,6 @@ export default function EmployeeAccount() {
           firstname: profile.firstname,
           lastname: profile.lastname,
           phonenumber: profile.phonenumber,
-          email: profile.email,
         });
       }
       localStorage.setItem("email", profile.email);

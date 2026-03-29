@@ -152,15 +152,14 @@ export default function Navbar({ content }) {
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
-  const normalizeRole = (group) => {
-    const lower = (group || "").toLowerCase();
-    return EMPLOYEE_ROLES.includes(lower) ? "employee" : "client";
+  const normalizeRole = (role) => {
+    return role === "client" ? "client" : "employee";
   };
 
 
   const getUserData = () => {
     
-    const rawRole = localStorage.getItem("group") || `client`;
+    const rawRole = localStorage.getItem("role") || "client";
 
     const role = normalizeRole(rawRole);
 

@@ -140,18 +140,25 @@ class ClientAccessPermission(BasePermission):
 #Employee data permission
 class EmployeeAccessPermission(BasePermission):
     def has_permission(self, request, view):
-        # Get user
         user = request.user
-        # Check if user is authenticated
+
         if not user.is_authenticated:
             return False
-        # Allow delete if user is Super Admin
+
+        # ✅ Allow Staff to PATCH their own /me profile
+        if getattr(view, "action", None) == "me":
+            return user.groups.filter(
+                name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+            ).exists()
+
+        # DELETE only by SuperAdmin
         if request.method == "DELETE":
             return user.groups.filter(name="SuperAdmin").exists()
-        # Return True if user is a staff
-        if user.groups.filter(name__in=["Supervisor","Admin","SuperAdmin"]).exists():
+
+        # Supervisor+ can manage other employees
+        if user.groups.filter(name__in=["Supervisor", "Admin", "SuperAdmin"]).exists():
             return True
-        # If not any of the above deny
+
         return False
 
         

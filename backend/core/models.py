@@ -157,9 +157,7 @@ class Employee(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         db_column="UserId",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         related_name="employee",
     )
     employeeid = models.AutoField(db_column="EmployeeId", primary_key=True)
@@ -167,7 +165,6 @@ class Employee(models.Model):
     firstname = models.CharField(db_column="FirstName", max_length=20, null=True, blank=True)
     lastname = models.CharField(db_column="LastName", max_length=20,null=True, blank=True)
     phonenumber = models.CharField(db_column="PhoneNumber", max_length=10, null=True, blank=True)
-    staffstatus = models.CharField(db_column="StaffStatus", max_length=20, null=True, blank=True)
 
     class Meta:
         managed = True

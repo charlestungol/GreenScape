@@ -30,6 +30,7 @@ const CompleteProfile = () => {
   useEffect(() => {
     AxiosInstance.get("core/employees/me/")
       .then(({ data }) => {
+        // Employee exists → pre-fill
         setFirstname(data.firstname || "");
         setLastname(data.lastname || "");
         setPhonenumber(data.phonenumber || "");
@@ -43,8 +44,12 @@ const CompleteProfile = () => {
           });
         }
       })
-      .catch(() => {
-        setError("Failed to load employee profile.");
+      .catch((err) => {
+        if (err.response?.status !== 404) {
+          // 404 is EXPECTED for new employees
+          setError("Failed to load employee profile.");
+        }
+        // else: new employee → leave form empty
       })
       .finally(() => setLoading(false));
   }, []);

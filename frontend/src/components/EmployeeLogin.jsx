@@ -37,10 +37,12 @@ const EmployeeLogin = () => {
       localStorage.setItem("access", access);
       localStorage.setItem("user_id", user.id);
       localStorage.setItem("email", user.email);
+      localStorage.setItem("role", user.role);
       localStorage.setItem("group", group || "");
       console.log("Logged in user group:", group);
-      //Employee roles → enforce profile completion
-      if (group === "Staff" || group === "Supervisor") {
+    // Employee roles → enforce profile completion
+    if (group === "Staff" || group === "Supervisor") {
+      try {
         const meRes = await AxiosInstance.get("core/employees/me/");
         const employee = meRes.data;
 
@@ -57,14 +59,19 @@ const EmployeeLogin = () => {
 
         navigate("/employeeHome");
         return;
-      }
 
-      //Admin roles → admin dashboard
-      if (group === "Admin" || group === "SuperAdmin") {
-        navigate("/employeeHome");
-        return;
-      }
+      } catch (err) {
+        if (err.response?.status === 404) {
+          // New employee → no profile yet
+          navigate("/employee/complete-profile");
+          return;
+        }
 
+        // Any other error really is a problem
+        console.error("Employee profile check failed:", err);
+        throw err;
+      }
+    }
       //Fallback (misconfigured account)
       setError("Your account has no assigned role. Please contact support.");
 

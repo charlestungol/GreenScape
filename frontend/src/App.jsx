@@ -64,7 +64,7 @@ function App() {
 
       <Route
         path="/employee/complete-profile"
-        element={<RouteProtection allowedRole={["Staff", "Supervisor", "Admin", "SuperAdmin"]}>
+        element={<RouteProtection allowedRole="employee">
               <CompleteProfile />
             </RouteProtection>}
       />
@@ -125,7 +125,7 @@ function App() {
         <Route
           path="/employeeHome"
           element={
-            <RouteProtection allowedRole={["Staff", "Supervisor", "Admin", "SuperAdmin"]}>
+            <RouteProtection allowedRole="employee">
               <EmployeeHome />
             </RouteProtection>
           }
@@ -133,7 +133,7 @@ function App() {
         <Route
           path="/employee/dashboard"
           element={
-            <RouteProtection allowedRole={["Staff", "Supervisor", "Admin", "SuperAdmin"]}>
+            <RouteProtection allowedRole="employee">
               <AdminDashboard />
             </RouteProtection>
           }
@@ -141,7 +141,7 @@ function App() {
         <Route
           path="/employee/my-schedule"
           element={
-            <RouteProtection allowedRole={["Staff", "Supervisor", "Admin", "SuperAdmin"]}>
+            <RouteProtection allowedRole="employee">
               <MySchedule />
             </RouteProtection>
           }
@@ -149,7 +149,7 @@ function App() {
         <Route
           path="/employee/employee-management"
           element={
-            <RouteProtection allowedRole={["Staff", "Supervisor", "Admin", "SuperAdmin"]}>
+            <RouteProtection allowedRole="employee">
               <EmployeeManagement />
             </RouteProtection>
           }
@@ -157,7 +157,7 @@ function App() {
         <Route
           path="/employee/employee-management/timesheets"
           element={
-            <RouteProtection allowedRole={["Staff", "Supervisor", "Admin", "SuperAdmin"]}>
+            <RouteProtection allowedRole="employee">
               <EmployeeTimesheets />
             </RouteProtection>
           }
@@ -165,7 +165,7 @@ function App() {
         <Route
           path="/employee/service-schedule"
           element={
-            <RouteProtection allowedRole={["Staff", "Supervisor", "Admin", "SuperAdmin"]}>
+            <RouteProtection allowedRole="employee">
               <ServiceSchedule />
             </RouteProtection>
           }
@@ -173,7 +173,7 @@ function App() {
           <Route 
             path="/employee/booking-requests"
             element={
-              <RouteProtection allowedRole={["Staff", "Supervisor", "Admin", "SuperAdmin"]}>
+              <RouteProtection allowedRole="employee">
                 <BookingRequests />
               </RouteProtection>
             }  
@@ -181,7 +181,7 @@ function App() {
         <Route
           path="/employee/finances"
           element={
-            <RouteProtection allowedRole={["Staff", "Supervisor", "Admin", "SuperAdmin"]}>
+            <RouteProtection allowedRole="employee">
               <FinancesBoard />
             </RouteProtection>
           }
@@ -189,7 +189,7 @@ function App() {
         <Route
           path="/employee/client-view"
           element={
-            <RouteProtection allowedRole={["Staff", "Supervisor", "Admin", "SuperAdmin"]}>
+            <RouteProtection allowedRole="employee">
               <ClientView />
             </RouteProtection>
           }
@@ -197,7 +197,7 @@ function App() {
         <Route
           path="/employee/account"
           element={
-            <RouteProtection allowedRole={["Staff", "Supervisor", "Admin", "SuperAdmin"]}>
+            <RouteProtection allowedRole="employee">
               <EmployeeAccount />
             </RouteProtection>
           }
