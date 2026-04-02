@@ -21,4 +21,5 @@ urlpatterns = [
     path('csrf/', get_csrf),
     path("accounts/", include("allauth.urls")),
     path("api/", include("core.urls")),
+    path('', lambda request: HttpResponse("Backend is running ✅")),
 ]
