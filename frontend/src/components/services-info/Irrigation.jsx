@@ -4,10 +4,6 @@ import { useNavigate } from 'react-router-dom';
 const Irrigation = () => {
   const navigate = useNavigate();
 
-  const handleBookNow = () => {
-    navigate('/booking');
-  };
-
   const handleBack = () => {
     navigate('/services'); 
   };
@@ -15,7 +11,6 @@ const Irrigation = () => {
   return (
     <div>
       <div className="header-section">
-        <p className="titleWrapper">Installation & Service</p>
       </div>
       <div className="back-button-container">
         <button className="btn-back" onClick={handleBack}>
@@ -23,7 +18,6 @@ const Irrigation = () => {
         </button>
       </div>
       <div className="irrigation-container">
-        {/* <div className="installations-grid"> */}
           <div className="installation-card residential">
             <div className="card-header">
               <h2 className="card-title">Residential Installations</h2>
@@ -39,9 +33,6 @@ const Irrigation = () => {
                 requirements of your new system. We will then train you on the controller so you 
                 are set to operate and enjoy your new sprinkler system.
               </p>
-            </div>
-            <div className="card-footer">
-              <button className="btn-book" onClick={handleBookNow}>BOOK NOW</button>
             </div>
           </div>
           <div className="installation-card commercial">
@@ -61,9 +52,6 @@ const Irrigation = () => {
                 and storm water management. Learn more about commercial sprinklers (irrigation) by 
                 contacting us.
               </p>
-            </div>
-            <div className="card-footer">
-              <button className="btn-book" onClick={handleBookNow}>BOOK NOW</button>
             </div>
           </div>
         </div>

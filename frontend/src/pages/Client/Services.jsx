@@ -11,10 +11,15 @@ const Services = () => {
   const handleBookNow = () => {
     navigate('/booking');
   };
+
+  const generateQuote = () => {
+    navigate('/request-quote')
+  };
+
   return (
     <div>
       <div>
-        <p className="titleWrapper">SERVICES</p>
+        <p className="servicesTitle">SERVICES</p>
       </div>
       <div className='serviceContainer'>
         <div className="cards-grid">
@@ -62,7 +67,7 @@ const Services = () => {
           </p>
           <div className="cta-group">
             <button className="btn btn-primary" onClick={handleBookNow}>BOOK NOW</button>
-            <button className="btn btn-secondary">GENERATE QUOTE</button>
+            <button className="btn btn-secondary" onClick={generateQuote}>REQUEST QUOTE</button>
           </div>
         </div>
         <div className="warranty-section">

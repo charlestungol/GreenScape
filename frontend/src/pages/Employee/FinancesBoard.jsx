@@ -1,13 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Typography,
   Paper,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
   Chip,
   Button,
 } from "@mui/material";
@@ -22,91 +17,94 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+import AxiosInstance from "../../components/AxiosInstance";
 
 const GREEN = "#1c3d37";
 
+function getMonthKey(dateValue) {
+  const d = new Date(dateValue);
+  return d.toLocaleString("en-US", { month: "short" });
+}
+
+function isCurrentMonth(dateValue) {
+  const d = new Date(dateValue);
+  const now = new Date();
+  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+}
+
 export default function FinancesBoard() {
-  const kpis = useMemo(
-    () => ({
-      contractsThisMonth: 36,
-      monthlyRevenue: 84250,
-      monthlyExpenses: 51340,
-      payroll: 28900,
-    }),
-    []
-  );
+  const [quotes, setQuotes] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadFinance = async () => {
+      try {
+        const [quotesRes, invoicesRes] = await Promise.all([
+          AxiosInstance.get("core/quotes/"),
+          AxiosInstance.get("core/invoices/"),
+        ]);
+
+        setQuotes(quotesRes.data?.results || quotesRes.data || []);
+        setInvoices(invoicesRes.data?.results || invoicesRes.data || []);
+      } catch (error) {
+        console.error("Finances load error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFinance();
+  }, []);
+
+  const kpis = useMemo(() => {
+    const contractsThisMonth = quotes.filter((q) => isCurrentMonth(q.quotedate)).length;
+    const monthlyRevenue = invoices
+      .filter((i) => isCurrentMonth(i.invoicedate))
+      .reduce((sum, i) => sum + Number(i.amount || 0), 0);
+
+    const monthlyExpenses = 0;
+    const payroll = 0;
+
+    return { contractsThisMonth, monthlyRevenue, monthlyExpenses, payroll };
+  }, [quotes, invoices]);
 
   const profit = kpis.monthlyRevenue - kpis.monthlyExpenses;
 
-  const incomeBreakdown = useMemo(
-    () => [
-      { name: "Installations", value: 38000 },
-      { name: "Repairs", value: 15600 },
-      { name: "Winterization", value: 10200 },
-      { name: "Maintenance", value: 20450 },
-    ],
-    []
-  );
+  const incomeBreakdown = useMemo(() => {
+    const grouped = {};
+    quotes.forEach((q) => {
+      const label = q.service?.title || "Unknown Service";
+      grouped[label] = (grouped[label] || 0) + Number(q.amount || 0);
+    });
+    return Object.entries(grouped).map(([name, value]) => ({ name, value }));
+  }, [quotes]);
 
-  const expenseTracking = useMemo(
-    () => [
-      { month: "Oct", amount: 46200 },
-      { month: "Nov", amount: 49850 },
-      { month: "Dec", amount: 52100 },
-      { month: "Jan", amount: 50740 },
-      { month: "Feb", amount: 51340 },
-    ],
-    []
-  );
+  const revenueTrend = useMemo(() => {
+    const grouped = {};
+    invoices.forEach((i) => {
+      const month = getMonthKey(i.invoicedate);
+      grouped[month] = (grouped[month] || 0) + Number(i.amount || 0);
+    });
+    return Object.entries(grouped).map(([month, amount]) => ({ month, amount }));
+  }, [invoices]);
 
-  const revenueTrend = useMemo(
-    () => [
-      { month: "Oct", amount: 73500 },
-      { month: "Nov", amount: 79800 },
-      { month: "Dec", amount: 82000 },
-      { month: "Jan", amount: 81200 },
-      { month: "Feb", amount: 84250 },
-    ],
-    []
-  );
+  const reports = useMemo(() => {
+    const quoteReports = quotes.map((q) => ({
+      name: `Quote #${q.quoteid}`,
+      period: q.quotedate || "—",
+      status: q.status || "Unknown",
+    }));
 
-  const upcomingExpenses = useMemo(
-    () => [
-      { id: "EXP-3001", due: "2026-02-15", item: "Vehicle Maintenance", amount: 1200, status: "Upcoming" },
-      { id: "EXP-3002", due: "2026-02-20", item: "Irrigation Parts Restock", amount: 3400, status: "Upcoming" },
-      { id: "EXP-3003", due: "2026-02-28", item: "Software Subscriptions", amount: 480, status: "Upcoming" },
-    ],
-    []
-  );
+    const invoiceReports = invoices.map((i) => ({
+      name: `Invoice #${i.invoiceid}`,
+      period: i.invoicedate || "—",
+      status: "Posted",
+    }));
 
-  const payrollRows = useMemo(
-    () => [
-      { employee: "Alex Cruz", hours: 38, rate: 28, gross: 1064 },
-      { employee: "Jamie Santos", hours: 40, rate: 32, gross: 1280 },
-      { employee: "Morgan Lee", hours: 36, rate: 30, gross: 1080 },
-    ],
-    []
-  );
-
-  const reports = useMemo(
-    () => [
-      { name: "Monthly P&L Report", period: "Feb 2026", status: "Ready" },
-      { name: "Payroll Summary", period: "Week 6", status: "Draft" },
-      { name: "Expense Detail Report", period: "Feb 2026", status: "Ready" },
-    ],
-    []
-  );
-
-  const forecast = useMemo(
-    () => [
-      { month: "Mar", amount: 88000 },
-      { month: "Apr", amount: 93000 },
-      { month: "May", amount: 99000 },
-    ],
-    []
-  );
-
-  const [selectedReport, setSelectedReport] = useState(null);
+    return [...quoteReports, ...invoiceReports];
+  }, [quotes, invoices]);
 
   const cardSx = { p: 2, borderRadius: 2, height: "100%" };
 
@@ -116,294 +114,226 @@ export default function FinancesBoard() {
         Finances Board
       </Typography>
 
-      {/* KPI cards (symmetrical) */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 2,
-          mb: 2,
-          alignItems: "stretch",
-        }}
-      >
-        <Paper elevation={1} sx={cardSx}>
-          <Typography variant="body2" sx={{ opacity: 0.7, color: GREEN }}>
-            Contracts (Month)
-          </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN }}>
-            {kpis.contractsThisMonth}
-          </Typography>
-        </Paper>
-
-        <Paper elevation={1} sx={cardSx}>
-          <Typography variant="body2" sx={{ opacity: 0.7, color: GREEN }}>
-            Monthly Revenue
-          </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN }}>
-            ${kpis.monthlyRevenue.toLocaleString()}
-          </Typography>
-        </Paper>
-
-        <Paper elevation={1} sx={cardSx}>
-          <Typography variant="body2" sx={{ opacity: 0.7, color: GREEN }}>
-            Monthly Expenses
-          </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN }}>
-            ${kpis.monthlyExpenses.toLocaleString()}
-          </Typography>
-        </Paper>
-
-        <Paper elevation={1} sx={cardSx}>
-          <Typography variant="body2" sx={{ opacity: 0.7, color: GREEN }}>
-            Profit (Month)
-          </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN }}>
-            ${profit.toLocaleString()}
-          </Typography>
-          <Typography variant="caption" sx={{ opacity: 0.7, color: GREEN }}>
-            Payroll included: ${kpis.payroll.toLocaleString()}
-          </Typography>
-        </Paper>
-      </Box>
-
-      {/* Charts row (symmetrical) */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, 1fr)",
-          gap: 2,
-          mb: 2,
-          alignItems: "stretch",
-        }}
-      >
-        <Paper elevation={1} sx={cardSx}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
-            Income Breakdown
-          </Typography>
-          <Box sx={{ height: 280 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={incomeBreakdown}>
-                <CartesianGrid stroke="rgba(28, 61, 55, 0.10)" />
-                <XAxis dataKey="name" tick={{ fill: GREEN }} />
-                <YAxis tick={{ fill: GREEN }} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 12,
-                    border: "1px solid rgba(28, 61, 55, 0.15)",
-                  }}
-                  labelStyle={{ color: GREEN, fontWeight: 700 }}
-                />
-                <Bar dataKey="value" fill={GREEN} radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Box>
-        </Paper>
-
-        <Paper elevation={1} sx={cardSx}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
-            Revenue vs Expense Trend
-          </Typography>
-          <Box sx={{ height: 280 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart>
-                <CartesianGrid stroke="rgba(28, 61, 55, 0.10)" />
-                <XAxis dataKey="month" allowDuplicatedCategory={false} tick={{ fill: GREEN }} />
-                <YAxis tick={{ fill: GREEN }} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 12,
-                    border: "1px solid rgba(28, 61, 55, 0.15)",
-                  }}
-                  labelStyle={{ color: GREEN, fontWeight: 700 }}
-                />
-                <Line
-                  data={revenueTrend}
-                  dataKey="amount"
-                  name="Revenue"
-                  stroke={GREEN}
-                  strokeWidth={3}
-                  dot={false}
-                />
-                <Line
-                  data={expenseTracking}
-                  dataKey="amount"
-                  name="Expenses"
-                  stroke="rgba(28, 61, 55, 0.45)"
-                  strokeWidth={3}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </Box>
-        </Paper>
-      </Box>
-
-      {/* Tables row (symmetrical) */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, 1fr)",
-          gap: 2,
-          mb: 2,
-          alignItems: "stretch",
-        }}
-      >
-        <Paper elevation={1} sx={cardSx}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
-            Upcoming Expenses
-          </Typography>
-
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell><b>ID</b></TableCell>
-                <TableCell><b>Due</b></TableCell>
-                <TableCell><b>Item</b></TableCell>
-                <TableCell align="right"><b>Amount</b></TableCell>
-                <TableCell><b>Status</b></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {upcomingExpenses.map((x) => (
-                <TableRow key={x.id} hover>
-                  <TableCell>{x.id}</TableCell>
-                  <TableCell>{x.due}</TableCell>
-                  <TableCell>{x.item}</TableCell>
-                  <TableCell align="right">${x.amount.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={x.status}
-                      size="small"
-                      variant="outlined"
-                      sx={{ borderColor: "rgba(28, 61, 55, 0.35)", color: GREEN }}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Paper>
-
-        <Paper elevation={1} sx={cardSx}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
-            Financial Forecast (Next 3 Months)
-          </Typography>
-
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            {forecast.map((f) => (
-              <Box key={f.month} style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontWeight: 700, color: GREEN }}>{f.month}</span>
-                <span style={{ color: GREEN }}>${f.amount.toLocaleString()}</span>
-              </Box>
-            ))}
-          </Box>
-
-          <Typography
-            variant="caption"
-            sx={{ opacity: 0.7, mt: 1, display: "block", color: GREEN }}
+      {loading ? (
+        <Typography>Loading finances...</Typography>
+      ) : (
+        <>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 2,
+              mb: 2,
+              alignItems: "stretch",
+            }}
           >
-            (Forecast is mocked for frontend-only.)
-          </Typography>
-        </Paper>
-      </Box>
+            <Paper elevation={1} sx={cardSx}>
+              <Typography variant="body2" sx={{ opacity: 0.7, color: GREEN }}>
+                Contracts (Month)
+              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN }}>
+                {kpis.contractsThisMonth}
+              </Typography>
+            </Paper>
 
-      {/* Payroll + Reports (symmetrical) */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, 1fr)",
-          gap: 2,
-          alignItems: "stretch",
-        }}
-      >
-        <Paper elevation={1} sx={cardSx}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
-            Payroll
-          </Typography>
+            <Paper elevation={1} sx={cardSx}>
+              <Typography variant="body2" sx={{ opacity: 0.7, color: GREEN }}>
+                Monthly Revenue
+              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN }}>
+                ${kpis.monthlyRevenue.toLocaleString()}
+              </Typography>
+            </Paper>
 
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell><b>Employee</b></TableCell>
-                <TableCell align="right"><b>Hours</b></TableCell>
-                <TableCell align="right"><b>Rate</b></TableCell>
-                <TableCell align="right"><b>Gross</b></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {payrollRows.map((p) => (
-                <TableRow key={p.employee}>
-                  <TableCell>{p.employee}</TableCell>
-                  <TableCell align="right">{p.hours}</TableCell>
-                  <TableCell align="right">${p.rate}</TableCell>
-                  <TableCell align="right">${p.gross.toLocaleString()}</TableCell>
-                </TableRow>
-              ))}
-              <TableRow>
-                <TableCell colSpan={3} align="right" sx={{ fontWeight: 900 }}>
-                  Total
-                </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 900 }}>
-                  ${payrollRows.reduce((s, r) => s + r.gross, 0).toLocaleString()}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </Paper>
+            <Paper elevation={1} sx={cardSx}>
+              <Typography variant="body2" sx={{ opacity: 0.7, color: GREEN }}>
+                Monthly Expenses
+              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN }}>
+                ${kpis.monthlyExpenses.toLocaleString()}
+              </Typography>
+            </Paper>
 
-        <Paper elevation={1} sx={cardSx}>
-          <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
-            Financial Reports
-          </Typography>
-
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            {reports.map((r) => (
-              <Box
-                key={r.name}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  background: "rgba(0,0,0,0.03)",
-                }}
-              >
-                <Box>
-                  <div style={{ fontWeight: 800, color: GREEN }}>{r.name}</div>
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>{r.period}</div>
-                </Box>
-                <Box style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <Chip
-                    label={r.status}
-                    size="small"
-                    variant="outlined"
-                    sx={{ borderColor: "rgba(28, 61, 55, 0.35)", color: GREEN }}
-                  />
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => setSelectedReport(r)}
-                    sx={{ color: GREEN, borderColor: "rgba(28, 61, 55, 0.35)" }}
-                  >
-                    Open
-                  </Button>
-                </Box>
-              </Box>
-            ))}
+            <Paper elevation={1} sx={cardSx}>
+              <Typography variant="body2" sx={{ opacity: 0.7, color: GREEN }}>
+                Profit (Month)
+              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN }}>
+                ${profit.toLocaleString()}
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.7, color: GREEN }}>
+                Payroll included: ${kpis.payroll.toLocaleString()}
+              </Typography>
+            </Paper>
           </Box>
 
-          {selectedReport ? (
-            <Box sx={{ mt: 2, p: 2, borderRadius: 2, bgcolor: "rgba(28, 61, 55, 0.06)" }}>
-              <Typography sx={{ fontWeight: 900, color: GREEN }}>Selected:</Typography>
-              <Typography sx={{ color: GREEN }}>{selectedReport.name}</Typography>
-              <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                (Frontend-only preview panel.)
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, 1fr)",
+              gap: 2,
+              mb: 2,
+              alignItems: "stretch",
+            }}
+          >
+            <Paper elevation={1} sx={cardSx}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
+                Income Breakdown
               </Typography>
-            </Box>
-          ) : null}
-        </Paper>
-      </Box>
+              <Box sx={{ height: 280 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={incomeBreakdown}>
+                    <CartesianGrid stroke="rgba(28, 61, 55, 0.10)" />
+                    <XAxis dataKey="name" tick={{ fill: GREEN }} />
+                    <YAxis tick={{ fill: GREEN }} />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: 12,
+                        border: "1px solid rgba(28, 61, 55, 0.15)",
+                      }}
+                      labelStyle={{ color: GREEN, fontWeight: 700 }}
+                    />
+                    <Bar dataKey="value" fill={GREEN} radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
+            </Paper>
+
+            <Paper elevation={1} sx={cardSx}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
+                Revenue Trend
+              </Typography>
+              <Box sx={{ height: 280 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart>
+                    <CartesianGrid stroke="rgba(28, 61, 55, 0.10)" />
+                    <XAxis dataKey="month" allowDuplicatedCategory={false} tick={{ fill: GREEN }} />
+                    <YAxis tick={{ fill: GREEN }} />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: 12,
+                        border: "1px solid rgba(28, 61, 55, 0.15)",
+                      }}
+                      labelStyle={{ color: GREEN, fontWeight: 700 }}
+                    />
+                    <Line
+                      data={revenueTrend}
+                      dataKey="amount"
+                      name="Revenue"
+                      stroke={GREEN}
+                      strokeWidth={3}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Box>
+            </Paper>
+          </Box>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, 1fr)",
+              gap: 2,
+              mb: 2,
+              alignItems: "stretch",
+            }}
+          >
+            <Paper elevation={1} sx={cardSx}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
+                Expenses / Payroll
+              </Typography>
+              <Typography sx={{ color: GREEN }}>
+                Your current backend does not yet have dedicated expense or payroll tables.
+              </Typography>
+            </Paper>
+
+            <Paper elevation={1} sx={cardSx}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
+                Financial Forecast
+              </Typography>
+              <Typography sx={{ color: GREEN }}>
+                Forecast requires more finance history in the database.
+              </Typography>
+            </Paper>
+          </Box>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, 1fr)",
+              gap: 2,
+              alignItems: "stretch",
+            }}
+          >
+            <Paper elevation={1} sx={cardSx}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
+                Reports
+              </Typography>
+
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                {reports.length === 0 ? (
+                  <Typography>No reports found.</Typography>
+                ) : (
+                  reports.map((r, index) => (
+                    <Box
+                      key={`${r.name}-${index}`}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "10px 12px",
+                        borderRadius: 12,
+                        background: "rgba(0,0,0,0.03)",
+                      }}
+                    >
+                      <Box>
+                        <div style={{ fontWeight: 800, color: GREEN }}>{r.name}</div>
+                        <div style={{ fontSize: 12, opacity: 0.7 }}>{r.period}</div>
+                      </Box>
+                      <Box style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <Chip
+                          label={r.status}
+                          size="small"
+                          variant="outlined"
+                          sx={{ borderColor: "rgba(28, 61, 55, 0.35)", color: GREEN }}
+                        />
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => setSelectedReport(r)}
+                          sx={{ color: GREEN, borderColor: "rgba(28, 61, 55, 0.35)" }}
+                        >
+                          Open
+                        </Button>
+                      </Box>
+                    </Box>
+                  ))
+                )}
+              </Box>
+
+              {selectedReport ? (
+                <Box sx={{ mt: 2, p: 2, borderRadius: 2, bgcolor: "rgba(28, 61, 55, 0.06)" }}>
+                  <Typography sx={{ fontWeight: 900, color: GREEN }}>Selected:</Typography>
+                  <Typography sx={{ color: GREEN }}>{selectedReport.name}</Typography>
+                </Box>
+              ) : null}
+            </Paper>
+
+            <Paper elevation={1} sx={cardSx}>
+              <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 1 }}>
+                Database Summary
+              </Typography>
+              <Typography sx={{ color: GREEN, mb: 1 }}>
+                Quotes in DB: {quotes.length}
+              </Typography>
+              <Typography sx={{ color: GREEN }}>
+                Invoices in DB: {invoices.length}
+              </Typography>
+            </Paper>
+          </Box>
+        </>
+      )}
     </Box>
   );
 }
