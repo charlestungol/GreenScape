@@ -343,40 +343,51 @@ class BookingSerializer(serializers.ModelSerializer):
 
 # Invoice Serializer
 class InvoiceSerializer(serializers.ModelSerializer):
-    customer = CustomerSerializer(source="customerid", read_only = True)
+    invoiceid = serializers.IntegerField(read_only=True)
+    invoicedate = serializers.DateTimeField(source="issuedate", read_only=True)
+    customer = CustomerSerializer(source="customerid", read_only=True)
     customerid = serializers.PrimaryKeyRelatedField(
-        queryset = Customer.objects.all(),
-        write_only = True
+        queryset=Customer.objects.all(),
+        write_only=True
     )
 
     class Meta:
         model = Invoice
-        fields = ["invoiceid", "customerid", "customer", "amount", "invoicedate", "status"]
-        read_only_fields = ["invoiceid", "customer", "service"]
+        fields = [
+            "invoiceid",
+            "customerid",
+            "customer",
+            "amount",
+            "invoicedate",
+        ]
+        read_only_fields = ["invoiceid", "customer", "invoicedate"]
 
 #Quote Serializer
 class QuoteSerializer(serializers.ModelSerializer):
-    # Validators
-    quotedate = serializers.DateField(validators=[validate_not_past])
-    
-
-    customer = CustomerSerializer(source="customerid", read_only = True)
-    service = ServiceSerializer(source="serviceid", read_only = True)
-
+    quoteid = serializers.IntegerField(source="quotesid", read_only=True)
+    customer = CustomerSerializer(source="customerid", read_only=True)
+    service = ServiceSerializer(source="serviceid", read_only=True)
     customerid = serializers.PrimaryKeyRelatedField(
-        queryset = Customer.objects.all(),
-        write_only = True
+        queryset=Customer.objects.all(),
+        write_only=True
     )
-
     serviceid = serializers.PrimaryKeyRelatedField(
-        queryset = Service.objects.all(),
-        write_only = True
+        queryset=Service.objects.all(),
+        write_only=True
     )
 
     class Meta:
         model = Quotes
-        fields = ["quoteid", "customerid", "serviceid", "customer", "service", "amount", "quotedate", "status"]
-        read_only_fields = ["quoteid", "customer", "service"]
+        fields = [
+            "quoteid",
+            "status",
+            "totalamount",
+            "customerid",
+            "serviceid",
+            "customer",
+            "service",
+        ]
+        read_only_fields = ["quoteid", "quotedate", "customer", "service"]
 
 # Schedule Serializer
 class ScheduleSerializer(serializers.ModelSerializer):

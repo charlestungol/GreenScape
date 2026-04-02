@@ -557,7 +557,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
 
         # POST / PATCH / PUT → Employees only
         if self.request.method in ["POST", "PATCH", "PUT"]:
-            return [IsStaff()]
+            return [IsOwnerOrAdminOrStaffReadOnly]
 
         # GET → any authenticated user
         return [IsAuthenticated()]

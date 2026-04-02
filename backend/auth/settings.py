@@ -147,11 +147,36 @@ INSTALLED_APPS = [
 
 LOGGING = {
     "version": 1,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "ERROR",
+    },
     "loggers": {
-        "django.core.mail": {"handlers": ["console"], "level": "DEBUG"},
-        "allauth": {"handlers": ["console"], "level": "INFO"},
-        "allauth.account": {"handlers": ["console"], "level": "INFO"},
+        "django": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "rest_framework": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.db.backends": {
+            "handlers": ["console"],
+            "level": "ERROR",
+        },
     },
 }
 
