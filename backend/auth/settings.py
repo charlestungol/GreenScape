@@ -19,11 +19,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-key")
 DEBUG = os.getenv("DEBUG", "False").strip().lower() == "true"
 
 # IMPORTANT: Allow Vercel domains
-ALLOWED_HOSTS = [
-    ".vercel.app",
-    "localhost",
-    "127.0.0.1",
-]
+ALLOWED_HOSTS = ['*']
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
