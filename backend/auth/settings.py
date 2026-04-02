@@ -51,8 +51,17 @@ INSTALLED_APPS = [
     'corsheaders',
     'users',
     'core',
-    'rest_framework_simplejwt.token_blacklist',
 ]
+
+LOGGING = {
+    "version": 1,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "loggers": {
+        "django.core.mail": {"handlers": ["console"], "level": "DEBUG"},
+        "allauth": {"handlers": ["console"], "level": "INFO"},
+        "allauth.account": {"handlers": ["console"], "level": "INFO"},
+    },
+}
 
 # =========================
 # MIDDLEWARE
@@ -97,6 +106,22 @@ SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 JWT_AUTH_COOKIE_SAMESITE = "Lax"
 
+# --- CSRF cookies ---
+CSRF_COOKIE_NAME = "csrftoken"
+CSRF_COOKIE_HTTPONLY = False   # Must be readable by JS for X-CSRFToken header
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SECURE = not DEBUG    # True in production
+
+# --- JWT cookies ---
+JWT_AUTH_COOKIE_SAMESITE = "Lax"
+JWT_AUTH_COOKIE_SECURE = not DEBUG  # True in production
+
+# --- Google OAuth ---
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+
+# --- Google Captcha ---
+RECAPTCHA_PRIVATE_KEY = os.getenv("RECAPTCHA_PRIVATE_KEY")
+
 # =========================
 # AUTH
 # =========================
@@ -128,7 +153,31 @@ ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = "http://localhost:5173"
 if DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 else:
-    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_BACKEND = os.getenv(
+        "EMAIL_BACKEND",
+        "django.core.mail.backends.smtp.EmailBackend"
+    )
+
+EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "25"))
+
+# Booleans: accept 'true'/'false' (case-insensitive)
+def env_bool(name: str, default: bool = False) -> bool:
+    return os.getenv(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
+
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", False)
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
+
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "webmaster@localhost")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
+
+# Optional
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10") or "0") or None
+EMAIL_SSL_CERTFILE = os.getenv("EMAIL_SSL_CERTFILE") or None
+EMAIL_SSL_KEYFILE = os.getenv("EMAIL_SSL_KEYFILE") or None
 
 # =========================
 # JWT
@@ -149,6 +198,7 @@ REST_AUTH = {
     "JWT_AUTH_COOKIE": "access",
     "JWT_AUTH_REFRESH_COOKIE": "refresh",
     "JWT_AUTH_HTTPONLY": True,
+    "JWT_AUTH_COOKIE_SECURE": not DEBUG,
 }
 
 # =========================
@@ -162,6 +212,14 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.AllowAny",
     ),
+    "DEFAULT_THROTTLE_RATES": {
+        # Login endpoint is accessible to unauthenticated users → protect it heavily
+        "anon": "30/minute",       # UMA: 5 unauthenticated requests per minute per IP
+        "user": "60/minute",      # Authenticated user actions
+        "login": "30/minute",       # Login endpoint (if separate throttle needed)
+        "register": "5/hour",    # Registration endpoint (if separate throttle needed)
+        "account_change" : "30/minute" #Changing email.
+    },
     "DEFAULT_PAGINATION_CLASS":
         "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
@@ -210,7 +268,26 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # =========================
-# DEFAULTS
+# PASSWORD VALIDATION
+# =========================
+
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
+# =========================
+# INTERNATIONALIZATION
 # =========================
 
 LANGUAGE_CODE = 'en-us'

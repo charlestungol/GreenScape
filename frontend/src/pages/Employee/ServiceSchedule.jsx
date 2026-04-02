@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Typography,
@@ -15,14 +15,22 @@ import {
   TableBody,
   Button,
 } from "@mui/material";
+import AxiosInstance from "../../components/AxiosInstance";
 
-const pad2 = (n) => String(n).padStart(2, "0");
-const toKey = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const GREEN = "#1c3d37";
+
+const toKey = (d) => {
+  const dt = new Date(d);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const day = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
 
 function mondayOf(date) {
   const d = new Date(date);
   const day = d.getDay();
-  const diff = (day + 6) % 7; // Monday = 0
+  const diff = (day + 6) % 7;
   d.setDate(d.getDate() - diff);
   d.setHours(0, 0, 0, 0);
   return d;
@@ -43,85 +51,69 @@ function startOfMonth(date) {
 function endOfMonth(date) {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0);
 }
+function formatTime(value) {
+  return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
 
 function StatusChip({ status }) {
   const map = {
-    Scheduled: { label: "Scheduled", color: "default" },
-    "In Progress": { label: "In Progress", color: "info" },
-    Completed: { label: "Completed", color: "success" },
-    Cancelled: { label: "Cancelled", color: "error" },
+    scheduled: { label: "Scheduled", color: "default" },
+    pending: { label: "Pending", color: "warning" },
+    completed: { label: "Completed", color: "success" },
+    cancelled: { label: "Cancelled", color: "error" },
   };
-  const s = map[status] || map.Scheduled;
+  const s = map[String(status || "").toLowerCase()] || { label: status || "Unknown", color: "default" };
   return <Chip label={s.label} color={s.color} size="small" variant="outlined" />;
 }
 
 export default function ServiceSchedule() {
-  const [view, setView] = useState("week"); // week | month
+  const [view, setView] = useState("week");
   const [anchorDate, setAnchorDate] = useState(() => new Date());
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [statusFilter, setStatusFilter] = useState("All");
   const [employeeFilter, setEmployeeFilter] = useState("All");
   const [search, setSearch] = useState("");
 
-  // ✅ Mock appointments (replace with API later)
-  const appointments = useMemo(
-    () => [
-      {
-        id: "APT-10021",
-        date: "2026-02-11",
-        timeSlot: "09:00–11:00",
-        clientName: "Maria Dela Cruz",
-        clientNumber: "403-555-1001",
-        email: "maria@email.com",
-        serviceType: "Spring Startup",
-        assignedEmployee: "Alex Cruz",
-        location: "Calgary, AB",
-        status: "Scheduled",
-      },
-      {
-        id: "APT-10022",
-        date: "2026-02-11",
-        timeSlot: "13:00–15:00",
-        clientName: "John Santos",
-        clientNumber: "403-555-1002",
-        email: "john@email.com",
-        serviceType: "Repair",
-        assignedEmployee: "Morgan Lee",
-        location: "Airdrie, AB",
-        status: "In Progress",
-      },
-      {
-        id: "APT-10023",
-        date: "2026-02-12",
-        timeSlot: "10:00–12:00",
-        clientName: "Kevin Bautista",
-        clientNumber: "403-555-1003",
-        email: "kevin@email.com",
-        serviceType: "Installation",
-        assignedEmployee: "Jamie Santos",
-        location: "Calgary, AB",
-        status: "Completed",
-      },
-      {
-        id: "APT-10024",
-        date: "2026-02-14",
-        timeSlot: "08:00–09:30",
-        clientName: "Alyssa Reyes",
-        clientNumber: "403-555-1004",
-        email: "alyssa@email.com",
-        serviceType: "Winterization",
-        assignedEmployee: "Alex Cruz",
-        location: "Okotoks, AB",
-        status: "Cancelled",
-      },
-    ],
-    []
-  );
+  useEffect(() => {
+    const loadSchedules = async () => {
+      try {
+        const res = await AxiosInstance.get("core/schedules/");
+        setRows(res.data?.results || res.data || []);
+      } catch (error) {
+        console.error("Service schedule load error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSchedules();
+  }, []);
+
+  const normalizedRows = useMemo(() => {
+    return rows.map((s) => ({
+      id: s.booking?.bookingid || s.scheduleid,
+      date: toKey(s.starttime),
+      timeSlot: `${formatTime(s.starttime)}–${formatTime(s.endtime)}`,
+      clientName: s.booking?.customer
+        ? `${s.booking.customer.firstname || ""} ${s.booking.customer.lastname || ""}`.trim()
+        : "Unknown Client",
+      clientNumber: s.booking?.customer?.phonenumber || "—",
+      email: s.booking?.customer?.email || "—",
+      serviceType: s.booking?.service?.title || "—",
+      assignedEmployee: s.employee
+        ? `${s.employee.firstname || ""} ${s.employee.lastname || ""}`.trim()
+        : "Unassigned",
+      location: "N/A",
+      status: s.status || "Scheduled",
+    }));
+  }, [rows]);
 
   const employeeOptions = useMemo(() => {
-    const set = new Set(appointments.map((a) => a.assignedEmployee));
+    const set = new Set(normalizedRows.map((a) => a.assignedEmployee));
     return ["All", ...Array.from(set)];
-  }, [appointments]);
+  }, [normalizedRows]);
 
   const monthRange = useMemo(() => {
     const start = startOfMonth(anchorDate);
@@ -132,7 +124,7 @@ export default function ServiceSchedule() {
   const weekRange = useMemo(() => {
     const start = mondayOf(anchorDate);
     const end = addDays(start, 6);
-    return { startKey: toKey(start), endKey: toKey(end), startDate: start };
+    return { startKey: toKey(start), endKey: toKey(end) };
   }, [anchorDate]);
 
   const filtered = useMemo(() => {
@@ -148,13 +140,13 @@ export default function ServiceSchedule() {
       return blob.includes(q);
     };
 
-    return appointments
+    return normalizedRows
       .filter(inRange)
-      .filter((a) => (statusFilter === "All" ? true : a.status === statusFilter))
+      .filter((a) => (statusFilter === "All" ? true : String(a.status).toLowerCase() === statusFilter.toLowerCase()))
       .filter((a) => (employeeFilter === "All" ? true : a.assignedEmployee === employeeFilter))
       .filter(matchSearch)
       .sort((x, y) => (x.date + x.timeSlot).localeCompare(y.date + y.timeSlot));
-  }, [appointments, view, weekRange, monthRange, statusFilter, employeeFilter, search]);
+  }, [normalizedRows, view, weekRange, monthRange, statusFilter, employeeFilter, search]);
 
   const headerLabel =
     view === "week"
@@ -165,7 +157,7 @@ export default function ServiceSchedule() {
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 900, color: "#06632b" }}>
+          <Typography variant="h4" sx={{ fontWeight: 900, color: GREEN }}>
             Service Schedule
           </Typography>
           <Typography variant="body2" sx={{ opacity: 0.7 }}>
@@ -173,12 +165,7 @@ export default function ServiceSchedule() {
           </Typography>
         </Box>
 
-        <ToggleButtonGroup
-          exclusive
-          value={view}
-          onChange={(_, v) => v && setView(v)}
-          size="small"
-        >
+        <ToggleButtonGroup exclusive value={view} onChange={(_, v) => v && setView(v)} size="small">
           <ToggleButton value="week">Weekly</ToggleButton>
           <ToggleButton value="month">Monthly</ToggleButton>
         </ToggleButtonGroup>
@@ -188,17 +175,13 @@ export default function ServiceSchedule() {
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
           <Button
             variant="outlined"
-            onClick={() =>
-              setAnchorDate((d) => (view === "week" ? addDays(d, -7) : addMonths(d, -1)))
-            }
+            onClick={() => setAnchorDate((d) => (view === "week" ? addDays(d, -7) : addMonths(d, -1)))}
           >
             Prev
           </Button>
           <Button
             variant="outlined"
-            onClick={() =>
-              setAnchorDate((d) => (view === "week" ? addDays(d, 7) : addMonths(d, 1)))
-            }
+            onClick={() => setAnchorDate((d) => (view === "week" ? addDays(d, 7) : addMonths(d, 1)))}
           >
             Next
           </Button>
@@ -219,7 +202,7 @@ export default function ServiceSchedule() {
             onChange={(e) => setStatusFilter(e.target.value)}
             sx={{ minWidth: 180 }}
           >
-            {["All", "Scheduled", "In Progress", "Completed", "Cancelled"].map((s) => (
+            {["All", "Scheduled", "Pending", "Completed", "Cancelled"].map((s) => (
               <MenuItem key={s} value={s}>
                 {s}
               </MenuItem>
@@ -232,7 +215,7 @@ export default function ServiceSchedule() {
             label="Employee"
             value={employeeFilter}
             onChange={(e) => setEmployeeFilter(e.target.value)}
-            sx={{ minWidth: 200 }}
+            sx={{ minWidth: 220 }}
           >
             {employeeOptions.map((s) => (
               <MenuItem key={s} value={s}>
@@ -241,58 +224,57 @@ export default function ServiceSchedule() {
             ))}
           </TextField>
 
-          <Chip
-            label={`${filtered.length} appointments`}
-            size="small"
-            sx={{ ml: "auto" }}
-            variant="outlined"
-          />
+          <Chip label={`${filtered.length} appointments`} size="small" sx={{ ml: "auto" }} variant="outlined" />
         </Box>
       </Paper>
 
-      <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell><b>Appointment ID</b></TableCell>
-              <TableCell><b>Date</b></TableCell>
-              <TableCell><b>Time Slot</b></TableCell>
-              <TableCell><b>Client</b></TableCell>
-              <TableCell><b>Contact</b></TableCell>
-              <TableCell><b>Service Type</b></TableCell>
-              <TableCell><b>Assigned Employee</b></TableCell>
-              <TableCell><b>Location</b></TableCell>
-              <TableCell><b>Status</b></TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {filtered.map((a) => (
-              <TableRow key={a.id} hover>
-                <TableCell>{a.id}</TableCell>
-                <TableCell>{a.date}</TableCell>
-                <TableCell>{a.timeSlot}</TableCell>
-                <TableCell>{a.clientName}</TableCell>
-                <TableCell>
-                  <div>{a.clientNumber}</div>
-                  <div style={{ opacity: 0.7, fontSize: 12 }}>{a.email}</div>
-                </TableCell>
-                <TableCell>{a.serviceType}</TableCell>
-                <TableCell>{a.assignedEmployee}</TableCell>
-                <TableCell>{a.location}</TableCell>
-                <TableCell><StatusChip status={a.status} /></TableCell>
-              </TableRow>
-            ))}
-            {filtered.length === 0 ? (
+      {loading ? (
+        <Typography>Loading service schedule...</Typography>
+      ) : (
+        <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
+          <Table>
+            <TableHead>
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ opacity: 0.7 }}>
-                  No appointments found for this view / filter.
-                </TableCell>
+                <TableCell><b>Appointment ID</b></TableCell>
+                <TableCell><b>Date</b></TableCell>
+                <TableCell><b>Time Slot</b></TableCell>
+                <TableCell><b>Client</b></TableCell>
+                <TableCell><b>Contact</b></TableCell>
+                <TableCell><b>Service Type</b></TableCell>
+                <TableCell><b>Assigned Employee</b></TableCell>
+                <TableCell><b>Location</b></TableCell>
+                <TableCell><b>Status</b></TableCell>
               </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
-      </Paper>
+            </TableHead>
+
+            <TableBody>
+              {filtered.map((a) => (
+                <TableRow key={`${a.id}-${a.date}`} hover>
+                  <TableCell>{a.id}</TableCell>
+                  <TableCell>{a.date}</TableCell>
+                  <TableCell>{a.timeSlot}</TableCell>
+                  <TableCell>{a.clientName}</TableCell>
+                  <TableCell>
+                    <div>{a.clientNumber}</div>
+                    <div style={{ opacity: 0.7, fontSize: 12 }}>{a.email}</div>
+                  </TableCell>
+                  <TableCell>{a.serviceType}</TableCell>
+                  <TableCell>{a.assignedEmployee}</TableCell>
+                  <TableCell>{a.location}</TableCell>
+                  <TableCell><StatusChip status={a.status} /></TableCell>
+                </TableRow>
+              ))}
+              {filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} align="center" sx={{ opacity: 0.7 }}>
+                    No appointments found for this view / filter.
+                  </TableCell>
+                </TableRow>
+              ) : null}
+            </TableBody>
+          </Table>
+        </Paper>
+      )}
     </Box>
   );
 }

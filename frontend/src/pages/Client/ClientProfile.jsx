@@ -1,22 +1,81 @@
-import { useState } from 'react'; 
-import { Box, Button, Paper, Alert, Typography, LinearProgress } from '@mui/material';
+import { useState, useEffect } from 'react'; 
 import '../../components/clientCss/ClientProfile.css';
 import DefaultProfilePic from '../../assets/img/Profile.webp'; 
+import AxiosInstance from '../../components/AxiosInstance';
 
 function ClientProfile() {
-  // Initialize state directly from localStorage
+  // Profile image state
   const [selectedImage, setSelectedImage] = useState(() => {
     const savedImage = localStorage.getItem('profileImage');
     return savedImage || DefaultProfilePic;
   });
   
-  // New state for file size warning
+  // Personal information state (display only)
+  const [userInfo, setUserInfo] = useState({
+    email: "",
+    first_name: "",
+    last_name: "",
+    phone: "",
+    address: {
+      street: "",
+      city: "",
+      province: "",
+      postal_code: "",
+    }
+  });
+
+  // UI states
+  const [isLoading, setIsLoading] = useState(true);
+  const [message, setMessage] = useState({ type: "", text: "" });
+  
+  // Image upload states
   const [fileError, setFileError] = useState('');
   const [fileSize, setFileSize] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Maximum file size in bytes (5MB)
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+  useEffect(() => {
+    fetchUserInfo();
+  }, []);
+
+  const fetchUserInfo = async () => {
+    setIsLoading(true);
+    try {
+      const response = await AxiosInstance.get("core/customers/me/");
+      const customer = response.data || {};
+      const address = customer.address || {};
+
+      const firstName = customer?.firstname || "";
+      const lastName = customer?.lastname || "";
+      const email = customer?.email || "";
+      
+      localStorage.setItem("first_name", firstName);
+      localStorage.setItem("last_name", lastName);
+      localStorage.setItem("email", email);
+
+      setUserInfo({
+        email: customer?.email || "",
+        first_name: customer?.firstname || "",
+        last_name: customer?.lastname || "",
+        phone: customer?.phonenumber || "",
+        address: {
+          street: address?.street || "",
+          city: address?.city || "",
+          province: address?.province || "",
+          postal_code: address?.postalcode || "",
+        },
+      });
+    } catch (err) {
+      console.error("Error fetching user info:", err);
+      setMessage({ 
+        type: "error", 
+        text: "Failed to load user information. Please try again." 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
@@ -29,14 +88,12 @@ function ClientProfile() {
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Check file size
       if (file.size > MAX_FILE_SIZE) {
         setFileError(`File too large! Maximum size is ${formatFileSize(MAX_FILE_SIZE)}. Your file: ${formatFileSize(file.size)}`);
         setFileSize(file.size);
         return;
       }
 
-      // Clear any previous errors
       setFileError('');
       setFileSize(file.size);
       setIsUploading(true);
@@ -54,137 +111,189 @@ function ClientProfile() {
     }
   };
 
-  const handleSave = () => {
-    console.log('Saving profile image...');
+  const handleSaveImage = () => {
     if (selectedImage && selectedImage !== DefaultProfilePic) {
       localStorage.setItem('profileImage', selectedImage);
       window.dispatchEvent(new Event('storage'));
-      alert('Profile image saved!');
+      setMessage({ type: "success", text: "Profile image saved!" });
+      setTimeout(() => setMessage({ type: "", text: "" }), 3000);
     }
   };
 
-  const handleRemove = () => {
+  const handleRemoveImage = () => {
     if (window.confirm('Are you sure you want to remove your profile picture?')) {
       localStorage.removeItem('profileImage');
       window.dispatchEvent(new Event('storage'));
       setSelectedImage(DefaultProfilePic);
       setFileError('');
       setFileSize(null);
-      alert('Profile picture removed!');
+      setMessage({ type: "success", text: "Profile picture removed!" });
+      setTimeout(() => setMessage({ type: "", text: "" }), 3000);
     }
   };
 
   const isDefaultImage = () => selectedImage === DefaultProfilePic;
-  
   const hasImageChanged = () => {
     const savedImage = localStorage.getItem('profileImage');
     return selectedImage !== (savedImage || DefaultProfilePic);
   };
 
+  if (isLoading) {
+    return (
+      <div className="profile-page">
+        <div className="profile-title">PROFILE</div>
+        <div className="profile-container">
+          <div className="profile-card loading-card">
+            <p>Loading profile information...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <>
-      <div className="titleWrapper">Profile</div>
-      <Box className="profile-container">
-        <Paper className="profile-paper">
-          <Box className="image-wrapper">
-            <img src={selectedImage} alt="Profile" className="profile-image" />
-          </Box>
-
-          {/* File size indicator */}
-          {fileSize && !fileError && (
-            <Box className="file-size-indicator">
-              <Typography variant="body2" color="textSecondary">
-                File size: {formatFileSize(fileSize)}
-              </Typography>
-              {fileSize > MAX_FILE_SIZE * 0.8 && (
-                <Typography variant="caption" color="warning.main" display="block">
-                  Warning: File is close to size limit
-                </Typography>
-              )}
-            </Box>
+    <div>
+    <div className="profile-title">PROFILE</div>
+    <div className="profile-page">
+      <div className="profile-container">
+        <div className="profile-card">
+          {/* Message Alert */}
+          {message.text && (
+            <div className={`message-alert ${message.type}`}>
+              <span>{message.text}</span>
+              <button className="close-alert" onClick={() => setMessage({ type: "", text: "" })}>×</button>
+            </div>
           )}
 
-          {/* File error alert */}
-          {fileError && (
-            <Alert severity="error" className="file-error" onClose={() => setFileError('')}>
-              {fileError}
-            </Alert>
-          )}
+          <div className="profile-layout">
+            {/* Left Column - Profile Image - Centered */}
+            <div className="profile-image-column">
+              <div className="profile-image-section">
+                <div className="profile-image-wrapper">
+                  <img src={selectedImage} alt="Profile" className="profile-avatar" />
+                </div>
 
-          {/* Upload progress indicator */}
-          {isUploading && (
-            <Box className="upload-progress">
-              <Typography variant="body2">Uploading...</Typography>
-              <LinearProgress />
-            </Box>
-          )}
+                {fileSize && !fileError && (
+                  <div className="profile-file-info">
+                    <span>File size: {formatFileSize(fileSize)}</span>
+                  </div>
+                )}
 
-          <Box className="button-wrapper">
-            <Button variant="contained" component="label" className="choose-button">
-              Choose Image
-              <input 
-                type="file" 
-                hidden 
-                accept="image/*" 
-                onChange={handleImageUpload}
-                disabled={isUploading}
-              />
-            </Button>
+                {fileError && (
+                  <div className="profile-error">
+                    <span>{fileError}</span>
+                  </div>
+                )}
 
-            {!isDefaultImage() && (
-              <Button 
-                variant="outlined" 
-                color="error" 
-                onClick={handleRemove} 
-                className="remove-button"
-                disabled={isUploading}
-              >
-                Remove
-              </Button>
-            )}
-          </Box>
+                {isUploading && (
+                  <div className="profile-upload-progress">
+                    <p>Uploading...</p>
+                    <div className="progress-bar">
+                      <div className="progress-fill"></div>
+                    </div>
+                  </div>
+                )}
 
-          {hasImageChanged() && (
-            <>
-              <Box className="save-wrapper">
-                <Button 
-                  variant="contained" 
-                  color="primary" 
-                  onClick={handleSave} 
-                  className="save-button"
-                  disabled={isUploading || fileError}
-                >
-                  Save Changes
-                </Button>
-              </Box>
-              <Box className="cancel-wrapper">
-                <Button
-                  variant="text"
-                  color="error"
-                  onClick={() => {
-                    const savedImage = localStorage.getItem('profileImage');
-                    setSelectedImage(savedImage || DefaultProfilePic);
-                    setFileError('');
-                    setFileSize(null);
-                  }}
-                  className="cancel-button"
-                  disabled={isUploading}
-                >
-                  Cancel
-                </Button>
-              </Box>
-            </>
-          )}
+                <div className="profile-image-actions">
+                  <label className={`profile-choose-btn ${isUploading ? 'disabled' : ''}`}>
+                    CHOOSE IMAGE
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleImageUpload} 
+                      disabled={isUploading}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
 
-          {/* Size limit info */}
-          <Box className="size-info">
-            <Typography variant="caption" color="textSecondary">
-              Maximum file size: 5MB. Supported formats: JPG, PNG, WEBP, GIF
-            </Typography>
-          </Box>
-        </Paper>
-      </Box>
-    </>
+                  {!isDefaultImage() && (
+                    <button 
+                      className={`profile-remove-btn ${isUploading ? 'disabled' : ''}`}
+                      onClick={handleRemoveImage}
+                      disabled={isUploading}
+                    >
+                      REMOVE
+                    </button>
+                  )}
+                </div>
+
+                {hasImageChanged() && (
+                  <button 
+                    className={`profile-save-image-btn ${isUploading || fileError ? 'disabled' : ''}`}
+                    onClick={handleSaveImage}
+                    disabled={isUploading || fileError}
+                  >
+                    SAVE IMAGE
+                  </button>
+                )}
+
+                <div className="profile-size-note">
+                  <span>Max size: 5MB. Formats: JPG, PNG, WEBP</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Personal Information - Settings Style */}
+            <div className="profile-info-column">
+              <div className="profile-info-section">
+                <h2 className="profile-info-title">PERSONAL INFORMATION</h2>
+
+                <div className="profile-info-grid">
+                  {/* Email */}
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">EMAIL</span>
+                    <span className="profile-info-value">{userInfo.email || "—"}</span>
+                  </div>
+
+                  {/* Phone Number */}
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">PHONE NUMBER</span>
+                    <span className="profile-info-value">{userInfo.phone || "—"}</span>
+                  </div>
+
+                  {/* First Name */}
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">FIRST NAME</span>
+                    <span className="profile-info-value">{userInfo.first_name || "—"}</span>
+                  </div>
+
+                  {/* Last Name */}
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">LAST NAME</span>
+                    <span className="profile-info-value">{userInfo.last_name || "—"}</span>
+                  </div>
+
+                  {/* Street Address - Full Width */}
+                  <div className="profile-info-item full-width">
+                    <span className="profile-info-label">STREET ADDRESS</span>
+                    <span className="profile-info-value">{userInfo.address.street || "—"}</span>
+                  </div>
+
+                  {/* City */}
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">CITY</span>
+                    <span className="profile-info-value">{userInfo.address.city || "—"}</span>
+                  </div>
+
+                  {/* Province */}
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">PROVINCE</span>
+                    <span className="profile-info-value">{userInfo.address.province || "—"}</span>
+                  </div>
+
+                  {/* Postal Code */}
+                  <div className="profile-info-item">
+                    <span className="profile-info-label">POSTAL CODE</span>
+                    <span className="profile-info-value">{userInfo.address.postal_code || "—"}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
   );
 }
 

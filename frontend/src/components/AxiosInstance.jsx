@@ -61,17 +61,9 @@ const resetRefreshState = () => {
 
 /** Actually call the refresh endpoint */
 const performRefresh = async () => {
-  // Adjust the refresh URL to your backend route
-  // Common patterns:
-  // - DRF SimpleJWT cookie refresh via custom endpoint, e.g. /auth/jwt/refresh/
-  // - dj-rest-auth with custom cookie strategy, etc.
-  // The key is: it should pull refresh token from HttpOnly cookie.
   return AxiosInstance.post("refresh/", null, {
-    // Don't attach Authorization here; only the cookie is required.
-    // `withCredentials: true` ensures the refresh cookie is sent.
     headers: {
-      // Some backends require CSRF header even for refresh;
-      // Axios already adds it because xsrfCookieName/xsrfHeaderName are set.
+      "X-Ignore-Refresh": "true",
     },
   });
 };
@@ -102,7 +94,7 @@ AxiosInstance.interceptors.response.use(
     // If the request was to the refresh endpoint itself, or logout endpoint,
     // don't try to refresh again to avoid loops.
     const requestURL = (original?.url || "").toLowerCase();
-    if (requestURL.includes("/auth/jwt/refresh") || requestURL.includes("/auth/logout")) {
+    if (requestURL.includes("refresh/") || requestURL.includes("logout/")) {
       return Promise.reject(error);
     }
 

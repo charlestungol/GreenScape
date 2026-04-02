@@ -1,8 +1,14 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Box, Typography, Paper, Button, Table, TableHead, TableRow, TableCell, TableBody } from "@mui/material";
+import AxiosInstance from "../../components/AxiosInstance";
+
+const GREEN = "#1c3d37";
 
 const pad2 = (n) => String(n).padStart(2, "0");
-const toKey = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const toKey = (d) => {
+  const dt = new Date(d);
+  return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+};
 
 function mondayOf(date) {
   const d = new Date(date);
@@ -17,50 +23,72 @@ function addDays(date, n) {
   d.setDate(d.getDate() + n);
   return d;
 }
+function formatTime(value) {
+  return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
 
 export default function EmployeeTimesheets() {
   const [weekAnchor, setWeekAnchor] = useState(() => mondayOf(new Date()));
+  const [schedules, setSchedules] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Placeholder availability (replace with API later)
-  const employees = useMemo(
-    () => [
-      { id: 1, name: "Alex Cruz" },
-      { id: 2, name: "Jamie Santos" },
-      { id: 3, name: "Morgan Lee" },
-    ],
-    []
-  );
-
-  const availability = useMemo(() => {
-    // Example: { employeeId: { dateKey: "09:00–17:00" or "Off" } }
-    return {
-      1: {
-        "2026-02-10": "09:00–17:00",
-        "2026-02-11": "09:00–17:00",
-        "2026-02-12": "10:00–16:00",
-        "2026-02-13": "Off",
-        "2026-02-14": "08:00–12:00",
-      },
-      2: {
-        "2026-02-10": "09:00–17:00",
-        "2026-02-11": "Off",
-        "2026-02-12": "09:00–17:00",
-        "2026-02-13": "09:00–17:00",
-      },
-      3: {
-        "2026-02-10": "10:00–18:00",
-        "2026-02-11": "10:00–18:00",
-        "2026-02-12": "Off",
-        "2026-02-13": "10:00–18:00",
-      },
+  useEffect(() => {
+    const loadSchedules = async () => {
+      try {
+        const res = await AxiosInstance.get("core/schedules/");
+        setSchedules(res.data?.results || res.data || []);
+      } catch (error) {
+        console.error("Timesheets load error:", error);
+      } finally {
+        setLoading(false);
+      }
     };
+
+    loadSchedules();
   }, []);
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekAnchor, i)), [weekAnchor]);
 
+  const employees = useMemo(() => {
+    const map = new Map();
+    schedules.forEach((s) => {
+      const e = s.employee;
+      if (e && !map.has(e.employeeid)) {
+        map.set(e.employeeid, {
+          id: e.employeeid,
+          name: `${e.firstname || ""} ${e.lastname || ""}`.trim() || `Employee ${e.employeeid}`,
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [schedules]);
+
+  const schedulesThisWeek = useMemo(() => {
+    const start = new Date(weekAnchor);
+    const end = addDays(weekAnchor, 6);
+    end.setHours(23, 59, 59, 999);
+
+    return schedules.filter((s) => {
+      const dt = new Date(s.starttime);
+      return dt >= start && dt <= end;
+    });
+  }, [schedules, weekAnchor]);
+
+  const getCellValue = (employeeId, dateKey) => {
+    const entries = schedulesThisWeek.filter(
+      (s) => String(s.employee?.employeeid) === String(employeeId) && toKey(s.starttime) === dateKey
+    );
+
+    if (entries.length === 0) return "—";
+
+    return entries
+      .map((e) => `${formatTime(e.starttime)}–${formatTime(e.endtime)}`)
+      .join(", ");
+  };
+
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ fontWeight: 800, color: "#06632b", mb: 2 }}>
+      <Typography variant="h4" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
         Employee Timesheets (Weekly Availability)
       </Typography>
 
@@ -76,46 +104,49 @@ export default function EmployeeTimesheets() {
         </Typography>
       </Box>
 
-      <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell><b>Employee</b></TableCell>
-              {days.map((d) => (
-                <TableCell key={toKey(d)} align="center">
-                  <b>{d.toLocaleDateString(undefined, { weekday: "short" })}</b>
-                  <div style={{ opacity: 0.7, fontSize: 12 }}>{toKey(d)}</div>
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {employees.map((e) => (
-              <TableRow key={e.id}>
-                <TableCell sx={{ fontWeight: 700 }}>{e.name}</TableCell>
-                {days.map((d) => {
-                  const k = toKey(d);
-                  const value = availability[e.id]?.[k] || "—";
-                  const isOff = value === "Off";
-                  return (
-                    <TableCell
-                      key={k}
-                      align="center"
-                      sx={{
-                        bgcolor: isOff ? "rgba(211,47,47,0.08)" : "rgba(0,0,0,0.02)",
-                        fontWeight: value === "—" ? 400 : 700,
-                      }}
-                    >
-                      {value}
-                    </TableCell>
-                  );
-                })}
+      {loading ? (
+        <Typography>Loading timesheets...</Typography>
+      ) : (
+        <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell><b>Employee</b></TableCell>
+                {days.map((d) => (
+                  <TableCell key={toKey(d)} align="center">
+                    <b>{d.toLocaleDateString(undefined, { weekday: "short" })}</b>
+                    <div style={{ opacity: 0.7, fontSize: 12 }}>{toKey(d)}</div>
+                  </TableCell>
+                ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Paper>
+            </TableHead>
+
+            <TableBody>
+              {employees.map((e) => (
+                <TableRow key={e.id}>
+                  <TableCell sx={{ fontWeight: 700 }}>{e.name}</TableCell>
+                  {days.map((d) => {
+                    const k = toKey(d);
+                    const value = getCellValue(e.id, k);
+                    return (
+                      <TableCell
+                        key={k}
+                        align="center"
+                        sx={{
+                          bgcolor: value === "—" ? "rgba(0,0,0,0.02)" : "rgba(28, 61, 55, 0.06)",
+                          fontWeight: value === "—" ? 400 : 700,
+                        }}
+                      >
+                        {value}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Paper>
+      )}
     </Box>
   );
 }
