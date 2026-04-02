@@ -1,14 +1,16 @@
 import '../App.css';
 import BackgroundVideo from '../assets/videos/vid_1.mp4'; 
 import Logo from '../assets/img/Logo.png'; 
-
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AxiosInstance from '../components/AxiosInstance';
-import { Axios } from 'axios';
+import GoogleIcon from '@mui/icons-material/Google';
+import { useState, useEffect } from "react";
+
 
 const ClientLogin = () => {
   const navigate = useNavigate();
+
+  const [loading, setLoading] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,47 +19,28 @@ const ClientLogin = () => {
 
   const handleLogin = async () => {
   setError('');
+  setLoading(true);
 
   if (!email || !password) {
     setError("Please fill in all fields.");
+    setLoading(false);
     return;
   }
 
   try {
-    // Remove stale access token
     localStorage.removeItem("access");
-
-    // Just to make sure CSRF is seeded
     await AxiosInstance.get("/csrf/").catch(() => {})
-
     const response = await AxiosInstance.post('login/client/', {
       email: email,
       password: password
     });
     
-
-    console.log("Client login success:", response.data);
-    console.log("Full response structure:", JSON.stringify(response.data, null, 2));
-    
-    // DEBUG: Check the exact structure
-    console.log("response.data:", response.data);
-    console.log("response.data.user:", response.data.user);
-    console.log("response.data.user.first_name:", response.data.user?.first_name);
-    
-    // Store user ID - check different possible locations
-    const userId = response.data.user?.id || response.data.user_id || response.data.id;
-    const userFirstName = response.data.user?.first_name || response.data.first_name || "";
+    const userId = response.data.user?.id;
+    const profileReady = response.data.profile_ready;
     const userRole = response.data.user?.role || response.data.role || "client";
 
-    // Prefer SimpleJWT naming if present
+  
     const access = response.data?.access || {};
-
-    
-    console.log("Extracted values:");
-    console.log("userId:", userId);
-    console.log("userFirstName:", userFirstName);
-    console.log("userRole:", userRole);
-    console.log("access:", access);
     
     if (!userId) {
       console.error("No user_id found in response!");
@@ -70,24 +53,15 @@ const ClientLogin = () => {
       return;
     }
     
-    // Store data
     localStorage.setItem("user_id", userId);
-    // Save tokens (Bearer)
     localStorage.setItem("access", access);
     localStorage.setItem("role", userRole);
-    localStorage.setItem("first_name", userFirstName);
-    
-    // Also store with user-specific prefix for safety
-    localStorage.setItem(`user_${userId}_first_name`, userFirstName);
-    localStorage.setItem(`user_${userId}_role`, userRole);
-    
-    // Verify storage
-    console.log("Storage verification:");
-    console.log("Stored user_id:", localStorage.getItem("user_id"));
-    console.log("Stored first_name:", localStorage.getItem("first_name"));
-    console.log("Stored role:", localStorage.getItem("role"));
-    
-    navigate('/home');
+    if (userRole === "client" && !profileReady) {
+      navigate("/complete-profile");
+    } else {
+      navigate("/home");
+    }
+
 
   } catch (err) {
     console.error("Login error:", err.response || err);
@@ -97,6 +71,70 @@ const ClientLogin = () => {
     } else {
       setError("Something went wrong. Please try again.");
     }
+  } finally {
+      setLoading(false);
+    }
+};
+
+// Initialize Google Sign-In button after component mounts
+useEffect(() => {
+    if (!window.google) {
+      console.error("Google SDK not loaded");
+      return;
+    }
+
+    google.accounts.id.initialize({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential, // ✅ Google calls this
+    });
+
+    google.accounts.id.renderButton(
+      document.getElementById("google-signin"),
+      {
+        theme: "outline",
+        size: "large",
+        width: 250,
+      }
+    );
+  }, []);
+
+const handleGoogleCredential = async (response) => {
+  try {
+    // The Google Identity Services library returns a credential string directly in the response
+    const credential = response.credential;
+
+    // If credential is missing, fail gracefully
+    if (!credential) {
+      setError("Google login failed. No credential received.");
+      return;
+    }
+    // Send the credential to the backend for verification and JWT issuance
+    const res = await AxiosInstance.post("google/", {
+      credential
+    });
+    console.log("Google login response:", res);
+    // Expecting access token, user info, and profile status from backend
+    const { access, user, profile_ready } = res.data;
+
+    // Basic validation of response data
+    if (!access || typeof access !== "string") {
+      setError("Google login succeeded but no access token received.");
+      return;
+    }
+    // Persist auth state
+    localStorage.setItem("access", access);
+    localStorage.setItem("user_id", user.id);
+    localStorage.setItem("role", user.role);
+
+    // Route user based on profile completion
+    if (user.role === "client" && !profile_ready) {
+      navigate("/complete-profile");
+    } else {
+      navigate("/home");
+    }
+  } catch (err) {
+    console.error(err);
+    setError("Google sign-in failed.");
   }
 };
 
@@ -117,6 +155,7 @@ const ClientLogin = () => {
           placeholder="Email"
           value={email}
           onChange={e => setEmail(e.target.value)}
+          maxLength={254}
         />
 
         <input
@@ -124,13 +163,17 @@ const ClientLogin = () => {
           placeholder="Password"
           value={password}
           onChange={e => setPassword(e.target.value)}
+          maxLength={50}
         />
 
-        <button onClick={handleLogin}>Login</button>
-
-        <button onClick={() => navigate('/client-register')}>
-          Sign Up
+        <button onClick={handleLogin} disabled={loading}>
+          {loading ? "Logging in…" : "LOGIN"}
         </button>
+        <button onClick={() => navigate('/client-register')}>
+          SIGN UP
+        </button>
+        or
+        <div id="google-signin"></div>
 
         <p className='errorMsg' >{error}</p>
 

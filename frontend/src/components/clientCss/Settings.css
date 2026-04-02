@@ -1,0 +1,434 @@
+/* ===== BASE LAYOUT ===== */
+.settings-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.settingsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* ===== HEADER ===== */
+.settingsTitle{
+ border:solid 2px  #1c3d37;
+ color: #1c3d37;
+ padding: 20px;
+ font-size: 25px;
+ font-weight:bold;
+ border-radius: 20px;
+ width: 96%;
+ margin: 0;
+}
+
+/* ===== SECTIONS ===== */
+.settingsSection {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(44, 110, 73, 0.08);
+  transition: all 0.2s ease;
+}
+
+.securitySettingsSection {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(44, 110, 73, 0.08);
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.securitySettingsSection .sectionTitle{
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1a2e2a;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: start;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.sectionTitle {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1a2e2a;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ===== INFO GRID ===== */
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.infoItem.fullWidth {
+  grid-column: 1 / -1;
+}
+
+.infoLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #5a7c6c;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.infoValue {
+  font-size: 1rem;
+  color: #1a2e2a;
+  margin: 0;
+  padding: 0.75rem 0;
+  border-bottom: 2px solid #edf2f0;
+  word-break: break-word;
+}
+
+/* ===== FORM INPUTS ===== */
+.infoInput,
+.infoTextarea,
+.overlayContent input {
+  padding: 0.85rem 1rem;
+  border: 1.5px solid #e2e8e5;
+  border-radius: 12px;
+  font-size: 1rem;
+  color: #1a2e2a;
+  background: #fafcfb;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.infoTextarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.infoInput:focus,
+.infoTextarea:focus,
+.overlayContent input:focus {
+  outline: none;
+  border-color: #2c6e49;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(44, 110, 73, 0.1);
+}
+
+.infoInput:hover,
+.infoTextarea:hover,
+.overlayContent input:hover {
+  border-color: #5a7c6c;
+}
+
+/* ===== BUTTONS ===== */
+.editBtn,
+.saveBtn,
+.cancelBtn,
+.updateBtn {
+  padding: 0.6rem 1.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 40px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid;
+}
+
+.changeBtn{
+  padding: 0.6rem 1.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-radius: 40px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid;
+  margin: 10px;
+}
+
+.editBtn {
+  background: transparent;
+  border-color: #1c3d37;
+  color: #1c3d37;
+}
+
+.editBtn:hover {
+  background: #1c3d37;
+  color: white;
+}
+
+.editActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.saveBtn {
+  background: #1c3d37;
+  border-color: #1c3d37;
+  color: white;
+}
+
+.saveBtn:hover {
+  background: #1d4a31;
+  border-color: #1d4a31;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(44, 110, 73, 0.2);
+}
+
+.cancelBtn {
+  background: transparent;
+  border-color: #8a9e98;
+  color: #5a6e6a;
+}
+
+.cancelBtn:hover {
+  background: #9e2c2c;
+  border-color: #9e2c2c;
+  color: white;
+}
+
+.changeBtn {
+  margin-top: 1.25rem;
+  background: transparent;
+  border-color: #1c3d37;
+  color: #1c3d37;
+  width: auto;
+  min-width: 200px;
+}
+
+.changeBtn:hover,
+.updateBtn:hover {
+  background: #1c3d37;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(44, 110, 73, 0.2);
+}
+
+.updateBtn {
+  background: #1c3d37;
+  color: white;
+  border: none;
+  padding: 1rem;
+  width: 100%;
+  margin: 1.5rem 0 1rem;
+}
+
+/* ===== MESSAGES ===== */
+.userMsg,
+.statusMsg {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+
+.userMsg p,
+.statusMsg p {
+  margin: 0.25rem 0;
+}
+
+.errorMsg {
+  background: #fff3f0;
+  color: #b34141;
+  border-left: 4px solid #b34141;
+}
+
+.successMsg {
+  background: #e8f5e9;
+  color: #2c6e49;
+  border-left: 4px solid #2c6e49;
+}
+
+/* ===== OVERLAY/MODAL ===== */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  /* backdrop-filter: blur(5px); */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.overlayContent {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 24px;
+  width: 90%;
+  max-width: 450px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
+  animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.overlayTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a2e2a;
+  margin: 0 0 1.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.inputGroup label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #5a7c6c;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.closeModal {
+  text-align: center;
+  color: #8a9e98;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  padding: 0.75rem;
+  transition: color 0.2s ease;
+  display: inline-block;
+  width: 100%;
+}
+
+.closeModal:hover {
+  color: #9e2c2c;
+}
+
+/* ===== UTILITIES ===== */
+.text-center {
+  text-align: center;
+}
+
+.w-100 {
+  width: 100%;
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+  .settings-page {
+    padding: 1.5rem;
+  }
+  
+  .infoGrid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  
+  .sectionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .editActions {
+    width: 100%;
+  }
+  
+  .saveBtn,
+  .cancelBtn {
+    flex: 1;
+    text-align: center;
+  }
+  
+  .overlayContent {
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-page {
+    padding: 1rem;
+  }
+  
+  .titleWrapper {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .settingsSection {
+    padding: 1.25rem;
+  }
+  
+  .sectionTitle {
+    font-size: 1.1rem;
+  }
+  
+  .changeBtn {
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .overlayContent {
+    padding: 1.5rem;
+  }
+  
+  .overlayTitle {
+    font-size: 1.25rem;
+  }
+}
+
+/* ===== PRINT STYLES ===== */
+@media print {
+  .editBtn,
+  .saveBtn,
+  .cancelBtn,
+  .changeBtn,
+  .closeModal,
+  .overlay {
+    display: none !important;
+  }
+  
+  .settingsSection {
+    box-shadow: none;
+    border: 1px solid #ddd;
+    page-break-inside: avoid;
+  }
+}

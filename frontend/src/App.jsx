@@ -1,6 +1,7 @@
-import "./App.css";
-import { Routes, Route } from "react-router-dom";
-import NavbarWrapper from "./components/NavbarWrapper";
+import './App.css';
+import { Routes, Route } from 'react-router-dom';
+import NavbarWrapper from './components/NavbarWrapper';
+import ScrollToTop from './components/ScrollToTop';
 
 // Public pages
 import Landing from "./pages/LandingPage";
@@ -10,34 +11,39 @@ import EmployeeRegister from "./pages/EmployeeRegister";
 import ClientRegister from "./pages/ClientRegister";
 
 // Client pages
-import Home from "./pages/ClientHome";
-import Services from "./pages/Services";
-import Booking from "./pages/Booking";
-import Settings from "./pages/Settings";
+import Home from './pages/Client/ClientHome';
+import ClientProfile from './pages/Client/ClientProfile';
+import Services from './pages/Client/Services';
+import Booking from './pages/Client/Booking';
+import RequestQuote from './pages/Client/RequestQuote';
+import Settings from './pages/Client/Settings';
+import CompleteProfilePage from './pages/Client/CompleteProfilePage';
 
 // Employee/admin pages
 import EmployeeHome from "./pages/EmployeeHome";
-import AdminDashboard from "./pages/employee/AdminDashboard";
-import MySchedule from "./pages/employee/MySchedule";
-import EmployeeManagement from "./pages/employee/EmployeeManagement";
+import AdminDashboard from "./pages/Employee/AdminDashboard";
+import MySchedule from "./pages/Employee/MySchedule";
+import EmployeeManagement from "./pages/Employee/EmployeeManagement";
 import EmployeeTimesheets from "./pages/Employee/EmployeeTimesheets";
 import ServiceSchedule from "./pages/Employee/ServiceSchedule";
+import BookingRequests from "./pages/Employee/BookingRequests";
 import FinancesBoard from "./pages/Employee/FinancesBoard";
 import ClientView from "./pages/Employee/ClientView";
-
-// Account
 import EmployeeAccount from "./pages/Employee/EmployeeAccount";
+import CompleteProfile from "./pages/Employee/Completeprofile";
 
 // Service info pages
-import IrrigationInstallation from "./services-info/Irrigation";
-import LandscapeLighting from "./services-info/Landscape";
-import MaintenanceManagement from "./services-info/Maintenance";
-import StormWaterManangement from "./services-info/Stormwater";
+import IrrigationInstallation from "./components/services-info/Irrigation";
+import LandscapeLighting from "./components/services-info/Landscape";
+import MaintenanceManagement from "./components/services-info/Maintenance";
+import StormWaterManangement from "./components/services-info/Stormwater";
 
 import RouteProtection from "./components/RouteProtection";
 
 function App() {
   return (
+    <>
+    <ScrollToTop />
     <Routes>
       {/* Public pages (no Navbar) */}
       <Route path="/" element={<Landing />} />
@@ -46,7 +52,24 @@ function App() {
       <Route path="/employee-register" element={<EmployeeRegister />} />
       <Route path="/client-register" element={<ClientRegister />} />
 
-      {/* Pages that should render with the Navbar */}
+      {/* Complete Profile Page */}
+      <Route
+          path="/complete-profile"
+          element={
+            <RouteProtection allowedRole="client">
+              <CompleteProfilePage />
+            </RouteProtection>
+          }
+      />
+
+      <Route
+        path="/employee/complete-profile"
+        element={<RouteProtection allowedRole="employee">
+              <CompleteProfile />
+            </RouteProtection>}
+      />
+
+      {/* Pages with Navbar */}
       <Route element={<NavbarWrapper />}>
         {/* Client */}
         <Route
@@ -58,9 +81,17 @@ function App() {
           }
         />
         <Route
+          path="/client-profile"
+          element={
+            <RouteProtection allowedRole="client">
+              <ClientProfile />
+            </RouteProtection>
+          }
+        />
+        <Route
           path="/services"
           element={
-            <RouteProtection>
+            <RouteProtection allowedRole="client"> 
               <Services />
             </RouteProtection>
           }
@@ -68,15 +99,23 @@ function App() {
         <Route
           path="/booking"
           element={
-            <RouteProtection>
+            <RouteProtection allowedRole="client">
               <Booking />
+            </RouteProtection>
+          }
+        />
+        <Route
+          path="/request-quote"
+          element={
+            <RouteProtection allowedRole="client">
+              <RequestQuote />
             </RouteProtection>
           }
         />
         <Route
           path="/settings"
           element={
-            <RouteProtection>
+            <RouteProtection allowedRole="client">
               <Settings />
             </RouteProtection>
           }
@@ -130,7 +169,15 @@ function App() {
               <ServiceSchedule />
             </RouteProtection>
           }
-        />
+          />
+          <Route 
+            path="/employee/booking-requests"
+            element={
+              <RouteProtection allowedRole="employee">
+                <BookingRequests />
+              </RouteProtection>
+            }  
+            />
         <Route
           path="/employee/finances"
           element={
@@ -147,7 +194,6 @@ function App() {
             </RouteProtection>
           }
         />
-        {/* Employee Account (profile + change password + logout) */}
         <Route
           path="/employee/account"
           element={
@@ -157,7 +203,7 @@ function App() {
           }
         />
 
-        {/* Service detail pages (client visible) */}
+        {/* Service detail pages */}
         <Route
           path="/irrigation-installation"
           element={
@@ -192,6 +238,7 @@ function App() {
         />
       </Route>
     </Routes>
+    </>
   );
 }
 

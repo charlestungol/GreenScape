@@ -1,0 +1,303 @@
+.irrigation-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 10px 5px;
+  background: linear-gradient(145deg, #ffffff 0%, #fafcfb 100%);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;  
+  justify-content: center;
+  gap: 40px;
+}
+
+.installations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2.5rem;
+  position: relative;
+  z-index: 1;
+  width: 100%; 
+  max-width: 1200px;
+  margin: 0 auto; 
+}
+
+
+.header-section {
+  max-width: 1200px;
+  margin: 0 auto 2rem auto;  
+  padding: 0 2rem;
+  width: 100%;
+  text-align: center;
+}
+
+
+.back-button-container {
+  max-width: 1400px;
+  margin: 0 auto 1.5rem auto;
+  padding: 1rem 2rem 0 2rem;
+  width: 100%;
+}
+
+.installation-card {
+  background: white;
+  border-radius: 24px;
+  padding: 2.5rem;
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid rgba(44, 110, 73, 0.08);
+  position: relative;
+  overflow: hidden;
+  width: 80%; 
+  margin: 0 auto;  
+}
+
+.installation-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  background: #1c3d37;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.installation-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 30px 60px -15px rgba(44, 110, 73, 0.15);
+  border-color: rgba(44, 110, 73, 0.15);
+}
+
+.installation-card:hover::before {
+  opacity: 1;
+}
+
+/* Residential specific gradient */
+.residential:hover {
+  background: linear-gradient(145deg, #ffffff, #f9fffc);
+}
+
+/* Commercial specific gradient */
+.commercial:hover {
+  background: linear-gradient(145deg, #ffffff, #f5faf8);
+}
+
+/* Card Header */
+.card-header {
+  margin-bottom: 1.75rem;
+}
+
+.card-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1a3a32;
+  margin: 0 0 1rem 0;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.title-underline {
+  width: 60px;
+  height: 3px;
+  background: #1c3d37;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.installation-card:hover .title-underline {
+  width: 100px;
+}
+
+/* Card Content */
+.card-content {
+  flex: 1;
+  margin-bottom: 2rem;
+}
+
+.card-description {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: #3e5a52;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* Card Footer */
+.card-footer {
+  margin-top: auto;
+}
+
+.btn-book {
+  background: transparent;
+  border: 2px solid #1c3d37;
+  color: #1c3d37;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.9rem 2.2rem;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.btn-book::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50px;
+  background: #1c3d37;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s ease, height 0.4s ease;
+  z-index: -1;
+}
+
+.btn-book:hover {
+  color: white;
+}
+
+.btn-book:hover::before {
+  width: 110%;
+  height: 110%;
+}
+
+.btn-book:active {
+  transform: scale(0.96);
+}
+
+/* Back Button Styles */
+.back-button-container {
+  max-width: 1200px;
+  margin: 0 auto 1.5rem auto;
+  padding: 1rem 2rem 0 2rem;
+  width: 100%;
+}
+
+.btn-back {
+  background: transparent;
+  border: none;
+  color: #1c3d37;
+  font-size: 0.85rem;  
+  font-weight: 600;    
+  text-transform: uppercase;
+  letter-spacing: 0.12em; 
+  padding: 0.5rem 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);  
+  position: relative;
+}
+
+.btn-back:hover {
+  color: #1d4a31;
+  transform: translateX(-6px);  
+}
+
+.btn-back::before {
+  content: '←';
+  font-size: 1.25rem;
+  transition: transform 0.25s ease;
+  line-height: 1; 
+}
+
+.btn-back:hover::before {
+  transform: translateX(-6px);
+}
+
+.btn-back:focus-visible {
+  outline: 2px solid #2c6e49;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.btn-back:active {
+  transform: translateX(-2px);
+  color: #0a2e25;
+}
+
+.btn-back:active::before {
+  transform: translateX(-2px);
+}
+
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .irrigation-container {
+    padding: 3rem 1.5rem;
+  }
+  
+  .titleWrapper {
+    font-size: 2.5rem;
+  }
+  
+  .card-title {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .installations-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  .titleWrapper {
+    font-size: 2rem;
+  }
+  
+  .installation-card {
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .irrigation-container {
+    padding: 2rem 1rem;
+  }
+  
+  .titleWrapper {
+    font-size: 1.75rem;
+  }
+  
+  .card-title {
+    font-size: 1.35rem;
+  }
+  
+  .btn-book {
+    width: 100%;
+    padding: 0.9rem 1.5rem;
+  }
+}
+
+/* Optional: Add icons or subtle patterns */
+.installation-card::after {
+  content: '🌿';
+  position: absolute;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  font-size: 3rem;
+  opacity: 0.03;
+  pointer-events: none;
+  transform: rotate(15deg);
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}

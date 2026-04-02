@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.base_user import BaseUserManager
-from django.db.models import Q
+from django.core.validators import RegexValidator
 
 class CustomManager(BaseUserManager):
 
@@ -24,6 +24,7 @@ class CustomManager(BaseUserManager):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)  # Ensure superusers are active by default
+        extra_fields.setdefault("role", "employee")
 
         if extra_fields.get('is_staff') is not True:
             raise ValueError('Superuser must have is_staff=True.')
@@ -41,10 +42,20 @@ class CustomUser(AbstractUser):
 
     # User email
     email = models.EmailField(max_length=200, unique=True)
-
     # Employee Number
-    employee_number = models.CharField(max_length=50, null=True, blank=True)
-    
+    employee_number = models.CharField(
+        max_length=20,
+        unique=True,
+        null=True,
+        blank=True,
+        validators=[
+            RegexValidator(
+                regex=r'^\d+$',
+                message="Employee number must contain digits only."
+            )
+        ],
+        help_text="Numeric employee identifier (employees only)",
+    )
     # Assign Google Account to user
     google_sub = models.CharField(max_length=255, null=True, blank=True, db_index=True)
     avatar_url = models.URLField(null=True, blank=True)
@@ -65,12 +76,6 @@ class CustomUser(AbstractUser):
 
     class Meta:
         db_table = "users_customuser"
-        constraints = [
-            models.UniqueConstraint(fields=["employee_number"], name="uq_employee_number_not_null", condition=models.Q(employee_number__isnull=False) & ~Q(employee_number=""),),
-            models.UniqueConstraint(fields=["google_sub"], name="uq_google_sub_present", condition=Q(google_sub__isnull=False) & ~Q(google_sub=""),),
-            models.CheckConstraint(name="ck_employee_has_number", check=Q(role="employee",  employee_number__isnull=False) & ~Q(employee_number="") | ~Q(role="employee"),),
-            models.CheckConstraint(name="ck_client_no_emp_number", check=Q(role="client", employee_number__isnull=True) | Q(role="client", employee_number="") | Q(role="client"),),
-        ]
     
     def __str__(self):
         label = self.email  or f"User#{self.pk}"

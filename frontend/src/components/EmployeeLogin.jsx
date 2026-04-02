@@ -1,75 +1,88 @@
-import '../App.css';
-import BackgroundVideo from '../assets/videos/vid_1.mp4'; 
-import Logo from '../assets/img/Logo.png'; 
+import "../App.css";
+import BackgroundVideo from "../assets/videos/vid_1.mp4";
+import Logo from "../assets/img/Logo.png";
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import AxiosInstance from '../components/AxiosInstance';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import AxiosInstance from "../components/AxiosInstance";
 
 const EmployeeLogin = () => {
   const navigate = useNavigate();
 
-  const [employeeNumber, setEmployeeNumber] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-
-  const [error, setError] = useState('');
+  const [employeeNumber, setEmployeeNumber] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const handleLogin = async () => {
-  setError('');
+    setError("");
 
-  if (!employeeNumber || !email || !password) {
-    setError("Please fill in all fields.");
-    return;
-  }
-
-  try {
-    const response = await AxiosInstance.post('login/employee/', {
-      employee_number: employeeNumber,
-      email: email,
-      password: password
-    });
-
-    console.log("Employee login success:", response.data);
-    console.log("Full response structure:", JSON.stringify(response.data, null, 2));
-    
-    // Extract data carefully
-    const userId = response.data.user?.id || response.data.user_id || response.data.id;
-    const userFirstName = response.data.user?.first_name || response.data.first_name || "Employee";
-    const userRole = response.data.user?.role || response.data.role || "employee";
-    const access = response.data?.access || {}
-    
-    console.log("Employee extracted values:");
-    console.log("userId:", userId);
-    console.log("userFirstName:", userFirstName);
-    console.log("userRole:", userRole);
-    
-    // Store data
-    localStorage.setItem("user_id", userId);
-    localStorage.setItem("access", access);
-    localStorage.setItem("role", userRole);
-    localStorage.setItem("first_name", userFirstName);
-    
-    // User-specific storage
-    localStorage.setItem(`user_${userId}_first_name`, userFirstName);
-    localStorage.setItem(`user_${userId}_role`, userRole);
-    
-    navigate('/employeeHome');
-
-  } catch (err) {
-    console.error(err.response || err);
-
-    if (err.response) {
-      setError(JSON.stringify(err.response.data));
-    } else {
-      setError("Something went wrong. Please try again.");
+    if (!email || !password) {
+      setError("Please fill in all fields.");
+      return;
     }
-  }
-};
+
+    try {
+      //Login (single flow for all internal users)
+      const response = await AxiosInstance.post("login/employee/", {
+        email,
+        password,
+        employee_number: employeeNumber || null,
+      });
+
+      const { access, user } = response.data;
+      const group = user?.group;
+
+      //Store auth/session info
+      localStorage.setItem("access", access);
+      localStorage.setItem("user_id", user.id);
+      localStorage.setItem("email", user.email);
+      localStorage.setItem("role", user.role);
+      localStorage.setItem("group", group || "");
+      console.log("Logged in user group:", group);
+    // Employee roles → enforce profile completion
+    if (group === "Staff" || group === "Supervisor") {
+      try {
+        const meRes = await AxiosInstance.get("core/employees/me/");
+        const employee = meRes.data;
+
+        const profileComplete =
+          employee.firstname &&
+          employee.lastname &&
+          employee.phonenumber &&
+          employee.address;
+
+        if (!profileComplete) {
+          navigate("/employee/complete-profile");
+          return;
+        }
+
+        navigate("/employeeHome");
+        return;
+
+      } catch (err) {
+        if (err.response?.status === 404) {
+          // New employee → no profile yet
+          navigate("/employee/complete-profile");
+          return;
+        }
+
+        // Any other error really is a problem
+        console.error("Employee profile check failed:", err);
+        throw err;
+      }
+    }
+      //Fallback (misconfigured account)
+      setError("Your account has no assigned role. Please contact support.");
+
+    } catch (err) {
+      console.error(err.response || err);
+      setError("Login failed. Please check your credentials.");
+    }
+  };
 
   return (
     <div className="myBackground">
-
       <video autoPlay muted loop className="backgroundVideo">
         <source src={BackgroundVideo} type="video/mp4" />
         Your browser does not support the video tag.
@@ -85,6 +98,7 @@ const EmployeeLogin = () => {
           placeholder="Employee Number"
           value={employeeNumber}
           onChange={e => setEmployeeNumber(e.target.value)}
+          maxLength={20}
         />
 
         <input
@@ -92,6 +106,7 @@ const EmployeeLogin = () => {
           placeholder="Email"
           value={email}
           onChange={e => setEmail(e.target.value)}
+          maxLength={254}
         />
 
         <input
@@ -99,16 +114,16 @@ const EmployeeLogin = () => {
           placeholder="Password"
           value={password}
           onChange={e => setPassword(e.target.value)}
+          maxLength={50}
         />
 
-        <button onClick={handleLogin}>Login</button>
+        <button onClick={handleLogin}>LOGIN</button>
 
         <button onClick={() => navigate('/employee-register')}>
-          Sign Up
+          SIGN UP
         </button>
 
-        {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
-   
+        {error && <p style={{ color: "red", marginTop: "10px" }}>{error}</p>}
       </div>
     </div>
   );

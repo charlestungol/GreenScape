@@ -1,15 +1,20 @@
-
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Group, Permission
 from django.apps import apps
 
 
+
 ROLE_POLICY = {
-    # map DB RoleName -> list of Django codename permissions
-    "Admin": ["add", "change", "delete", "view"],
-    "Supervisor": ["view", "add", "change"],
-    "Staff": ["view", "add"],
+    "SuperAdmin": ["view", "add", "change", "delete"],
+
+    # Management roles: no delete
+    "Admin": ["view", "add", "change"],
+    "Supervisor": ["view", "change"],
+
+    # Staff: read-only access to operational data
+    "Staff": ["view"],
 }
+
 
 # Models that can be modified by permissions.
 MODELS_IN_SCOPE = [
@@ -47,7 +52,7 @@ class Command(BaseCommand):
         # Create groups and apply permissions per role
         for role_name, actions in ROLE_POLICY.items():
             group, _ = Group.objects.get_or_create(name=role_name)
-            # Start clean (comment out if you prefer incremental)
+            # Start clean
             group.permissions.clear()
 
             for action_map in model_perms.values():

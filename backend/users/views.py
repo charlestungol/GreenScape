@@ -1,21 +1,27 @@
+# --- Helper ---
+import datetime
+
 # --- Django core ---
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.db import transaction
 from django.shortcuts import redirect
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie, csrf_exempt
 
 # --- Django Allauth ---
 from allauth.account.models import EmailAddress
 
 # --- Django REST Framework ---
 from rest_framework import exceptions, permissions, status, views, viewsets
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 
 # --- SimpleJWT ---
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
@@ -25,6 +31,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
+# --- Google Capcha helper ---
+
+from .recaptcha import (
+    verify_recaptcha,
+)
+
 # --- Project (local) ---
 from .serializers import (
     ChangeEmailSerializer,
@@ -33,10 +45,11 @@ from .serializers import (
     ClientRegisterSerializer,
     EmployeeLoginSerializer,
     EmployeeRegisterSerializer,
-    CompleteProfileSerializer
+    CompleteCustomerProfileSerializer,
+    UserGroupUpdateSerializer,
+    UserSerializer,
+
 )
-
-
 
 throttle_classes = [ScopedRateThrottle]
 User = get_user_model()
@@ -69,9 +82,19 @@ def _jwt_cookie_settings():
 
 # These functions are used in the login/logout views to set and clear the JWT tokens in cookies. 
 # They ensure that the cookies are set with the correct attributes so that they work properly across different browsers and contexts.
-def set_refresh_cookie(response: str, refresh_token: str):
+def set_refresh_cookie(response, refresh_token):
     cfg = _jwt_cookie_settings()
-    response.set_cookie(cfg["cookie_refresh"], refresh_token, **cfg["cookie_kwargs"])
+
+    # Decode refresh token to extract exp
+    token = RefreshToken(refresh_token)
+    expires_at = datetime.datetime.fromtimestamp(token["exp"])
+
+    response.set_cookie(
+        cfg["cookie_refresh"],
+        refresh_token,
+        expires=expires_at,
+        **cfg["cookie_kwargs"]
+    )
     return response
 
 # When logging out, we need to clear the JWT cookies. 
@@ -95,66 +118,70 @@ class ClientLoginViewSet(viewsets.ViewSet):
     authentication_classes = []
     serializer_class = ClientLoginSerializer
 
-    # The create method handles the login process. It validates the user's credentials using the ClientLoginSerializer, checks if the account is active and if the email is verified, and then generates JWT tokens for the session. The response includes user information and a flag indicating whether the profile is ready (i.e., if the related Customer profile exists). The tokens are also set as cookies for authentication in subsequent requests.
     def create(self, request):
-
-        # Serilizer will validate the email/password and return the user if valid. If invalid, it raises a ValidationError which we catch to return a generic "No user found" message, avoiding leaking information about which part of the credentials was incorrect.
-        serializer = self.serializer_class(data=request.data, context={"request": request})
+        serializer = self.serializer_class(
+            data=request.data,
+            context={"request": request}
+        )
         try:
             serializer.is_valid(raise_exception=True)
         except exceptions.ValidationError:
-            return Response({"detail": "No user found."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "No user found."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # At this point, the serializer has validated the credentials and we have a user object. We now check if the account is active and if the email is verified before allowing login. This ensures that only users who have completed email verification can log in, which is important for security and account integrity.
         user = serializer.validated_data["user"]
 
-        # If the account is not active, we return a 403 Forbidden response with a message prompting the user to verify their email. This prevents inactive accounts from logging in while still providing guidance on how to activate their account.
+        # Account must be active
         if not user.is_active:
             return Response(
                 {"detail": "Account not active. Please verify your email."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Check if the email is verified. We look for an EmailAddress record that matches the user's email and is marked as verified. If no such record exists, we trigger sending a verification email and return a 403 response prompting the user to check their email. This ensures that only users with verified emails can log in, which helps prevent abuse and ensures that we have a valid contact method for the user.
+        # Email must be verified
         email_verified = EmailAddress.objects.filter(
-            user=user, email__iexact=user.email, verified=True
+            user=user,
+            email__iexact=user.email,
+            verified=True
         ).exists()
 
-        # If the email is not verified, we add the email address to the EmailAddress model (if it doesn't already exist) and send a confirmation email. We then return a 403 Forbidden response with a message prompting the user to check their email for verification. This flow ensures that users are guided through the email verification process if they attempt to log in without having verified their email, improving user experience while maintaining security.
         if not email_verified:
-            EmailAddress.objects.add_email(request, user, user.email, confirm=True)
+            EmailAddress.objects.add_email(
+                request, user, user.email, confirm=True
+            )
             return Response(
                 {"detail": "Email address not verified. Please check your email."},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
-        # Since the ClientLoginSerializer should only authenticate users with role="client", we can safely assume that the related Customer profile exists. However, we add a check just in case to avoid potential errors.
-        cust = getattr(user, "customer", None)
-        # If the customer profile is missing, this indicates a data integrity issue (a user with role=client should always have a related Customer). We return a 404 error to indicate that the expected resource (customer profile) was not found, which is more informative than a generic server error.
-        if not cust:
-            return Response({"detail": "Customer profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # At this point, we have a valid user with an active account and a verified email. We can now generate JWT tokens for the session. We use the RefreshToken class from SimpleJWT to create a refresh token for the user, and then derive the access token from it. Both tokens are converted to strings for use in the response and cookies.
+        # Customer profile may or may not exist
+        cust = getattr(user, "customer", None)
+        profile_ready = bool(cust)
+
         refresh = RefreshToken.for_user(user)
-        access_token = str(refresh.access_token)
-        refresh_token = str(refresh)
 
         payload = {
-            "access": access_token,
+            "access": str(refresh.access_token),
             "user": {
                 "id": user.id,
                 "email": user.email,
                 "role": user.role,
+            },
+            "profile_ready": profile_ready,
+        }
+
+        # OPTIONAL: include customer info only if it exists
+        if cust:
+            payload["user"].update({
                 "customer_id": cust.customerid,
                 "first_name": cust.firstname,
                 "last_name": cust.lastname,
-            },
-            "profile_ready": True,
-        }
+            })
 
-        # We return the user's information
         resp = Response(payload, status=status.HTTP_200_OK)
-        return set_refresh_cookie(resp, refresh_token)
+        return set_refresh_cookie(resp, str(refresh))
 
 # The EmployeeLoginViewSet is similar to the ClientLoginViewSet but is designed for employee users. 
 # It validates the credentials, checks if the account is active and if the email is verified, and then generates JWT tokens for authenticated sessions. 
@@ -169,7 +196,10 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
     throttle_scope = "login"
 
     def create(self, request):
-        serializer = self.serializer_class(data=request.data, context={"request": request})
+        serializer = self.serializer_class(
+            data=request.data,
+            context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data["user"]
@@ -178,25 +208,25 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 
-        emp = getattr(user, "employee", None)
+        #Resolve role from GROUPS or superuser
+        group = user.groups.first()
+        group_name = (
+            "SuperAdmin"
+            if user.is_superuser
+            else group.name if group else None
+        )
 
         payload = {
             "access": access_token,
             "user": {
                 "id": user.id,
                 "email": user.email,
+                "group": group_name,
+                "employee_number": getattr(user, "employee_number", ""),
                 "role": user.role,
-                "employee_number": user.employee_number,
             },
-            "profile_ready": bool(emp),
+            "profile_ready": True,
         }
-
-        if emp:
-            payload["user"].update({
-                "employee_id": emp.employeeid,
-                "first_name": emp.firstname,
-                "last_name": emp.lastname,
-            })
 
         resp = Response(payload, status=status.HTTP_200_OK)
         return set_refresh_cookie(resp, refresh_token)
@@ -264,14 +294,35 @@ class EmployeeRegisterViewSet(viewsets.ModelViewSet):
             return Response(EmployeeRegisterSerializer(user).data, status=201)
         return Response({"detail": f"Registration failed. Please check your input. {self.get_serializer(user).data}"}, status=400)
 
-class CompleteCustomerProfileViewset(APIView):
-    permissions_classes = [IsAuthenticated]
+class CompleteCustomerProfileViewSet(APIView):
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = CompleteProfileSerializer(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception = True)
-        customer = serializer.save()
-        return Response ({"detail" : "Profile completed"} , status = status.HTTP_201_CREATED,)
+        user = request.user
+
+        # Only clients can complete a customer profile
+        if user.role != "client":
+            raise PermissionDenied("Only clients can complete a customer profile.")
+
+        #Prevent duplicate profile creation
+        if hasattr(user, "customer") and user.customer is not None:
+            return Response(
+                {"detail": "Customer profile already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = CompleteCustomerProfileSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {"detail": "Customer profile completed successfully."},
+            status=status.HTTP_201_CREATED
+        )
+
 
 # Check all the account of both employee and customer.
 class UserViewSet(viewsets.ModelViewSet):
@@ -285,32 +336,55 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializers.data)
 
 # Endpoints for changing email/password and resending verification email
+
 class ChangeEmailViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = ChangeEmailSerializer
+    throttle_scope = "account_change"  
 
-    # This endpoint allows users to change their email. It will send a new verification email to the new address and deactivate the account until verified.
     def create(self, request):
-        # We can use the ChangeEmailSerializer for validating the new email by treating it as a "new_email" field, since it already has email validation logic.
-        serializer = self.serializer_class(
-            data=request.data,
-            context={'request': request}
-        )
+        serializer = self.serializer_class(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
-    
+
         user = request.user
-        new_email = serializer.validated_data['new_email'].strip().lower()
+        new_email = serializer.validated_data["new_email"].strip().lower()
+        password = serializer.validated_data["password"]
 
+        # 1) Password verification
+        if not user.check_password(password):
+            # Attach error to the 'password' field for consistent client handling
+            return Response({"password": ["Incorrect password."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 2) Uniqueness check
         if User.objects.filter(email__iexact=new_email).exclude(id=user.id).exists():
-            return Response({"detail": "Email already in use."}, status=400)
+            return Response({"new_email": ["Email already in use."]}, status=status.HTTP_400_BAD_REQUEST)
 
-        user.email = new_email
-        user.is_active = False  # Deactivate until email is verified
-        user.save()
+        # 3) Apply changes atomically
+        with transaction.atomic():
+            user.email = new_email
+            user.is_active = False  # Deactivate until verified
+            user.save(update_fields=["email", "is_active"])
 
-        EmailAddress.objects.add_email(request, user, new_email, confirm=True)
+            # Create the email
+            email_addr, created = EmailAddress.objects.get_or_create( user=user, email=new_email, defaults={"verified": False, "primary": False},)
+            # Make new email primary.
+            EmailAddress.objects.filter(user = user).exclude(email__iexact=new_email).update(primary=False)
+            
+            if not email_addr.primary:
+                email_addr.primary = True
+                email_addr.save(update_fields=["primary"])
+                        # Delete old email from 
 
-        return Response({"message": "Email changed successfully. Please verify your new email."}, status=200)
+            EmailAddress.objects.filter(user=user).exclude(email__iexact=new_email).delete()
+
+            # Send confirmation email
+            email_addr.send_confirmation(request)
+
+        return Response(
+            {"message": "Email changed successfully. Please verify your new email."},
+            status=status.HTTP_200_OK,
+        )
+
 
 # This endpoint allows users to change their password. 
 # It requires the user to provide their current password and the new password. 
@@ -367,41 +441,14 @@ def EmailVerifiedRedirectView(request):
 class LogoutView(APIView):
     permission_classes = [permissions.AllowAny]
 
-    # The post method handles the logout process. It first defines the cookie names for access and refresh tokens based on the REST_AUTH settings.
+    # The post method handles the logout process.
     def post(self, request):
-        cfg = _jwt_cookie_settings()
-
-        # Cookie names from your REST_AUTH settings
-        REFRESH_COOKIE_NAME = cfg["cookie_refresh"]
-
         # Default response
         response = Response({"detail": "Successfully logged out"}, status=status.HTTP_200_OK)
-
-        # Try to read refresh token from cookie
-        refresh_token = request.COOKIES.get(REFRESH_COOKIE_NAME)
-
-        if refresh_token:
-            try:
-                # Blacklist the refresh token to invalidate it server-side
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-            except Exception:
-                # Even if blacklisting fails, still clear cookies so client is logged out
-                response = Response({"detail": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
-
         # Always delete cookies client-side
         clear_auth_cookies(response)
 
         return response
-
-# This view allows users to log out from all sessions by blacklisting all refresh tokens associated with the user.
-class LogoutAllView(APIView):
-    permission_classes = [IsAuthenticated]
-    def post(self, request):
-        tokens = RefreshToken.for_user(request.user)
-        tokens.blacklist()
-
-        return Response({"detail": "Logged out from all sessions"}, status=200)
 
 # Helper to refresh the token in the Cookie
 class CookieTokenRefreshView(views.APIView):
@@ -438,77 +485,154 @@ class GoogleSignInView(APIView):
 
     @transaction.atomic
     def post(self, request):
-        credential = request.data.get("credential")
-        if not credential:
-            return Response({"detail": "Missing credential"}, status=status.HTTP_400_BAD_REQUEST)
-
         try:
+            credential = request.data.get("credential")
+            if not credential:
+                raise ValueError("Missing credential")
+
             payload = id_token.verify_oauth2_token(
                 credential,
                 google_requests.Request(),
                 settings.GOOGLE_CLIENT_ID,
             )
+
             if payload.get("iss") not in ["accounts.google.com", "https://accounts.google.com"]:
-                return Response({"detail": "Invalid issuer"}, status=status.HTTP_400_BAD_REQUEST)
+                raise ValueError("Invalid issuer")
+
             if not payload.get("email_verified"):
-                return Response({"detail": "Google email not verified"}, status=status.HTTP_400_BAD_REQUEST)
-        except ValueError as e:
-            return Response({"detail": "Invalid token", "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+                raise ValueError("Google email not verified")
 
-        email = (payload.get("email") or "").lower()
-        sub = payload.get("sub")
-        picture = payload.get("picture") or ""
-        if not email or not sub:
-            return Response({"detail": "Invalid Google payload"}, status=status.HTTP_400_BAD_REQUEST)
+            email = (payload.get("email") or "").lower()
+            sub = payload.get("sub")
+            picture = payload.get("picture") or ""
 
-        created = False
-        try:
-            user = User.objects.select_for_update().get(email=email)
-            # Prevent hijack: if already linked to different sub, block
-            if hasattr(user, "google_sub") and user.google_sub and user.google_sub != sub:
-                return Response({"detail": "Account conflict for this email."}, status=status.HTTP_409_CONFLICT)
-        except User.DoesNotExist:
-            # Create a minimal customer/client account
-            random_pwd = User.objects.make_random_password()
-            user_kwargs = {"email": email, "password": random_pwd}
-            # If your CustomUser has a role field, default to "client"
-            if hasattr(User, "_meta") and any(f.name == "role" for f in User._meta.get_fields()):
-                user_kwargs["role"] = "client"
-            user = User.objects.create_user(**user_kwargs)
-            created = True
+            if not email or not sub:
+                raise ValueError("Invalid Google payload")
 
-        # Link Google account & avatar
-        updated = False
-        if hasattr(user, "google_sub") and not user.google_sub:
-            user.google_sub = sub
-            updated = True
-        if picture and hasattr(user, "avatar_url") and not getattr(user, "avatar_url", None):
-            user.avatar_url = picture
-            updated = True
+            created = False
+            try:
+                user = User.objects.select_for_update().get(email=email)
+            except User.DoesNotExist:
+                user = User.objects.create_user(
+                    email=email,
+                    role="client",
+                )
+                created = True
 
-        # Ensure active (email verification is handled by Google for this flow)
-        if not user.is_active:
-            user.is_active = True
-            updated = True
+            if hasattr(user, "google_sub") and not user.google_sub:
+                user.google_sub = sub
 
-        if updated:
+            if picture and hasattr(user, "avatar_url") and not user.avatar_url:
+                user.avatar_url = picture
+
+            if not user.is_active:
+                user.is_active = True
+
             user.save()
 
-        # Issue tokens: refresh in HttpOnly cookie, access in body
-        refresh = RefreshToken.for_user(user)
-        access = str(refresh.access_token)
+            refresh = RefreshToken.for_user(user)
+            access = str(refresh.access_token)
 
-        customer = getattr(user, "customer", None)
+            customer = getattr(user, "customer", None)
 
-        resp = Response({
-            "access": access,
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "role": getattr(user, "role", "client"),
-                "customer_profile_ready" : bool(customer),
-            },
-            "created": created,
-        }, status=status.HTTP_200_OK)
+            resp = Response(
+                {
+                    "access": access,
+                    "user": {
+                        "id": user.id,
+                        "email": user.email,
+                        "role": getattr(user, "role", "client"),
+                    },
+                    "profile_ready": bool(customer),
+                    "created": created,
+                },
+                status=200,
+            )
 
-        return set_refresh_cookie(resp, str(refresh))
+            return set_refresh_cookie(resp, str(refresh))
+
+        except Exception:
+            return Response(
+                {"detail": "Internal server error during Google sign‑in"},
+                status=500,
+            )
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RecaptchaGateAPIView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request, *args, **kwargs):
+        # 1) reCAPTCHA gate — must pass
+        recaptcha_token = request.data.get("recaptchaToken")
+        ok, google_payload = verify_recaptcha(recaptcha_token, request.META.get("REMOTE_ADDR", ""))
+
+        if not ok:
+            return Response({
+                "ok" : False, "reason" : "recaptcha-failed", "google" : google_payload
+            }, status.status.HTTP_400_BAD_REQUEST)
+        
+        # 2) Proceed with JWT to validate credentials
+        sjwt_resp = super().post(request, *args, **kwargs)
+        if sjwt_resp.status_code != 200:
+            return sjwt_resp
+        
+        # Get access key
+        access = sjwt_resp.data.get("access")
+        # Get the refresh token
+        refresh = sjwt_resp.data.get("refresh")
+
+        # 3) Place refresh into cookie, and access into body.
+        final = Response({"ok" : True, "access": access}, status=200)
+
+        set_refresh_cookie(final, refresh)
+
+        return final
+
+
+class UserManagementViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    serializer_class = UserSerializer
+    queryset = User.objects.all().order_by("id")
+
+    @action(detail=True, methods=["patch"], url_path="group")
+    def set_group(self, request, pk=None):
+        target_user = User.objects.get(pk=pk)
+        serializer = UserGroupUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        new_role = serializer.validated_data["group"]
+        actor = request.user
+
+        # ─── PERMISSION RULES ─────────────────────────
+
+        if actor.groups.filter(name="SuperAdmin").exists():
+            if new_role not in ["Staff", "Supervisor", "Admin"]:
+                return Response(
+                    {"detail": "Admins cannot assign this role."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        elif actor.groups.filter(name="SuperAdmin").exists():
+            pass  # SuperAdmin can assign everything
+
+        else:
+            return Response(
+                {"detail": "You do not have permission to change roles."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # ─── APPLY GROUP CHANGE ───────────────────────
+
+        role_groups = Group.objects.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        )
+        target_user.groups.remove(*role_groups)
+
+        new_group = Group.objects.get(name=new_role)
+        target_user.groups.add(new_group)
+
+        return Response(
+            {"detail": f"User role updated to {new_role}."},
+            status=status.HTTP_200_OK,
+        )

@@ -29,7 +29,12 @@ SECRET_KEY = os.getenv("SECRET_KEY", "")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+]
+
 
 # Email / account settings (django-allauth)
 SITE_ID = 1
@@ -48,9 +53,6 @@ ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = "http://localhost:5173"
 
 # Optional: either remove or list plain field names (no asterisks). Often you can omit this and control via serializers/forms.
 # ACCOUNT_SIGNUP_FIELDS = ["first_name", "last_name"]
-
-# When user click verifiy email link, the email will be verified immediately without asking user to click another confirm button.
-ACCOUNT_CONFIRM_EMAIL_ON_GET = True
 
 if DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
@@ -80,13 +82,15 @@ EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10") or "0") or None
 EMAIL_SSL_CERTFILE = os.getenv("EMAIL_SSL_CERTFILE") or None
 EMAIL_SSL_KEYFILE = os.getenv("EMAIL_SSL_KEYFILE") or None
 
+
+
 # Configure Simple JWT settings
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
-    "BLACKLIST_AFTER_ROTATION": True,
+    "BLACKLIST_AFTER_ROTATION": False,
     "ALGORITHM": "HS256",
 }
 
@@ -117,6 +121,9 @@ JWT_AUTH_COOKIE_SECURE = False  # True in production
 # --- Google OAuth ---
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 
+# --- Google Captcha ---
+RECAPTCHA_PRIVATE_KEY = os.getenv("RECAPTCHA_PRIVATE_KEY")
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -136,7 +143,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'users',
     'core',
-    'rest_framework_simplejwt.token_blacklist',
 ]
 
 LOGGING = {
@@ -149,10 +155,6 @@ LOGGING = {
     },
 }
 
-
-# # IMPORTANT REMOVE AFTER DEVELOPMENT
-# PYTHONHTTPSVERIFY=0 
-# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -219,6 +221,7 @@ REST_FRAMEWORK = {
         "user": "60/minute",      # Authenticated user actions
         "login": "30/minute",       # Login endpoint (if separate throttle needed)
         "register": "5/hour",    # Registration endpoint (if separate throttle needed)
+        "account_change" : "30/minute" #Changing email.
     },
 
     "DEFAULT_PAGINATION_CLASS":
@@ -228,15 +231,15 @@ REST_FRAMEWORK = {
 }
 
 REST_AUTH = {
-    
+    # Token based
     "USE_JWT": True,            
     "TOKEN_MODEL": None,
     "TOKEN_SERIALIZER": None,
-
-    # If using cookies:
+    # Cookie based
     "JWT_AUTH_COOKIE": "access",
     "JWT_AUTH_REFRESH_COOKIE": "refresh",
     "JWT_AUTH_HTTPONLY": True,
+    "JWT_AUTH_COOKIE_SECURE": not DEBUG,
 
 }
 
