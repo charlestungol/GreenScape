@@ -210,7 +210,6 @@ class Quotes(models.Model):
     quotesid = models.AutoField(db_column='QuotesId', primary_key=True)  # Field name made lowercase.
     customerid = models.ForeignKey(Customer, models.DO_NOTHING, db_column='CustomerId')  # Field name made lowercase.
     serviceid = models.ForeignKey('Service', models.DO_NOTHING, db_column='ServiceId')  # Field name made lowercase.
-    additionalserviceid = models.IntegerField(db_column='AdditionalServiceId')  # Field name made lowercase.
     zoneid = models.ForeignKey('Zone', models.DO_NOTHING, db_column='ZoneId')  # Field name made lowercase.
     taxamount = models.DecimalField(db_column='TaxAmount', max_digits=10, decimal_places=2)  # Field name made lowercase.
     totalamount = models.DecimalField(db_column='TotalAmount', max_digits=10, decimal_places=2)  # Field name made lowercase.

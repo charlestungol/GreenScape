@@ -273,29 +273,18 @@ class UserImageSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(f"/core/profiles/{obj.id}/bytes/")
 
 # Employee Serializer
-# Employee Serializer
 class EmployeeSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source="user.id", read_only=True)
-    firstname = serializers.CharField(
-        allow_null=True,
-        allow_blank=True,
-        required=False
-    )
-    lastname = serializers.CharField(
-        allow_null=True,
-        allow_blank=True,
-        required=False
-    )
-    phonenumber = serializers.CharField(
-        allow_null=True,
-        allow_blank=True,
-        required=False
-    )
-    email = serializers.EmailField(
-        source="user.email",
-        read_only=True
-    )
+    email = serializers.EmailField(source="user.email", read_only=True)
+
+    firstname = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    lastname = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    phonenumber = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+
+    # Return full address
     address = AddressSerializer(source="addressid", read_only=True)
+
+    # Accept only the ID for assignment
     addressid = serializers.PrimaryKeyRelatedField(
         queryset=Address.objects.all(),
         write_only=True,
@@ -305,8 +294,24 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Employee
-        fields = ["employeeid","user_id","firstname","lastname","phonenumber","email","address","addressid",]
+        fields = [
+            "employeeid",
+            "user_id",
+            "firstname",
+            "lastname",
+            "phonenumber",
+            "email",
+            "address",
+            "addressid",
+        ]
         read_only_fields = ["employeeid"]
+
+    def create(self, validated_data):
+        return Employee.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        return super().update(instance, validated_data)
+
 
 # Booking Serializer
 class BookingSerializer(serializers.ModelSerializer):

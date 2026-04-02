@@ -300,18 +300,25 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         }
 
     # GET/PATCH /core/employees/me/
-    @action(detail=False,methods=["get", "patch"],url_path="me",permission_classes=[IsAuthenticated],)
+    @action(
+        detail=False,
+        methods=["get", "patch"],
+        url_path="me",
+        permission_classes=[IsAuthenticated],
+    )
     def me(self, request):
         user = request.user
 
-        #Only operational employees
+        # Only operational employees
         if not user.groups.filter(name__in=["Staff", "Supervisor", "Admin"]).exists():
             return Response(
                 {"detail": "Employee profile not applicable."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        employee = Employee.objects.filter(user=user).first()
-        #GET → fetch only
+
+        employee = Employee.objects.select_related("addressid").filter(user=user).first()
+
+        # ---------- GET ----------
         if request.method == "GET":
             if not employee:
                 return Response(
@@ -319,18 +326,42 @@ class EmployeeViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
             serializer = self.get_serializer(employee)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        #PATCH → create OR update
-        if not employee:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save(user=user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.data)
 
-        #PATCH existing
-        serializer = self.get_serializer(employee, data=request.data, partial=True)
+        # ---------- PATCH (CREATE OR UPDATE) ----------
+        data = request.data.copy()
+        address_data = data.pop("address", None)
+
+        #CREATE
+        if not employee:
+            address = None
+
+            if address_data:
+                address = Address.objects.create(**address_data)
+
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            employee = serializer.save(user=user, addressid=address)
+
+            return Response(
+                self.get_serializer(employee).data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        # ---------- PATCH (UPDATE) ----------
+        if address_data:
+            if employee.addressid:
+                for attr, value in address_data.items():
+                    setattr(employee.addressid, attr, value)
+                employee.addressid.save()
+            else:
+                employee.addressid = Address.objects.create(**address_data)
+                employee.save(update_fields=["addressid"])
+
+        serializer = self.get_serializer(employee, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
