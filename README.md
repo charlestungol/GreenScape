@@ -13,7 +13,7 @@
 ### SQL Server note – SimpleJWT for backend setup
 <!-- 
 `token_blacklist.0008_migrate_to_bigautofield` is incompatible with SQL Server
-because it alters a column with a UNIQUE constraint.
+because it alters a column with a UNIQUE constraint,
 
 We intentionally mark it as applied using:
 
