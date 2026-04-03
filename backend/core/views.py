@@ -310,7 +310,9 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         user = request.user
 
         # Only operational employees
-        if not user.groups.filter(name__in=["Staff", "Supervisor", "Admin"]).exists():
+        if not user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
             return Response(
                 {"detail": "Employee profile not applicable."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -557,7 +559,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
 
         # POST / PATCH / PUT → Employees only
         if self.request.method in ["POST", "PATCH", "PUT"]:
-            return [IsOwnerOrAdminOrStaffReadOnly]
+            return [IsOwnerOrAdminOrStaffReadOnly()]
 
         # GET → any authenticated user
         return [IsAuthenticated()]

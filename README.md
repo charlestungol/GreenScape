@@ -29,11 +29,9 @@ Do not remove this step. -->
 3. py -3.12 -m venv venv
 4. venv\Scripts\activate
 5. pip install -r requirements.txt
-6. python manage.py migrate token_blacklist 0007
-7. python manage.py migrate token_blacklist 0008 --fake
-8. python manage.py migrate
-9. python manage.py sync_roles
-10. python manage.py runserver
+6. python manage.py migrate
+7. python manage.py sync_roles
+8. python manage.py runserver
 
 <!-- Back End Email verification when creating account -->
 <!-- Use either one of these 2, comment/uncomment as needed in auth/settings.py -->
