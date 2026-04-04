@@ -4,6 +4,8 @@ import AxiosInstance from "../../src/components/AxiosInstance";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from "@mui/icons-material/Close";
 import { CircularProgress } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 
 function ServiceLocations() {
   const [showOverlay, setShowOverlay] = useState(false);
@@ -12,6 +14,9 @@ function ServiceLocations() {
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
   const [deleteSuccess, setDeleteSuccess] = useState("");
+  const [expandedLocation, setExpandedLocation] = useState(null);
+  const [locationServices, setLocationServices] = useState({});
+  const [loadingServices, setLoadingServices] = useState({});
   const modalContentRef = useRef(null);
 
   const fetchLocations = async () => {
@@ -50,10 +55,40 @@ function ServiceLocations() {
     }
   };
 
-  const deleteLocation = async (id) => {
-    console.log("=== DELETE BUTTON CLICKED ===");
-    console.log("Location ID to delete:", id);
+  const fetchServicesForLocation = async (locationId) => {
+    // If already expanded, just collapse
+    if (expandedLocation === locationId) {
+      setExpandedLocation(null);
+      return;
+    }
     
+    // If services are already loaded, just expand
+    if (locationServices[locationId]) {
+      setExpandedLocation(locationId);
+      return;
+    }
+    
+    // Fetch services
+    setLoadingServices(prev => ({ ...prev, [locationId]: true }));
+    
+    try {
+      const response = await AxiosInstance.get(`core/service-locations/${locationId}/services/`);
+      const services = response.data || [];
+      
+      setLocationServices(prev => ({ ...prev, [locationId]: services }));
+      setExpandedLocation(locationId);
+    } catch (err) {
+      console.error("Error fetching services:", err);
+      setLocationServices(prev => ({ ...prev, [locationId]: [] }));
+      
+      // Show error message
+      alert("Failed to load services for this location. Please try again.");
+    } finally {
+      setLoadingServices(prev => ({ ...prev, [locationId]: false }));
+    }
+  };
+
+  const deleteLocation = async (id) => {
     if (!window.confirm("Are you sure you want to delete this location?")) {
       return;
     }
@@ -62,33 +97,35 @@ function ServiceLocations() {
     setDeleteSuccess("");
     
     try {
-      // Use servicelocationid in the URL
       const url = `core/service-locations/${id}/`;
-      console.log("DELETE URL:", url);
-      
-      const response = await AxiosInstance.delete(url);
-      console.log("Delete response status:", response.status);
+      await AxiosInstance.delete(url);
       
       setDeleteSuccess("Location deleted successfully!");
       
-      // Update local state by removing the deleted location
       const updatedLocations = locations.filter(location => {
-        // Use servicelocationid to match the location
         return location.servicelocationid !== id;
       });
       
       setLocations(updatedLocations);
-      console.log("Updated locations count:", updatedLocations.length);
+      
+      // Clean up services for deleted location
+      setLocationServices(prev => {
+        const newState = { ...prev };
+        delete newState[id];
+        return newState;
+      });
+      
+      // If expanded location was deleted, close expansion
+      if (expandedLocation === id) {
+        setExpandedLocation(null);
+      }
       
       setTimeout(() => {
         setDeleteSuccess("");
       }, 3000);
       
     } catch (err) {
-      console.error("=== DELETE ERROR ===");
-      console.error("Status:", err.response?.status);
-      console.error("Data:", err.response?.data);
-      
+      console.error("Delete error:", err);
       let errorMessage = "Failed to delete location. ";
       
       if (err.response?.status === 401) {
@@ -96,8 +133,8 @@ function ServiceLocations() {
       } else if (err.response?.status === 403) {
         errorMessage += "You don't have permission to delete this location.";
       } else if (err.response?.status === 404) {
-        errorMessage += `Location with ID ${id} not found.`;
-        fetchLocations(); // Refresh the list
+        errorMessage += `Location not found.`;
+        fetchLocations();
       } else if (err.response?.data?.detail) {
         errorMessage += err.response.data.detail;
       } else {
@@ -116,22 +153,20 @@ function ServiceLocations() {
     }
   };
 
-  // Fetch locations when component mounts
+  // Refresh locations when overlay opens
   useEffect(() => {
     fetchLocations();
   }, []); 
 
-  // Refresh locations when overlay opens
   useEffect(() => {
     if (showOverlay) {
       fetchLocations();
     }
   }, [showOverlay]);
 
-  // Listen for locationAdded events from Maps component
+  // Listen for locationAdded events
   useEffect(() => {
     const handleLocationAdded = () => {
-      console.log("New location added, refreshing...");
       fetchLocations();
     };
     
@@ -141,6 +176,24 @@ function ServiceLocations() {
       window.removeEventListener('locationAdded', handleLocationAdded);
     };
   }, []);
+
+  // Listen for servicesUpdated events to refresh services when new services are added
+  useEffect(() => {
+    const handleServicesUpdated = () => {
+      // Clear cached services for all locations to force refresh
+      setLocationServices({});
+      // If a location is expanded, refresh its services
+      if (expandedLocation) {
+        fetchServicesForLocation(expandedLocation);
+      }
+    };
+    
+    window.addEventListener('servicesUpdated', handleServicesUpdated);
+    
+    return () => {
+      window.removeEventListener('servicesUpdated', handleServicesUpdated);
+    };
+  }, [expandedLocation]); // Re-run when expandedLocation changes
 
   // Listen for ESC key to close overlay
   useEffect(() => {
@@ -161,9 +214,23 @@ function ServiceLocations() {
     };
   }, [showOverlay]);
 
+  const formatDate = (dateString) => {
+    if (!dateString) return "No date";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatCurrency = (amount) => {
+    if (!amount) return "N/A";
+    return `$${parseFloat(amount).toLocaleString()}`;
+  };
+
   return (
     <>
-      {/* Card - Click to open overlay */}
       <div className="service-locations-card clickable" onClick={() => setShowOverlay(true)}>
         <div className="service-locations-card-header">
           <p className="locationWrapper p">SERVICE LOCATIONS</p>
@@ -175,11 +242,9 @@ function ServiceLocations() {
         </div>
       </div>
 
-      {/* Overlay */}
       {showOverlay && (
         <div className="overlay" onClick={handleOverlayClick}>
           <div ref={modalContentRef} className="service-locations-overlay-content">
-            {/* Header */}
             <div className="service-locations-header">
               <div className="header-title-section">
                 <h2>My Service Locations</h2>
@@ -189,14 +254,12 @@ function ServiceLocations() {
               </button>
             </div>
 
-            {/* Success Message */}
             {deleteSuccess && (
               <div className="success-message">
                 <span>{deleteSuccess}</span>
               </div>
             )}
 
-            {/* Content */}
             <div className="service-locations-content">
               {loading ? (
                 <div className="loading-container">
@@ -222,38 +285,106 @@ function ServiceLocations() {
                   {locations.map((location, index) => {
                     const locationId = location.servicelocationid;
                     const isDeleting = deletingId === locationId;
+                    const isExpanded = expandedLocation === locationId;
+                    const services = locationServices[locationId] || [];
+                    const isLoadingServices = loadingServices[locationId];
                     
                     return (
-                      <div key={locationId || index} className="location-item">
-                        <div className="location-details">
-                          <p className="location-street">{location.street || "No street address"}</p>
-                          <p className="location-city-province">
-                            {location.city || ""}
-                            {location.city && location.province ? ", " : ""}
-                            {location.province || ""}
-                          </p>
-                          {location.postalcode && (
-                            <p className="location-postal-code">{location.postalcode}</p>
+                      <div key={locationId || index} className="location-item-wrapper">
+                        <div className="location-item">
+                          <div className="location-main-info">
+                            <div className="location-details">
+                              <p className="location-street">{location.street || "No street address"}</p>
+                              <p className="location-city-province">
+                                {location.city || ""}
+                                {location.city && location.province ? ", " : ""}
+                                {location.province || ""}
+                              </p>
+                              {location.postalcode && (
+                                <p className="location-postal-code">{location.postalcode}</p>
+                              )}
+                            </div>
+                            
+                            <div className="location-actions">
+                              <button
+                                onClick={() => fetchServicesForLocation(locationId)}
+                                className="view-services-btn"
+                              >
+                                {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                                {isExpanded ? "Hide Services" : "View Services"}
+                              </button>
+                              
+                              <button
+                                onClick={() => deleteLocation(locationId)}
+                                className={`delete-location-btn ${isDeleting ? 'deleting' : ''}`}
+                                disabled={isDeleting}
+                              >
+                                {isDeleting ? (
+                                  <>
+                                    <span className="spinner-small"></span>
+                                    Deleting...
+                                  </>
+                                ) : (
+                                  <>
+                                    <DeleteIcon />
+                                    Delete
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {isExpanded && (
+                            <div className="location-services-section">
+                              <h4>Services at this location</h4>
+                              {isLoadingServices ? (
+                                <div className="loading-services">
+                                  <CircularProgress size={24} />
+                                  <p>Loading services...</p>
+                                </div>
+                              ) : services.length === 0 ? (
+                                <p className="no-services">No services found for this location</p>
+                              ) : (
+                                <div className="services-list">
+                                  {services.map((service) => (
+                                    <div key={service.id} className="service-item">
+                                      <div className="service-title">
+                                        <strong>{service.title || "Service"}</strong>
+                                        {service.completed && (
+                                          <span className="completed-badge">Completed</span>
+                                        )}
+                                        {/* {!service.completed && (
+                                          <span className="pending-badge">Pending</span>
+                                        )} */}
+                                      </div>
+                                      
+                                      {service.description && (
+                                        <p className="service-description">{service.description}</p>
+                                      )}
+                                      
+                                      <div className="service-meta">
+                                        {service.base_price && (
+                                          <span className="service-price">
+                                            Price: {formatCurrency(service.base_price)}
+                                          </span>
+                                        )}
+                                        {service.req_date && (
+                                          <span>Requested: {formatDate(service.req_date)}</span>
+                                        )}
+                                        {service.created_at && (
+                                          <span>Created: {formatDate(service.created_at)}</span>
+                                        )}
+                                        {service.red_year && (
+                                          <span>Year: {service.red_year}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
-                        
-                        <button
-                          onClick={() => deleteLocation(locationId)}
-                          className={`delete-location-btn ${isDeleting ? 'deleting' : ''}`}
-                          disabled={isDeleting}
-                        >
-                          {isDeleting ? (
-                            <>
-                              <span className="spinner-small"></span>
-                              Deleting...
-                            </>
-                          ) : (
-                            <>
-                              <DeleteIcon />
-                              Delete
-                            </>
-                          )}
-                        </button>
                       </div>
                     );
                   })}
@@ -261,7 +392,6 @@ function ServiceLocations() {
               )}
             </div>
 
-            {/* Footer */}
             <div className="service-locations-footer">
               <button onClick={() => setShowOverlay(false)} className="close-footer-btn">
                 Close

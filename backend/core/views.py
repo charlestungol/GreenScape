@@ -4,6 +4,7 @@
 import mimetypes
 import os
 import uuid
+from decimal import Decimal
 
 # ---------------------------------------------------
 # Django
@@ -54,6 +55,8 @@ from .models import (
     UserImage,
     RequestQuote,
     ServiceLocation,
+    Budget,
+    Expense
 )
 
 # ---------------------------------------------------
@@ -76,6 +79,9 @@ from .serializers import (
     UserImageSerializer,
     RequestQuoteSerializer,
     ServiceLocationSerializer,
+    BudgetSerializer,
+    ExpenseSerializer,
+    LocationServiceSerializer
 )
 
 # ---------------------------------------------------
@@ -470,20 +476,30 @@ class CustomerServiceViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         user = self.request.user
-
-        # Employees can create for any customer
-        if user.groups.filter(
-            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
-        ).exists():
-            serializer.save()
+        print(f"Creating customer service for user: {user.email}")
+        
+        # Check if user is staff/admin - they can create for any customer?
+        if user.groups.filter(name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]).exists():
+            # If customerid is provided in request, use that
+            customer_id = self.request.data.get('customerid')
+            if customer_id:
+                try:
+                    customer = Customer.objects.get(customerid=customer_id)
+                    print(f"Staff creating service for customer: {customer.customerid}")
+                    serializer.save(customerid=customer)
+                    return
+                except Customer.DoesNotExist:
+                    pass
+        
+        # Try to get customer from the authenticated user
+        customer = Customer.objects.filter(user=user).first()
+        if customer:
+            print(f"Using customer from user: {customer.customerid}")
+            serializer.save(customerid=customer)
             return
-
-        # Customer creates for themselves
-        customer = Customer.objects.filter(user_id=user.id).first()
-        if not customer:
-            raise PermissionDenied("You do not have permission to perform this action.")
-
-        serializer.save(customerid=customer)
+        
+        print("No customer found for user")
+        raise PermissionDenied("Customer profile not found. Please complete your profile.")
 
 # -----------------------------------------------------------------------------
 # Booking service view -- Allows for CRUD
@@ -962,15 +978,15 @@ class ServiceLocationViewSet(viewsets.ModelViewSet):
     # Permissions
     # ---------------------------------
     def get_permissions(self):
-        # DELETE → SuperAdmin only
+        # Allow all POST actions (including link-service) for authenticated users
+        if self.request.method == "POST":
+            return [IsAuthenticated()]
+        
+        # DELETE → Custom permission check in destroy method
         if self.request.method == "DELETE":
-            return [IsSuperAdminOnly()]
-
-        # POST / PATCH / PUT → Owner or employees
-        if self.request.method in ["POST", "PATCH", "PUT"]:
-            return [IsOwnerOrAdminOrStaffReadOnly()]
-
-        # GET → authenticated users (visibility handled in queryset)
+            return [IsAuthenticated()]
+        
+        # GET → authenticated users
         return [IsAuthenticated()]
 
     # ---------------------------------
@@ -1011,3 +1027,251 @@ class ServiceLocationViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Customer profile not found. Please complete your profile.")
 
         serializer.save(customerid=customer)
+
+    # ---------------------------------
+    # Custom Destroy - Allow owners to delete
+    # ---------------------------------
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user = request.user
+        
+        # SuperAdmin can delete anything
+        if user.groups.filter(name="SuperAdmin").exists():
+            return super().destroy(request, *args, **kwargs)
+        
+        # Staff/Admin/Supervisor can delete anything
+        if user.groups.filter(name__in=["Staff", "Admin", "Supervisor"]).exists():
+            return super().destroy(request, *args, **kwargs)
+        
+        # Check if user is the owner of this location
+        if instance.customerid and instance.customerid.user == user:
+            return super().destroy(request, *args, **kwargs)
+        
+        # No permission
+        raise PermissionDenied("You do not have permission to delete this location.")
+
+    # ---------------------------------
+    # Get services for a location 
+    # ---------------------------------
+    @action(detail=True, methods=["get"], url_path="services")
+    def get_location_services(self, request, pk=None):
+        """Get all services specifically linked to this location"""
+        location = self.get_object()
+        
+        # Get services linked to this location through LocationService
+        from .models import LocationService
+        
+        location_services = LocationService.objects.filter(
+            servicelocationid=location
+        ).select_related(
+            'customerserviceid__serviceid',
+            'customerserviceid__customerid'
+        ).order_by('-created_at')
+        
+        # Format the response with service details
+        services_data = []
+        for ls in location_services:
+            cs = ls.customerserviceid
+            service_data = {
+                'id': cs.customerserviceid,
+                'service_id': cs.serviceid.serviceid if cs.serviceid else None,
+                'title': cs.serviceid.title if cs.serviceid else None,
+                'description': cs.serviceid.description if cs.serviceid else None,
+                'base_price': str(cs.serviceid.baseprice) if cs.serviceid and cs.serviceid.baseprice else None,
+                'req_date': cs.reqdate,
+                'completed': cs.completed,
+                'created_at': cs.createdat,
+                'red_year': cs.redyear,
+                'linked_at': ls.created_at,
+            }
+            services_data.append(service_data)
+        
+        return Response(services_data, status=status.HTTP_200_OK)
+    
+    # ---------------------------------
+    # Link service to location
+    # ---------------------------------
+    @action(detail=True, methods=["post"], url_path="link-service")
+    def link_service_to_location(self, request, pk=None):
+        """Link an existing customer service to this location"""
+        print("=" * 50)
+        print("LINK SERVICE TO LOCATION CALLED")
+        
+        location = self.get_object()
+        customer_service_id = request.data.get('customerserviceid')
+        
+        print(f"Location ID: {location.servicelocationid}")
+        print(f"Location Customer ID: {location.customerid_id}")
+        print(f"Customer Service ID from request: {customer_service_id}")
+        print(f"Request User: {request.user.email}")
+        
+        if not customer_service_id:
+            return Response(
+                {"error": "customerserviceid is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from .models import Customerservice, LocationService
+        
+        # Get the customer service - don't check customer ownership here
+        try:
+            customer_service = Customerservice.objects.get(
+                customerserviceid=customer_service_id
+            )
+            print(f"Found customer service: {customer_service.customerserviceid}")
+            print(f"Customer service belongs to customer: {customer_service.customerid_id}")
+        except Customerservice.DoesNotExist:
+            print(f"Customer service {customer_service_id} not found")
+            return Response(
+                {"error": "Customer service not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if already linked
+        existing_link = LocationService.objects.filter(
+            servicelocationid=location,
+            customerserviceid=customer_service
+        ).first()
+        
+        if existing_link:
+            print(f"Service already linked with ID: {existing_link.locationserviceid}")
+            return Response(
+                {"message": "Service already linked to this location", "id": existing_link.locationserviceid},
+                status=status.HTTP_200_OK
+            )
+        
+        # Create the link
+        location_service = LocationService.objects.create(
+            servicelocationid=location,
+            customerserviceid=customer_service
+        )
+        print(f"Created link with ID: {location_service.locationserviceid}")
+        print("=" * 50)
+        
+        return Response(
+            {"message": "Service linked successfully", "id": location_service.locationserviceid},
+            status=status.HTTP_201_CREATED
+        )
+# ------------------------------
+# Location Service Viewset 
+# ------------------------------
+class LocationServiceViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing which services are linked to which locations
+    """
+    serializer_class = LocationServiceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        from .models import LocationService, Customer
+        
+        # Get the customer for this user
+        customer = Customer.objects.filter(user=user).first()
+        
+        if not customer:
+            return LocationService.objects.none()
+        
+        # Return only location services linked to locations owned by this customer
+        return LocationService.objects.filter(
+            servicelocationid__customerid=customer
+        ).select_related(
+            'servicelocationid',
+            'customerserviceid__serviceid'
+        ).order_by('-created_at')
+
+    def get_permissions(self):
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+        if self.request.method in ["POST", "PATCH", "PUT"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        from .models import Customer, Customerservice
+        
+        customer = Customer.objects.filter(user=user).first()
+        servicelocationid = serializer.validated_data.get('servicelocationid')
+        customerserviceid = serializer.validated_data.get('customerserviceid')
+        
+        # Verify that the service location belongs to this customer
+        if servicelocationid.customerid != customer:
+            raise PermissionDenied("You do not own this service location")
+        
+        # Verify that the customer service belongs to this customer
+        if customerserviceid.customerid != customer:
+            raise PermissionDenied("You do not own this customer service")
+        
+        # Check if already exists
+        from .models import LocationService
+        if LocationService.objects.filter(
+            servicelocationid=servicelocationid,
+            customerserviceid=customerserviceid
+        ).exists():
+            raise PermissionDenied("This service is already linked to this location")
+        
+        serializer.save()
+
+# ------------------------------
+#Budget & Expense 
+# ------------------------------
+class BudgetViewSet(viewsets.ModelViewSet):
+    serializer_class = BudgetSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        customer = Customer.objects.filter(user=user).first()
+        if customer:
+            return Budget.objects.filter(customerid=customer)
+        return Budget.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        customer = Customer.objects.filter(user=user).first()
+        if customer:
+            serializer.save(customerid=customer)
+        else:
+            raise PermissionDenied("No customer profile found.")
+
+    # Custom action to update budget amount
+    @action(detail=False, methods=['patch'])
+    def update_budget(self, request):
+        user = request.user
+        customer = Customer.objects.filter(user=user).first()
+        if not customer:
+            return Response({"detail": "Customer not found"}, status=404)
+
+        budget, created = Budget.objects.get_or_create(customerid=customer)
+        amount = request.data.get('amount')
+        mode = request.data.get('mode', 'set')
+
+        if mode == 'add':
+            budget.amount += Decimal(amount)
+        else:
+            budget.amount = Decimal(amount)
+
+        budget.save()
+        serializer = BudgetSerializer(budget)
+        return Response(serializer.data)
+
+
+class ExpenseViewSet(viewsets.ModelViewSet):
+    serializer_class = ExpenseSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        customer = Customer.objects.filter(user=user).first()
+        if customer:
+            return Expense.objects.filter(customerid=customer).order_by('-date')
+        return Expense.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        customer = Customer.objects.filter(user=user).first()
+        if customer:
+            serializer.save(customerid=customer)
+        else:
+            raise PermissionDenied("No customer profile found.")
