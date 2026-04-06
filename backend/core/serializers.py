@@ -29,7 +29,10 @@ from .models import (
     Schedule,
     UserImage,
     RequestQuote,
-    ServiceLocation
+    ServiceLocation,
+    Budget,
+    Expense,
+    LocationService
 );
 
 
@@ -233,29 +236,30 @@ class CustomerServiceSerializer(serializers.ModelSerializer):
     reqdate = serializers.DateField(validators=[validate_not_past_date])
     redyear = serializers.IntegerField(validators=[validate_not_past_year])
 
-
     # View customer data
-    customer = CustomerSerializer(source = "customerid", read_only = True)
+    customer = CustomerSerializer(source="customerid", read_only=True)
 
     # View Service
-    service = ServiceSerializer(source = "serviceid", read_only = True)
+    service = ServiceSerializer(source="serviceid", read_only=True)
 
-    # Have a customer
+    # Have a customer - make it optional since we set it in perform_create
     customerid = serializers.PrimaryKeyRelatedField(
-        queryset = Customer.objects.all(),  
-        write_only = True
+        queryset=Customer.objects.all(),
+        write_only=True,
+        required=False
     )
 
     # Have a service
     serviceid = serializers.PrimaryKeyRelatedField(
-        queryset = Service.objects.all(),
-        write_only = True
+        queryset=Service.objects.all(),
+        write_only=True,
+        required=True
     )
 
     class Meta:
         model = Customerservice
-        fields = ["customerid", "serviceid", "customer", "service", "createdat", "reqdate", "redyear", "completed"]
-        read_only_fields = ["createdat", "customer", "service"]
+        fields = ["customerserviceid", "customerid", "serviceid", "customer", "service", "createdat", "reqdate", "redyear", "completed"]
+        read_only_fields = ["createdat", "customer", "service", "customerserviceid"]
 
 # Service Image 
 class UserImageSerializer(serializers.ModelSerializer):
@@ -454,6 +458,9 @@ class RequestQuoteSerializer(serializers.ModelSerializer):
 #Service Location Serializer
 class ServiceLocationSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source='customerid.__str__', read_only=True)
+    
+    # Get services linked to this location through LocationService
+    services = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceLocation
@@ -464,8 +471,61 @@ class ServiceLocationSerializer(serializers.ModelSerializer):
             "province",
             "postalcode",
             "customerid",
-            "customer_name"
+            "customer_name",
+            "services"  
         ]
+        read_only_fields = ["servicelocationid", "customer_name", "services"]
+
+    def get_services(self, obj):
+        """Get all services linked to this specific location through LocationService"""
+        from .models import LocationService
         
-        read_only_fields = ["servicelocationid","customer_name"]
+        # Get location services linked to this location
+        location_services = LocationService.objects.filter(
+            servicelocationid=obj
+        ).select_related(
+            'customerserviceid__serviceid',
+            'customerserviceid__customerid'
+        ).order_by('-created_at')
+        
+        # Format the services data
+        services_data = []
+        for ls in location_services:
+            cs = ls.customerserviceid
+            if cs.serviceid:
+                services_data.append({
+                    'id': cs.customerserviceid,
+                    'service_id': cs.serviceid.serviceid,
+                    'title': cs.serviceid.title,
+                    'description': cs.serviceid.description,
+                    'base_price': str(cs.serviceid.baseprice),
+                    'req_date': cs.reqdate,
+                    'completed': cs.completed,
+                    'created_at': cs.createdat,
+                    'red_year': cs.redyear,
+                    'linked_at': ls.created_at,
+                })
+        
+        return services_data
+
+#Location Service
+class LocationServiceSerializer(serializers.ModelSerializer):
+    service_details = CustomerServiceSerializer(source='customerserviceid', read_only=True)
+    
+    class Meta:
+        model = LocationService
+        fields = ['locationserviceid', 'servicelocationid', 'customerserviceid', 'service_details', 'created_at']
+        read_only_fields = ['locationserviceid', 'created_at', 'service_details']
+
+#Budget & Expense
+class BudgetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Budget
+        fields = ['id', 'amount', 'updated_at']
+
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Expense
+        fields = ['id', 'name', 'amount', 'category', 'date']
 

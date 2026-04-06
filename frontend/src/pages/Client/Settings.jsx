@@ -7,7 +7,6 @@ const Settings = () => {
   const [overlayType, setOverlayType] = useState("");
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [newEmail, setNewEmail] = useState("");
   const [message, setMessage] = useState("");
   const [msgType, setMsgType] = useState("");
   
@@ -69,7 +68,6 @@ const Settings = () => {
     setMessage("");
     setOldPassword("");
     setNewPassword("");
-    setNewEmail("");
   };
 
   // Clean helper (handles undefined/null)
@@ -215,64 +213,6 @@ const Settings = () => {
     }
   };
 
-  const handleChangeEmail = async () => {
-    setMessage("");
-    setMsgType("");
-    setIsLoading(true);
-
-    if (!newEmail) {
-      setMsgType("error");
-      setMessage("New email is required.");
-      setIsLoading(false);
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newEmail)) {
-      setMsgType("error");
-      setMessage("Please enter a valid email address.");
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      await AxiosInstance.post("change-email/",
-         { new_email: newEmail, 
-           password:oldPassword
-         });
-
-      setMsgType("success");
-      setMessage("Email changed successfully!");
-      setUserInfo((prev) => ({ ...prev, email: newEmail }));
-      setTimeout(() => closeOverlay(), 1500);
-    } catch (err) {
-      setMsgType("error");
-      if (err.response?.data) {
-        const errors = err.response.data;
-        let formatted = "Email change failed:\n";
-        if (typeof errors === "object") {
-          Object.keys(errors).forEach((key) => {
-            const value = errors[key];
-            if (typeof value === "object") {
-              Object.keys(value).forEach((nestedKey) => {
-                formatted += `${nestedKey.replace(/_/g, " ").toUpperCase()}: ${Array.isArray(value[nestedKey]) ? value[nestedKey][0] : value[nestedKey]}\n`;
-              });
-            } else {
-              formatted += `${key.replace(/_/g, " ").toUpperCase()}: ${Array.isArray(value) ? value[0] : value}\n`;
-            }
-          });
-        } else {
-          formatted += errors;
-        }
-        setMessage(formatted);
-      } else {
-        setMessage("An error occurred. Please try again.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleCancel = () => {
     fetchUserInfo();
     setEditMode(false);
@@ -281,11 +221,6 @@ const Settings = () => {
 
   const openPasswordOverlay = () => {
     setOverlayType("password");
-    setOverlayOpen(true);
-  };
-
-  const openEmailOverlay = () => {
-    setOverlayType("email");
     setOverlayOpen(true);
   };
 
@@ -393,9 +328,6 @@ const Settings = () => {
           {/* Security Section */}
           <div className="securitySettingsSection">
             <h2 className="sectionTitle">Security</h2>
-            <button className="changeBtn" onClick={openEmailOverlay} disabled={isLoading}>
-              CHANGE EMAIL
-            </button>
             <button className="changeBtn" onClick={openPasswordOverlay} disabled={isLoading}>
               CHANGE PASSWORD
             </button>
@@ -407,10 +339,7 @@ const Settings = () => {
           <div className="overlay" onClick={handleOverlayClick}>
             <div className="overlayContent" ref={overlayContentRef}>
               <h2 className="overlayTitle">
-                {overlayType === "password" ? "Change Password" : "Change Email"}
               </h2>
-
-              {overlayType === "password" ? (
                 <>
                   <div className="inputGroup">
                     <label>Old Password</label>
@@ -421,41 +350,9 @@ const Settings = () => {
                     <input type="password" placeholder="Enter new password (min. 6 characters)" autoComplete="new-password"  value={newPassword} onChange={(e) => setNewPassword(e.target.value)} disabled={changingPassword} maxLength={50}/>
                   </div>
                 </>
-              ) : (
-              <form onSubmit={(e) => e.preventDefault()}>
-                <div className="inputGroup">
-                  <label>New Email Address</label>
-                  <input type="email" 
-                    placeholder="Enter new email address" 
-                    autoComplete="email" 
-                    value={newEmail} 
-                    onChange={(e) => setNewEmail(e.target.value)} 
-                    disabled={isLoading} 
-                    maxLength={254}/>
-                </div>
-
-                <div className="inputGroup">
-                  <label>Confirm Password</label>
-                  <input 
-                    type="password" 
-                    placeholder="Enter your current password to confirm" 
-                    autoComplete="current-password" 
-                    value={oldPassword} 
-                    onChange={(e) => setOldPassword(e.target.value)} 
-                    disabled={isLoading} 
-                    maxLength={50}
-                  />
-                </div>
-                
-                <div>
-                  <p className="inputHint">Your current email: {userInfo.email}</p>
-                </div>
-              </form>
-              )}
-
               <button
                 className="updateBtn"
-                onClick={overlayType === "password" ? handleChangePassword : handleChangeEmail}
+                onClick={handleChangePassword}
                 disabled={changingPassword || isLoading}
               >
                 {changingPassword || isLoading ? "UPDATING..." : `UPDATE ${overlayType === "password" ? "PASSWORD" : "EMAIL"}`}

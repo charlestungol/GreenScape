@@ -1,134 +1,99 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "../App.css";
+import AxiosInstance from "../components/AxiosInstance";
 
 function Expenses() {
   const services = [
-    "Landscape Lighting", 
+    "Landscape Lighting",
     "Irrigation Installations",
     "Stormwater Management",
     "Maintenance Service",
     "Spring Startup",
     "Winterization"
   ];
-  const getInitialExpenses = () => {
-    const userId = localStorage.getItem("user_id");
-    
-    try {
-      let savedExpenses = [];
-      if (userId) {
-        const userExpenses = localStorage.getItem(`user_${userId}_userExpenses`);
-        if (userExpenses) {
-          savedExpenses = JSON.parse(userExpenses);
-          localStorage.setItem("userExpenses", userExpenses);
-          console.log(`Loaded ${savedExpenses.length} expenses for user ${userId}`);
-        } else {
-          const globalExpenses = localStorage.getItem("userExpenses");
-          if (globalExpenses) {
-            savedExpenses = JSON.parse(globalExpenses);
-          }
-        }
-      } else {
-        const globalExpenses = localStorage.getItem("userExpenses");
-        if (globalExpenses) {
-          savedExpenses = JSON.parse(globalExpenses);
-        }
-      }
-      
-      return savedExpenses;
-    } catch (error) {
-      console.error("Error loading expenses:", error);
-      return [];
-    }
-  };
 
-  const [expenses, setExpenses] = useState(getInitialExpenses());
+  const [expenses, setExpenses] = useState([]);
   const [showAddOverlay, setShowAddOverlay] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     amount: "",
     category: services[0]
   });
-  const saveExpenses = (updatedExpenses) => {
-    const userId = localStorage.getItem("user_id");
-    const expensesString = JSON.stringify(updatedExpenses);
-    
-    try {
-      localStorage.setItem("userExpenses", expensesString);
-      if (userId) {
-        localStorage.setItem(`user_${userId}_userExpenses`, expensesString);
-        console.log(`Expenses saved for user ${userId}: ${updatedExpenses.length} items`);
-      } else {
-        console.log(`Expenses saved (no user ID): ${updatedExpenses.length} items`);
-      }
-    } catch (error) {
-      console.error("Error saving expenses:", error);
-      alert("Failed to save expenses. Please try again.");
-    }
-    
-    setExpenses(updatedExpenses);
-  };
 
-  const addExpense = () => {
+  // Fetch expenses from backend on mount
+  const fetchExpenses = async () => {
+  try {
+    const response = await AxiosInstance.get('core/expenses/');
+    // Handle both array and paginated responses
+    const data = Array.isArray(response.data)
+      ? response.data
+      : response.data.results || [];
+    setExpenses(data);
+    localStorage.setItem("userExpenses", JSON.stringify(data));
+  } catch (err) {
+    console.error("Error fetching expenses:", err);
+    const saved = localStorage.getItem("userExpenses");
+    if (saved) setExpenses(JSON.parse(saved) || []);
+  }
+};
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  const addExpense = async () => {
     const amount = Number(formData.amount);
     if (!amount || amount <= 0) {
       alert("Please enter a valid positive number");
       return;
     }
-    const expenseName = formData.category;
 
-    const newExpense = {
-      id: Date.now(),
-      name: expenseName,
-      amount: amount,
-      category: formData.category,
-      date: new Date().toISOString()
-    };
-
-    const updatedExpenses = [...expenses, newExpense];
-    saveExpenses(updatedExpenses);
-    setShowAddOverlay(false);
-    setFormData({
-      amount: "",
-      category: services[0]
-    });
-    
-    window.dispatchEvent(new Event("expensesUpdated"));
-  };
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-  const handleCategorySelect = (category) => {
-    setFormData(prev => ({
-      ...prev,
-      category
-    }));
-  };
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter") {
-      addExpense();
-    } else if (e.key === "Escape") {
-      setShowAddOverlay(false);
-      setFormData({
-        amount: "",
-        category: services[0]
+    setLoading(true);
+    try {
+      await AxiosInstance.post('core/expenses/', {
+        name: formData.category,
+        amount: amount,
+        category: formData.category,
       });
+
+      // Refresh from backend
+      await fetchExpenses();
+      window.dispatchEvent(new Event("expensesUpdated"));
+      setShowAddOverlay(false);
+      setFormData({ amount: "", category: services[0] });
+    } catch (err) {
+      console.error("Error adding expense:", err);
+      alert("Failed to save expense. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCategorySelect = (category) => {
+    setFormData(prev => ({ ...prev, category }));
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter") addExpense();
+    else if (e.key === "Escape") {
+      setShowAddOverlay(false);
+      setFormData({ amount: "", category: services[0] });
+    }
+  };
+
+  const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
 
   return (
     <>
-      <div 
+      <div
         className="expensesWrapper clickable"
         onClick={() => {
           setShowAddOverlay(true);
-          setFormData({
-            amount: "",
-            category: services[0]
-          });
+          setFormData({ amount: "", category: services[0] });
         }}
       >
         <div className="expensesContent">
@@ -136,16 +101,14 @@ function Expenses() {
           <p className="expensesTotal">${totalExpenses.toLocaleString()}</p>
         </div>
       </div>
+
       {showAddOverlay && (
         <div className="expenseOverlay" onClick={() => {
           setShowAddOverlay(false);
-          setFormData({
-            amount: "",
-            category: services[0]
-          });
+          setFormData({ amount: "", category: services[0] });
         }}>
-          <div 
-            className="expenseForm" 
+          <div
+            className="expenseForm"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="expenseFormTitle">Add New Expense</h3>
@@ -159,11 +122,10 @@ function Expenses() {
               autoFocus
               min="0"
               step="0.01"
+              disabled={loading}
             />
             <div className="categoryChis">
-              <p>
-                Select Service:
-              </p>
+              <p>Select Service:</p>
               <div className="categoryChips">
                 {services.map(service => (
                   <div
@@ -176,23 +138,22 @@ function Expenses() {
                 ))}
               </div>
             </div>
-            
+
             <div className="expenseFormButtons">
-              <button 
+              <button
                 className="expenseFormButton add"
                 onClick={addExpense}
+                disabled={loading}
               >
-                Add Expense
+                {loading ? "Saving..." : "Add Expense"}
               </button>
-              <button 
+              <button
                 className="expenseFormButton cancel"
                 onClick={() => {
                   setShowAddOverlay(false);
-                  setFormData({
-                    amount: "",
-                    category: services[0]
-                  });
+                  setFormData({ amount: "", category: services[0] });
                 }}
+                disabled={loading}
               >
                 Cancel
               </button>

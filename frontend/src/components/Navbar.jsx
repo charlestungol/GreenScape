@@ -98,7 +98,6 @@ const menuConfig = {
     { label: "DASHBOARD", path: "/home", icon: <DashboardIcon sx={{ color: "#1c3d37" }} /> },
     { label: "SERVICES", path: "/services", icon: <WaterDropIcon sx={{ color: "#1c3d37" }} /> },
     { label: "BOOKING", path: "/booking", icon: <CalendarMonthIcon sx={{ color: "#1c3d37" }} /> },
-    { label: "REQUEST QUOTE", path: "/request-quote", icon: <CalculateIcon sx={{ color: "#1c3d37" }} /> },
     { label: "SETTINGS", path: "/settings", icon: <SettingsIcon sx={{ color: "#1c3d37" }} /> },
   ],
   employee: [
@@ -152,51 +151,87 @@ export default function Navbar({ content }) {
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [userData, setUserData] = useState({ firstName: "User", role: "client" });
+  const [isLoading, setIsLoading] = useState(true);
+
   const normalizeRole = (role) => {
     return role === "client" ? "client" : "employee";
   };
-
-
-  const getUserData = () => {
+  
+  const fetchUserData = async () => {
+    setIsLoading(true);
     
-    const rawRole = localStorage.getItem("role") || "client";
-
-    const role = normalizeRole(rawRole);
-
-    let displayName = "User";
-
-    if (role === "employee") {
-      const firstName = localStorage.getItem("first_name");
-      const email = localStorage.getItem("email");
-      const employeeNumber = localStorage.getItem("employee_number");
-
-      if (firstName) displayName = firstName;
-      else if (employeeNumber) displayName = `Employee ${employeeNumber}`;
-      else if (email) displayName = email.split("@")[0];
-    } else {
-      const userId = localStorage.getItem("user_id");
-
-      if (userId) {
-        const userFirstName = localStorage.getItem(`user_${userId}_first_name`);
-        if (userFirstName) displayName = userFirstName;
+    try {
+      const token = localStorage.getItem("token") || localStorage.getItem("access");
+      if (!token) {
+        setIsLoading(false);
+        return;
       }
 
-      if (displayName === "User") {
-        const globalFirstName = localStorage.getItem("first_name");
-        const email = localStorage.getItem("email");
-
-        if (globalFirstName) displayName = globalFirstName;
-        else if (email) displayName = email.split("@")[0];
+      // First, check if user is a customer
+      try {
+        const response = await AxiosInstance.get("core/customers/me/");
+        if (response.data) {
+          const firstName = response.data.firstname || "User";
+          setUserData({
+            firstName: firstName,
+            role: "client"
+          });
+          // Store in localStorage for quick access
+          localStorage.setItem("first_name", firstName);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        // Not a customer, continue to check employee
       }
+
+      // Check if user is an employee
+      try {
+        const response = await AxiosInstance.get("core/employees/me/");
+        if (response.data) {
+          const firstName = response.data.firstname || 
+                           response.data.user?.email?.split("@")[0] || 
+                           "Employee";
+          setUserData({
+            firstName: firstName,
+            role: "employee"
+          });
+          // Store in localStorage for quick access
+          localStorage.setItem("first_name", firstName);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.log("Not an employee");
+      }
+
+      // Fallback to localStorage if API calls fail
+      const rawRole = localStorage.getItem("role") || localStorage.getItem("group") || "client";
+      const role = normalizeRole(rawRole);
+      let firstName = localStorage.getItem("first_name") || "User";
+      
+      setUserData({ firstName, role });
+      
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      // Fallback to localStorage
+      const rawRole = localStorage.getItem("role") || localStorage.getItem("group") || "client";
+      const role = normalizeRole(rawRole);
+      const firstName = localStorage.getItem("first_name") || "User";
+      setUserData({ firstName, role });
+    } finally {
+      setIsLoading(false);
     }
-
-    return { firstName: displayName, role };
   };
 
-  const [userData, setUserData] = useState(getUserData());
-
   useEffect(() => {
-    setUserData(getUserData());
+    fetchUserData();
+  }, []);
+
+  // Refresh user data when location changes (in case profile was updated)
+  useEffect(() => {
+    fetchUserData();
   }, [location.pathname]);
 
   const menuItems = menuConfig[userData.role] || menuConfig.client;
@@ -328,7 +363,7 @@ export default function Navbar({ content }) {
           letterSpacing: "-0.01em",
         }}
       >
-        Welcome, {userData.firstName}!
+        {isLoading ? "Loading..." : `Welcome, ${userData.firstName}!`}
       </Typography>
 
       <Box sx={{ overflow: "auto", px: 2 }}>

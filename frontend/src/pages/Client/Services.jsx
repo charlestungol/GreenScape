@@ -12,10 +12,6 @@ const Services = () => {
     navigate('/booking');
   };
 
-  const generateQuote = () => {
-    navigate('/request-quote')
-  };
-
   return (
     <div>
       <div>
@@ -67,7 +63,6 @@ const Services = () => {
           </p>
           <div className="cta-group">
             <button className="btn btn-primary" onClick={handleBookNow}>BOOK NOW</button>
-            <button className="btn btn-secondary" onClick={generateQuote}>REQUEST QUOTE</button>
           </div>
         </div>
         <div className="warranty-section">

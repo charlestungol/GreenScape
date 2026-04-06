@@ -1,76 +1,61 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "../App.css";
 import "../components/clientCss/Dashboard.css";
+import AxiosInstance from "../components/AxiosInstance";
 
 function Budget() {
-  const getInitialBudget = () => {
-    // CHECKS IF THERE'S A LOGGED IN USER
-    const userId = localStorage.getItem("user_id");
-    let savedBudget = 0;
-    // Try to get from user-specific storage first
-    if (userId) {
-      const userBudget = localStorage.getItem(`user_${userId}_userBudget`);
-      if (userBudget !== null) {
-        savedBudget = Number(userBudget) || 0;
-        // Also set it in current session for compatibility
-        localStorage.setItem("userBudget", userBudget);
-      } else {
-        // Fallback to global storage
-        const globalBudget = localStorage.getItem("userBudget");
-        if (globalBudget !== null) {
-          savedBudget = Number(globalBudget) || 0;
-        }
-      }
-    } else {
-      // No user ID, use global storage
-      const globalBudget = localStorage.getItem("userBudget");
-      if (globalBudget !== null) {
-        savedBudget = Number(globalBudget) || 0;
-      }
-    }
-    
-    return savedBudget;
-  };
-
-  const [budget, setBudget] = useState(getInitialBudget());
+  const [budget, setBudget] = useState(0);
   const [input, setInput] = useState("");
   const [showOverlay, setShowOverlay] = useState(false);
-  const [mode, setMode] = useState("set"); 
+  const [mode, setMode] = useState("set");
+  const [loading, setLoading] = useState(false);
 
-  const handleSave = () => {
+  // Fetch budget from backend on mount
+  const fetchBudget = async () => {
+      try {
+        const response = await AxiosInstance.get('core/budgets/');
+        // Handle both array and paginated responses
+        const data = Array.isArray(response.data)
+          ? response.data
+          : response.data.results || [];
+        if (data.length > 0) {
+          setBudget(Number(data[0].amount));
+          localStorage.setItem("userBudget", data[0].amount);
+        }
+      } catch {
+        const savedBudget = localStorage.getItem("userBudget");
+        if (savedBudget) setBudget(Number(savedBudget) || 0);
+      }
+    };
+  useEffect(() => {
+    fetchBudget();
+  }, []);
+
+  const handleSave = async () => {
     const value = Number(input);
     if (!value || value <= 0) {
       alert("Please enter a valid positive number");
       return;
     }
-    
-    let newBudget;
-    switch(mode) {
-      case "add":
-        newBudget = budget + value;
-        break;
-      default: 
-        newBudget = value;
-    }
-    
-    const userId = localStorage.getItem("user_id");
-    
-    // Save to current session
-    localStorage.setItem("userBudget", newBudget.toString());
-    
-    // Also save with user ID prefix for persistence
-    if (userId) {
-      localStorage.setItem(`user_${userId}_userBudget`, newBudget.toString());
-      console.log(`Budget saved for user ${userId}: $${newBudget}`);
-    } else {
-      console.log(`Budget saved (no user ID): $${newBudget}`);
-    }
-    
-    setBudget(newBudget);
-    window.dispatchEvent(new Event("budgetUpdated"));
 
-    setInput("");
-    setShowOverlay(false);
+    setLoading(true);
+    try {
+      await AxiosInstance.patch('core/budgets/update_budget/', {
+        amount: value,
+        mode: mode  // 'set' or 'add'
+      });
+
+      // Refresh from backend
+      await fetchBudget();
+      window.dispatchEvent(new Event("budgetUpdated"));
+      setInput("");
+      setShowOverlay(false);
+    } catch (err) {
+      console.error("Error saving budget:", err);
+      alert("Failed to save budget. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const cancelEdit = () => {
@@ -78,24 +63,33 @@ function Budget() {
     setShowOverlay(false);
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (window.confirm("Are you sure you want to reset your budget to $0?")) {
-      setInput("");
-      setBudget(0);
-      const userId = localStorage.getItem("user_id");
-      localStorage.setItem("userBudget", "0");
-      if (userId) {
-        localStorage.setItem(`user_${userId}_userBudget`, "0");
+      setLoading(true);
+      try {
+        await AxiosInstance.patch('core/budgets/update_budget/', {
+          amount: 0,
+          mode: 'set'
+        });
+
+        // Refresh from backend
+        await fetchBudget();
+        window.dispatchEvent(new Event("budgetUpdated"));
+        setInput("");
+        setShowOverlay(false);
+      } catch (err) {
+        console.error("Error resetting budget:", err);
+        alert("Failed to reset budget. Please try again.");
+      } finally {
+        setLoading(false);
       }
-      window.dispatchEvent(new Event("budgetUpdated"));
-      setShowOverlay(false);
     }
   };
 
   return (
     <>
-      <div 
-        className="budgetWrapper clickable" 
+      <div
+        className="budgetWrapper clickable"
         onClick={() => setShowOverlay(true)}
       >
         <p>BUDGET</p>
@@ -104,49 +98,54 @@ function Budget() {
 
       {showOverlay && (
         <div className="budgetOverlay" onClick={cancelEdit}>
-          <div 
-            className="budgetForm" 
+          <div
+            className="budgetForm"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="budgetFormTitle">Budget Settings</h3>
-            
+
             <div className="modeSelection categoryChips">
-              <button 
+              <button
                 className={`categoryChip ${mode === "set" ? "active" : ""}`}
                 onClick={() => setMode("set")}
+                disabled={loading}
               >
                 Set New
               </button>
-              <button 
+              <button
                 className={`categoryChip ${mode === "add" ? "active" : ""}`}
                 onClick={() => setMode("add")}
+                disabled={loading}
               >
                 Add
               </button>
             </div>
-            
+
             <input
               type="number"
               value={input}
               placeholder={`Amount to ${mode}`}
               onChange={(e) => setInput(e.target.value)}
               autoFocus
+              disabled={loading}
             />
-            
+
             <p className="currentBudget">
               Current: ${budget.toLocaleString()}
             </p>
-            
+
             <div className="budgetFormButtons">
-              <button 
-                className="budgetFormButton add" 
+              <button
+                className="budgetFormButton add"
                 onClick={handleSave}
+                disabled={loading}
               >
-                {mode === "set" ? "Set Budget" : "Add to Budget"}
+                {loading ? "Saving..." : mode === "set" ? "Set Budget" : "Add to Budget"}
               </button>
-              <button 
-                className="budgetFormButton cancel" 
+              <button
+                className="budgetFormButton cancel"
                 onClick={cancelEdit}
+                disabled={loading}
               >
                 Cancel
               </button>
@@ -154,11 +153,12 @@ function Budget() {
 
             {budget > 0 && (
               <div className="budgetActions">
-                <button 
+                <button
                   className="budgetButton reset"
                   onClick={handleReset}
+                  disabled={loading}
                 >
-                  Reset Budget
+                  {loading ? "Resetting..." : "Reset Budget"}
                 </button>
               </div>
             )}
