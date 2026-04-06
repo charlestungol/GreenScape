@@ -3,21 +3,23 @@ import BackgroundVideo from '../assets/videos/vid_1.mp4';
 import Logo from '../assets/img/Logo.png'; 
 import { useNavigate } from 'react-router-dom';
 import AxiosInstance from '../components/AxiosInstance';
-import GoogleIcon from '@mui/icons-material/Google';
-import { useState, useEffect } from "react";
+import ReCAPTCHA from "react-google-recaptcha";
+import { useState, useEffect, useRef } from "react";
 
 
 const ClientLogin = () => {
   const navigate = useNavigate();
-
+  const googleInitialized = { current: false };
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const needsCaptcha = failedAttempts >= 2;
   const [loading, setLoading] = useState(false);
-
+  const [recaptchaToken, setRecaptchaToken] = useState(null);
+  const recaptchaRef = useRef(null)
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
   const [error, setError] = useState('');
 
-  const handleLogin = async () => {
+const handleLogin = async () => {
   setError('');
   setLoading(true);
 
@@ -27,76 +29,76 @@ const ClientLogin = () => {
     return;
   }
 
+  if (needsCaptcha && !recaptchaToken) {
+    setError("Please verify that you are not a robot.");
+    setLoading(false);
+    return;
+  }
+
   try {
     localStorage.removeItem("access");
-    await AxiosInstance.get("/csrf/").catch(() => {})
-    const response = await AxiosInstance.post('login/client/', {
-      email: email,
-      password: password
+    await AxiosInstance.get("/csrf/").catch(() => {});
+
+    const response = await AxiosInstance.post("login/client/", {
+      email,
+      password,
+      ...(needsCaptcha && { recaptchaToken }),
     });
-    
-    const userId = response.data.user?.id;
-    const profileReady = response.data.profile_ready;
-    const userRole = response.data.user?.role || response.data.role || "client";
 
-  
-    const access = response.data?.access || {};
-    
-    if (!userId) {
-      console.error("No user_id found in response!");
-      setError("Login failed: No user ID received");
-      return;
-    }
+    //SUCCESS → reset state
+    setFailedAttempts(0);
+    setRecaptchaToken(null);
+    recaptchaRef.current?.reset();
 
-    if (!access || typeof access != "string") {
-      setError("Login succeeded but no access token received.");
-      return;
-    }
-    
-    localStorage.setItem("user_id", userId);
+    const user = response.data.user;
+    const access = response.data.access;
+
+    localStorage.setItem("user_id", user.id);
     localStorage.setItem("access", access);
-    localStorage.setItem("role", userRole);
-    if (userRole === "client" && !profileReady) {
+    localStorage.setItem("role", user.role);
+
+    if (user.role === "client" && !response.data.profile_ready) {
       navigate("/complete-profile");
     } else {
       navigate("/home");
     }
 
-
   } catch (err) {
     console.error("Login error:", err.response || err);
 
-    if (err.response) {
-      setError(JSON.stringify(err.response.data));
-    } else {
-      setError("Something went wrong. Please try again.");
+    //FAILURE → increment counter
+    setFailedAttempts(prev => prev + 1);
+
+    if (recaptchaRef.current) {
+      recaptchaRef.current.reset();
     }
+    setRecaptchaToken(null);
+
+    setError(
+      err.response?.data?.detail || "Invalid email or password."
+    );
+
   } finally {
-      setLoading(false);
-    }
+    setLoading(false);
+  }
 };
 
 // Initialize Google Sign-In button after component mounts
 useEffect(() => {
-    if (!window.google) {
-      console.error("Google SDK not loaded");
-      return;
-    }
+  if (!window.google) return;
+  if (window.__googleInit) return;
+  window.__googleInit = true;
 
-    google.accounts.id.initialize({
-      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-      callback: handleGoogleCredential, // ✅ Google calls this
-    });
+  google.accounts.id.initialize({
+    client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredential,
+  });
 
-    google.accounts.id.renderButton(
-      document.getElementById("google-signin"),
-      {
-        theme: "outline",
-        size: "large",
-        width: 250,
-      }
-    );
-  }, []);
+  google.accounts.id.renderButton(
+    document.getElementById("google-signin"),
+    { theme: "outline", size: "large", width: 300 }
+  );
+}, []);
 
 const handleGoogleCredential = async (response) => {
   try {
@@ -165,7 +167,14 @@ const handleGoogleCredential = async (response) => {
           onChange={e => setPassword(e.target.value)}
           maxLength={50}
         />
-
+        {needsCaptcha && (
+          <ReCAPTCHA
+            ref={recaptchaRef}
+            sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+            onChange={(token) => setRecaptchaToken(token)}
+            onExpired={() => setRecaptchaToken(null)}
+          />
+        )}
         <button onClick={handleLogin} disabled={loading}>
           {loading ? "Logging in…" : "LOGIN"}
         </button>

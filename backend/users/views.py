@@ -64,7 +64,7 @@ def _jwt_cookie_settings():
     #Check if the site of the refresh token.
     samesite = getattr(settings, "JWT_AUTH_COOKIE_SAMESITE", "Lax")
     #Check if the cookie is secured
-    secure = cfg.get("JWT_AUTH_COOKI_SECURE", not settings.DEBUG)
+    secure = cfg.get("JWT_AUTH_COOKIE_SECURE", not settings.DEBUG)
     #domain
     domain = getattr(settings, "SESSION_COOKIE_DOMAIN", None)
 
@@ -111,6 +111,12 @@ def clear_auth_cookies(response):
 # The ClientRegisterViewSet and EmployeeRegisterViewSet handle user registration, creating new user accounts and sending verification emails. 
 # The ChangeEmailViewSet and ChangePasswordViewSet allow authenticated users to change their email or password, with appropriate validation and security checks. 
 # The ResendVerificationView allows users to request a new verification email if they haven't received or acted on the original one.
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework import permissions
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
+
 @method_decorator(ensure_csrf_cookie, name="dispatch")
 class ClientLoginViewSet(viewsets.ViewSet):
     throttle_scope = "login"
@@ -119,28 +125,41 @@ class ClientLoginViewSet(viewsets.ViewSet):
     serializer_class = ClientLoginSerializer
 
     def create(self, request):
+        #reCaptcha verification
+        recaptcha_token = request.data.get("recaptchaToken")
+        if recaptcha_token:
+            ok, _ = verify_recaptcha(
+                recaptcha_token,
+                request.META.get("REMOTE_ADDR", "")
+            )
+            if not ok:
+                return Response(
+                    {"detail": "reCAPTCHA verification failed."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        #Normal login flow
         serializer = self.serializer_class(
             data=request.data,
             context={"request": request}
         )
+
         try:
             serializer.is_valid(raise_exception=True)
         except exceptions.ValidationError:
             return Response(
-                {"detail": "No user found."},
+                {"detail": "Invalid email or password."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         user = serializer.validated_data["user"]
 
-        # Account must be active
         if not user.is_active:
             return Response(
                 {"detail": "Account not active. Please verify your email."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Email must be verified
         email_verified = EmailAddress.objects.filter(
             user=user,
             email__iexact=user.email,
@@ -152,11 +171,10 @@ class ClientLoginViewSet(viewsets.ViewSet):
                 request, user, user.email, confirm=True
             )
             return Response(
-                {"detail": "Email address not verified. Please check your email."},
+                {"detail": "Email not verified. Please check your email."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Customer profile may or may not exist
         cust = getattr(user, "customer", None)
         profile_ready = bool(cust)
 
@@ -172,7 +190,6 @@ class ClientLoginViewSet(viewsets.ViewSet):
             "profile_ready": profile_ready,
         }
 
-        # OPTIONAL: include customer info only if it exists
         if cust:
             payload["user"].update({
                 "customer_id": cust.customerid,
@@ -182,6 +199,7 @@ class ClientLoginViewSet(viewsets.ViewSet):
 
         resp = Response(payload, status=status.HTTP_200_OK)
         return set_refresh_cookie(resp, str(refresh))
+
 
 # The EmployeeLoginViewSet is similar to the ClientLoginViewSet but is designed for employee users. 
 # It validates the credentials, checks if the account is active and if the email is verified, and then generates JWT tokens for authenticated sessions. 
@@ -233,35 +251,46 @@ class EmployeeLoginViewSet(viewsets.ViewSet):
 
 # Client registreation viewset. Design to allow a user to register using ClientRegister Serializer.
 class ClientRegisterViewSet(viewsets.ModelViewSet):
-    # We add a throttle scope so a bot will not be allowed to conitnuenly bombard our signup page.
     throttle_scope = "register"
-    # Allow anyone to register an employee account.
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
-    # Select all users obvject
     queryset = User.objects.all()
     serializer_class = ClientRegisterSerializer
 
-    # Method of registering
     def create(self, request):
-        # Serialize the data given
+        #REQUIRED reCAPTCHA
+        recaptcha_token = request.data.get("recaptchaToken")
+        if not recaptcha_token:
+            return Response(
+                {"detail": "reCAPTCHA token is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        ok, _ = verify_recaptcha(
+            recaptcha_token,
+            request.META.get("REMOTE_ADDR", "")
+        )
+        if not ok:
+            return Response(
+                {"detail": "reCAPTCHA verification failed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         serializer = self.get_serializer(data=request.data)
-        # Check if the data provided is valid data.
         serializer.is_valid(raise_exception=True)
-        # Use transaction atomic to wrap the code in a signle database transaction.
+
         with transaction.atomic():
-            # Saved the user.
             user = serializer.save()
-            # Send a email verification using alluth
             EmailAddress.objects.add_email(
                 request,
                 user,
                 user.email,
                 confirm=True
             )
-        # Provide user with response.
-        return Response (
-            {"detail": "Registration received. Please check your email to confirm your account."}, status = 201
+
+        return Response(
+            {"detail": "Registration successful. Please verify your email."},
+            status=status.HTTP_201_CREATED
         )
 
 # Similar to customer register this one register a new employee to the system.
@@ -454,7 +483,7 @@ class LogoutView(APIView):
 class CookieTokenRefreshView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
-    @method_decorator(csrf_protect)
+    @method_decorator(csrf_exempt)
     def post(self, request):
         cfg = _jwt_cookie_settings()
         cookie_name = cfg["cookie_refresh"]

@@ -120,6 +120,7 @@ JWT_AUTH_COOKIE_SECURE = False  # True in production
 
 # --- Google OAuth ---
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 
 # --- Google Captcha ---
 RECAPTCHA_PRIVATE_KEY = os.getenv("RECAPTCHA_PRIVATE_KEY")
