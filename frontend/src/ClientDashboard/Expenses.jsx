@@ -4,12 +4,9 @@ import AxiosInstance from "../components/AxiosInstance";
 
 function Expenses() {
   const services = [
-    "Landscape Lighting",
-    "Irrigation Installations",
-    "Stormwater Management",
-    "Maintenance Service",
-    "Spring Startup",
-    "Winterization"
+    "Irrigation",
+    "Sesonal",
+    "Winterize"
   ];
 
   const [expenses, setExpenses] = useState([]);

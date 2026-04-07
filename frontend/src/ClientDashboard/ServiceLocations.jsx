@@ -214,16 +214,6 @@ function ServiceLocations() {
     };
   }, [showOverlay]);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "No date";
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
   const formatCurrency = (amount) => {
     if (!amount) return "N/A";
     return `$${parseFloat(amount).toLocaleString()}`;
@@ -353,9 +343,6 @@ function ServiceLocations() {
                                         {service.completed && (
                                           <span className="completed-badge">Completed</span>
                                         )}
-                                        {/* {!service.completed && (
-                                          <span className="pending-badge">Pending</span>
-                                        )} */}
                                       </div>
                                       
                                       {service.description && (
@@ -367,12 +354,6 @@ function ServiceLocations() {
                                           <span className="service-price">
                                             Price: {formatCurrency(service.base_price)}
                                           </span>
-                                        )}
-                                        {service.req_date && (
-                                          <span>Requested: {formatDate(service.req_date)}</span>
-                                        )}
-                                        {service.created_at && (
-                                          <span>Created: {formatDate(service.created_at)}</span>
                                         )}
                                         {service.red_year && (
                                           <span>Year: {service.red_year}</span>

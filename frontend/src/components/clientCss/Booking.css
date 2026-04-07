@@ -7,6 +7,7 @@
   margin: 0 20px 0 20px;
   padding: 20px;
   border-radius: 20px;
+  gap: 20px;
 }
 
 /* Left Column - Booking Form */
@@ -16,6 +17,7 @@
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.02);
   display: flex;
   flex-direction: column;
+  border-radius: 16px;
 }
 
 .logo-section {
@@ -80,7 +82,8 @@
 }
 
 .form-group input,
-.form-group select {
+.form-group select,
+.form-group textarea {
   padding: 0.85rem 1rem;
   border: 1.5px solid #e2e8e5;
   border-radius: 12px;
@@ -89,10 +92,13 @@
   background: #fafcfb;
   transition: all 0.2s ease;
   font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .form-group input:focus,
-.form-group select:focus {
+.form-group select:focus,
+.form-group textarea:focus {
   outline: none;
   border-color: #2c6e49;
   background: white;
@@ -100,12 +106,12 @@
 }
 
 .form-group input:hover,
-.form-group select:hover {
+.form-group select:hover,
+.form-group textarea:hover {
   border-color: #5a7c6c;
 }
 
 /* BOOKING BUTTON */
-
 .btn-book-appointment {
   background: #1c3d37;
   color: white;
@@ -123,6 +129,8 @@
   display: flex;
   width: 100%;
   justify-content: center;
+  align-items: center;
+  gap: 10px;
 }
 
 .btn-book-appointment:hover {
@@ -135,6 +143,12 @@
   transform: translateY(0);
 }
 
+.btn-book-appointment:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .loading-spinner {
   margin-left: 8px;
 }
@@ -143,9 +157,10 @@
   color: #856404;
   display: block;
   margin-top: 4px;
+  font-size: 0.75rem;
 }
 
-/* Popup styles - add these to your Booking.css */
+/* Popup styles */
 .popup-overlay {
   position: fixed;
   top: 0;
@@ -187,7 +202,6 @@
   white-space: pre-line;
 }
 
-
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -210,6 +224,7 @@
   background: linear-gradient(145deg, #fafcfb, #ffffff);
   display: flex;
   flex-direction: column;
+  border-radius: 16px;
 }
 
 .welcome-section {
@@ -217,6 +232,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .welcome-text {
@@ -238,7 +255,6 @@
   text-transform: uppercase;
   letter-spacing: 0.12em;
   text-align: center;
-  margin:  0px 0 10px 0;
 }
 
 .calendar-wrapper {
@@ -248,6 +264,7 @@
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.03);
   border: 1px solid rgba(44, 110, 73, 0.08);
   margin-bottom: 2rem;
+  overflow-x: auto;
 }
 
 .calendar-month {
@@ -274,6 +291,8 @@
 
 .react-calendar__navigation {
   margin-bottom: 1rem;
+  display: flex;
+  gap: 8px;
 }
 
 .react-calendar__navigation button {
@@ -284,6 +303,7 @@
   border: none;
   padding: 0.5rem;
   border-radius: 12px;
+  cursor: pointer;
 }
 
 .react-calendar__navigation button:hover {
@@ -309,20 +329,26 @@
   color: #1a2e2a;
   background: transparent;
   transition: all 0.2s ease;
+  cursor: pointer;
 }
 
-.react-calendar__tile:hover {
+.react-calendar__tile:enabled:hover {
   background: rgba(44, 110, 73, 0.05);
 }
 
 .react-calendar__tile--active {
-  background: #1c3d37!important;
+  background: #1c3d37 !important;
   color: white !important;
 }
 
 .react-calendar__tile--now {
   background: rgba(44, 110, 73, 0.1);
   border-radius: 12px;
+}
+
+.react-calendar__tile:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* Booking Summary */
@@ -354,6 +380,7 @@
   margin: 0.5rem 0;
   color: #3e5a52;
   font-size: 0.95rem;
+  word-break: break-word;
 }
 
 .summary-details strong {
@@ -368,45 +395,282 @@
   padding: 0.5rem 0;
 }
 
-/* Responsive Design */
-@media (max-width: 1024px) {
+/* ============================================
+   RESPONSIVE DESIGN 
+   ============================================ */
+
+/* Tablet Landscape (1024px - 1199px) */
+@media (max-width: 1199px) and (min-width: 992px) {
   .booking-page {
-    grid-template-columns: 1fr;
+    margin: 0 15px;
+    padding: 15px;
+    gap: 15px;
   }
   
   .booking-form-container,
   .calendar-container {
     padding: 2rem;
   }
-}
-
-@media (max-width: 768px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-  
-  .welcome-section {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-  
-  .logo {
-    font-size: 1.75rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .booking-form-container,
-  .calendar-container {
-    padding: 1.5rem;
-  }
   
   .booking-title {
     font-size: 1.5rem;
   }
   
-  .btn-book-appointment {
+  .calendar-wrapper {
+    padding: 1.5rem;
+  }
+}
+
+/* Tablet Portrait (768px - 991px) */
+@media (max-width: 991px) {
+  .booking-page {
+    grid-template-columns: 1fr;
+    margin: 0 15px;
+    padding: 15px;
+    gap: 20px;
+  }
+  
+  .booking-form-container,
+  .calendar-container {
+    padding: 2rem;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .welcome-section {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  
+  .logo {
+    font-size: 1.8rem;
+  }
+  
+  .logo-sub {
+    font-size: 0.9rem;
+    letter-spacing: 0.2em;
+  }
+}
+
+/* Mobile Landscape (576px - 767px) */
+@media (max-width: 767px) {
+  .booking-page {
+    margin: 0 10px;
+    padding: 10px;
+    border-radius: 15px;
+  }
+  
+  .booking-form-container,
+  .calendar-container {
+    padding: 1.5rem;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .booking-title {
+    font-size: 1.35rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .welcome-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .welcome-text {
+    font-size: 0.95rem;
+  }
+  
+  .availability-badge {
+    font-size: 0.7rem;
+    padding: 0.4rem 1rem;
+  }
+  
+  .calendar-wrapper {
     padding: 1rem;
+  }
+  
+  .calendar-month {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+  }
+  
+  .react-calendar__tile {
+    padding: 0.6rem 0.3rem;
+    font-size: 0.8rem;
+  }
+  
+  .react-calendar__navigation button {
+    font-size: 0.9rem;
+    padding: 0.3rem;
+  }
+  
+  .react-calendar__month-view__weekdays {
+    font-size: 0.7rem;
+  }
+  
+  .booking-summary {
+    padding: 1.2rem;
+  }
+  
+  .summary-details {
+    padding: 1rem;
+  }
+  
+  .summary-details p {
+    font-size: 0.85rem;
+  }
+  
+  .btn-book-appointment {
+    padding: 1rem 1.5rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Mobile Portrait (480px and below) */
+@media (max-width: 480px) {
+  .booking-page {
+    margin: 0 5px;
+    padding: 8px;
+    border-radius: 12px;
+  }
+  
+  .booking-form-container,
+  .calendar-container {
+    padding: 1.2rem;
+  }
+  
+  .logo-section {
+    margin-bottom: 1rem;
+  }
+  
+  .logo {
+    font-size: 1.4rem;
+    letter-spacing: 0.15em;
+  }
+  
+  .logo-sub {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+  }
+  
+  .booking-title {
+    font-size: 1.2rem;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+  }
+  
+  .booking-form {
+    gap: 1rem;
+  }
+  
+  .form-group label {
+    font-size: 0.75rem;
+  }
+  
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 0.7rem 0.85rem;
+    font-size: 0.9rem;
+  }
+  
+  .calendar-month {
+    font-size: 1rem;
+  }
+  
+  .react-calendar__tile {
+    padding: 0.5rem 0.2rem;
+    font-size: 0.75rem;
+  }
+  
+  .react-calendar__navigation button {
+    font-size: 0.8rem;
+  }
+  
+  .booking-summary h4 {
+    font-size: 0.85rem;
+  }
+  
+  .btn-book-appointment {
+    padding: 0.85rem 1.2rem;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+  }
+  
+  .popup-content {
+    padding: 1.5rem;
+    width: 85%;
+  }
+  
+  .popup-content p {
+    font-size: 0.95rem;
+  }
+}
+
+/* Small phones (360px and below) */
+@media (max-width: 360px) {
+  .booking-form-container,
+  .calendar-container {
+    padding: 1rem;
+  }
+  
+  .logo {
+    font-size: 1.2rem;
+  }
+  
+  .booking-title {
+    font-size: 1rem;
+  }
+  
+  .react-calendar__tile {
+    padding: 0.4rem 0.1rem;
+    font-size: 0.7rem;
+  }
+  
+  .react-calendar__navigation button {
+    font-size: 0.7rem;
+    padding: 0.2rem;
+  }
+  
+  .btn-book-appointment {
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (min-width: 1400px) {
+  .booking-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 30px;
+  }
+  
+  .booking-form-container,
+  .calendar-container {
+    padding: 3.5rem;
+  }
+  
+  .booking-title {
+    font-size: 2rem;
+  }
+  
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 1rem 1.2rem;
+    font-size: 1.05rem;
+  }
+  
+  .react-calendar__tile {
+    padding: 1.1rem 0.5rem;
+    font-size: 1rem;
   }
 }

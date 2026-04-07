@@ -189,6 +189,7 @@ class Booking(models.Model):
         managed = True
         ordering = ['appointmenttime']
         db_table = 'Booking'
+        unique_together = ['serviceid', 'appointmenttime']
 
 # ---------------------------------------
 # Invoice model
