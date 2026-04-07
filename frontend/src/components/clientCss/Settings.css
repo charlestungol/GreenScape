@@ -12,24 +12,13 @@
   gap: 2rem;
 }
 
-/* ===== HEADER ===== */
-.settingsTitle{
- border:solid 2px  #1c3d37;
- color: #1c3d37;
- padding: 20px;
- font-size: 25px;
- font-weight:bold;
- border-radius: 20px;
- width: 96%;
- margin: 0;
-}
 
 /* ===== SECTIONS ===== */
 .settingsSection {
   background: white;
   border-radius: 20px;
   padding: 2rem;
-   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(44, 110, 73, 0.08);
   transition: all 0.2s ease;
 }
@@ -44,7 +33,7 @@
   text-align: center;
 }
 
-.securitySettingsSection .sectionTitle{
+.securitySettingsSection .sectionTitle {
   font-size: 1.35rem;
   font-weight: 700;
   color: #1a2e2a;
@@ -158,7 +147,7 @@
   border: 2px solid;
 }
 
-.changeBtn{
+.changeBtn {
   padding: 0.6rem 1.5rem;
   font-size: 0.85rem;
   font-weight: 600;
@@ -272,7 +261,6 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.6);
-  /* backdrop-filter: blur(5px); */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -352,20 +340,154 @@
   width: 100%;
 }
 
-/* ===== RESPONSIVE DESIGN ===== */
-@media (max-width: 768px) {
+/* ============================================
+   RESPONSIVE DESIGN 
+   ============================================ */
+
+/* Large Desktop (1400px and above) */
+@media (min-width: 1400px) {
+  .settings-page {
+    max-width: 1300px;
+    padding: 3rem;
+  }
+  
+  .settingsTitle {
+    font-size: 2rem;
+    padding: 22px;
+  }
+  
+  .settingsSection,
+  .securitySettingsSection {
+    padding: 2.5rem;
+  }
+  
+  .sectionTitle {
+    font-size: 1.5rem;
+  }
+  
+  .infoGrid {
+    gap: 2rem;
+  }
+}
+
+/* Desktop (1200px - 1399px) */
+@media (min-width: 1200px) and (max-width: 1399px) {
+  .settings-page {
+    max-width: 1100px;
+    padding: 2rem;
+  }
+  
+  .settingsTitle {
+    font-size: 1.8rem;
+  }
+}
+
+/* Tablet Landscape (992px - 1199px) */
+@media (max-width: 1199px) and (min-width: 992px) {
+  .settings-page {
+    max-width: 960px;
+    padding: 1.8rem;
+  }
+  
+  .settingsTitle {
+    font-size: 1.6rem;
+    padding: 18px;
+  }
+  
+  .settingsSection,
+  .securitySettingsSection {
+    padding: 1.8rem;
+  }
+  
+  .sectionTitle {
+    font-size: 1.25rem;
+  }
+  
+  .infoGrid {
+    gap: 1.25rem;
+  }
+}
+
+/* Tablet Portrait (768px - 991px) */
+@media (max-width: 991px) {
   .settings-page {
     padding: 1.5rem;
   }
   
+  .settingsTitle {
+    font-size: 1.5rem;
+    padding: 16px;
+    width: 100%;
+  }
+  
+  .settingsContainer {
+    gap: 1.5rem;
+  }
+  
+  .settingsSection,
+  .securitySettingsSection {
+    padding: 1.5rem;
+  }
+  
+  .infoGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+  
+  .sectionHeader {
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  .sectionTitle {
+    font-size: 1.2rem;
+  }
+  
+  .editActions {
+    display: flex;
+    gap: 0.75rem;
+  }
+  
+  .changeBtn {
+    min-width: 180px;
+  }
+}
+
+/* Mobile Landscape (576px - 767px) */
+@media (max-width: 767px) {
+  .settings-page {
+    padding: 1.2rem;
+  }
+  
+  .settingsTitle {
+    font-size: 1.35rem;
+    padding: 14px;
+    border-radius: 15px;
+  }
+  
+  .settingsContainer {
+    gap: 1.2rem;
+  }
+  
+  .settingsSection,
+  .securitySettingsSection {
+    padding: 1.25rem;
+    border-radius: 16px;
+  }
+  
   .infoGrid {
     grid-template-columns: 1fr;
-    gap: 1.25rem;
+    gap: 1rem;
   }
   
   .sectionHeader {
     flex-direction: column;
     align-items: flex-start;
+    margin-bottom: 1.25rem;
+  }
+  
+  .sectionTitle {
+    font-size: 1.1rem;
   }
   
   .editActions {
@@ -376,46 +498,214 @@
   .cancelBtn {
     flex: 1;
     text-align: center;
+    padding: 0.5rem 1rem;
   }
   
-  .overlayContent {
-    padding: 2rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .settings-page {
-    padding: 1rem;
+  .infoLabel {
+    font-size: 0.75rem;
   }
   
-  .titleWrapper {
-    font-size: 1.5rem;
-    margin-bottom: 0.25rem;
+  .infoValue {
+    font-size: 0.9rem;
+    padding: 0.6rem 0;
   }
   
-  .settingsSection {
-    padding: 1.25rem;
-  }
-  
-  .sectionTitle {
-    font-size: 1.1rem;
+  .infoInput,
+  .infoTextarea,
+  .overlayContent input {
+    padding: 0.7rem 0.85rem;
+    font-size: 0.9rem;
   }
   
   .changeBtn {
     width: 100%;
     min-width: auto;
+    margin: 0.75rem 0 0;
+  }
+  
+  .securitySettingsSection .sectionTitle {
+    font-size: 1.1rem;
+    text-align: center;
   }
   
   .overlayContent {
     padding: 1.5rem;
+    width: 95%;
   }
   
   .overlayTitle {
     font-size: 1.25rem;
+    margin-bottom: 1rem;
   }
 }
 
-/* ===== PRINT STYLES ===== */
+/* Mobile Portrait (480px and below) */
+@media (max-width: 480px) {
+  .settings-page {
+    padding: 1rem;
+  }
+  
+  .settingsTitle {
+    font-size: 1.2rem;
+    padding: 12px;
+    border-radius: 12px;
+  }
+  
+  .settingsContainer {
+    gap: 1rem;
+  }
+  
+  .settingsSection,
+  .securitySettingsSection {
+    padding: 1rem;
+    border-radius: 14px;
+  }
+  
+  .sectionTitle {
+    font-size: 1rem;
+  }
+  
+  .infoItem {
+    gap: 0.3rem;
+  }
+  
+  .infoLabel {
+    font-size: 0.7rem;
+  }
+  
+  .infoValue {
+    font-size: 0.85rem;
+    padding: 0.5rem 0;
+  }
+  
+  .infoInput,
+  .infoTextarea,
+  .overlayContent input {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.85rem;
+  }
+  
+  .editBtn,
+  .saveBtn,
+  .cancelBtn,
+  .updateBtn {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+  }
+  
+  .editActions {
+    gap: 0.5rem;
+  }
+  
+  .changeBtn {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+  }
+  
+  .overlayContent {
+    padding: 1.25rem;
+  }
+  
+  .overlayTitle {
+    font-size: 1.1rem;
+  }
+  
+  .inputGroup {
+    margin-bottom: 1rem;
+  }
+  
+  .inputGroup label {
+    font-size: 0.7rem;
+  }
+  
+  .userMsg,
+  .statusMsg {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* Small phones (360px and below) */
+@media (max-width: 360px) {
+  .settings-page {
+    padding: 0.8rem;
+  }
+  
+  .settingsTitle {
+    font-size: 1rem;
+    padding: 10px;
+  }
+  
+  .settingsSection,
+  .securitySettingsSection {
+    padding: 0.8rem;
+  }
+  
+  .sectionTitle {
+    font-size: 0.9rem;
+  }
+  
+  .infoValue {
+    font-size: 0.8rem;
+  }
+  
+  .editBtn,
+  .saveBtn,
+  .cancelBtn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.7rem;
+  }
+  
+  .overlayTitle {
+    font-size: 1rem;
+  }
+  
+  .closeModal {
+    font-size: 0.75rem;
+    padding: 0.5rem;
+  }
+}
+
+@media (min-width: 1600px) {
+  .settings-page {
+    max-width: 1400px;
+    padding: 3.5rem;
+  }
+  
+  .settingsTitle {
+    font-size: 2.2rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .editBtn,
+  .saveBtn,
+  .cancelBtn,
+  .changeBtn,
+  .updateBtn,
+  .closeModal {
+    min-height: 44px;
+  }
+  
+  .infoInput,
+  .infoTextarea,
+  .overlayContent input {
+    font-size: 16px; 
+  }
+}
+
+/* Ensure text doesn't overflow */
+@media (max-width: 767px) {
+  .infoValue,
+  .sectionTitle,
+  .overlayTitle,
+  .settingsTitle {
+    word-break: break-word;
+    hyphens: auto;
+  }
+}
+
 @media print {
   .editBtn,
   .saveBtn,

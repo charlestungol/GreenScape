@@ -15,7 +15,7 @@ const Services = () => {
   return (
     <div>
       <div>
-        <p className="servicesTitle">SERVICES</p>
+        <p className="titleWrapper">SERVICES</p>
       </div>
       <div className='serviceContainer'>
         <div className="cards-grid">

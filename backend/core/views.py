@@ -21,6 +21,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 # ---------------------------------------------------
 # Third-Party / Services
@@ -466,49 +467,142 @@ class CustomerServiceViewSet(viewsets.ModelViewSet):
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.select_related("customerid", "serviceid").all()
     serializer_class = BookingSerializer
-    permission_classes = [IsAuthenticated]  # Only authenticated users can access
+    permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
         if self.request.method == "DELETE":
             return [IsSuperAdminOnly()]
         return [IsOwnerOrAdminOrStaffReadOnly()]
 
-    # Getting data
     def get_queryset(self):
         user = self.request.user
 
         if not user.is_authenticated:
             return Booking.objects.none()
 
-        # Staff / Supervisor / Admin / SuperAdmin → all bookings
         if user.groups.filter(
             name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
         ).exists():
-            return self.queryset
+            qs = self.queryset
+        else:
+            customer = Customer.objects.filter(user_id=user.id).first()
+            qs = self.queryset.filter(customerid=customer) if customer else Booking.objects.none()
 
-        # Customer → own bookings only
-        customer = Customer.objects.filter(user_id=user.id).first()
-        if customer:
-            return self.queryset.filter(customerid=customer)
+        date = self.request.query_params.get("date")
+        service = self.request.query_params.get("service")
 
-        return Booking.objects.none()
-    
+        if date and service:
+            # Only filter by both together — never bleed across dates
+            from datetime import datetime, timedelta
+            from django.utils import timezone
+
+            try:
+                # Build a full UTC day range for the LOCAL date
+                naive_start = datetime.strptime(date, "%Y-%m-%d")
+                naive_end = naive_start + timedelta(days=1)
+
+                # Make timezone-aware
+                start = timezone.make_aware(naive_start)
+                end = timezone.make_aware(naive_end)
+
+                qs = qs.filter(
+                    serviceid=service,
+                    appointmenttime__gte=start,
+                    appointmenttime__lt=end,
+                ).exclude(status__in=["CANCELLED", "COMPLETED"])
+            except ValueError:
+                pass  # bad date format — return unfiltered qs
+
+        return qs
+
+    def check_duplicate_booking(self, customer, service, appointment_time):
+        """Check if a booking already exists for this customer, service, and time"""
+        # Check for existing bookings (excluding cancelled/completed)
+        existing_booking = Booking.objects.filter(
+            customerid=customer,
+            serviceid=service,
+            appointmenttime=appointment_time,
+        ).exclude(
+            status__in=["CANCELLED", "COMPLETED"]
+        ).exists()
+        
+        if existing_booking:
+            raise ValidationError({
+                "non_field_errors": ["You already have a booking at this time for this service."]
+            })
+        
+        # Check if the time slot is taken by ANY customer (for the same service)
+        slot_taken = Booking.objects.filter(
+            serviceid=service,
+            appointmenttime=appointment_time,
+        ).exclude(
+            status__in=["CANCELLED", "COMPLETED"]
+        ).exists()
+        
+        if slot_taken:
+            raise ValidationError({
+                "appointmenttime": ["This time slot is already booked. Please select another time."]
+            })
+        
+        return True
+
+    def create(self, request, *args, **kwargs):
+        """Override create to add duplicate checking before saving"""
+        user = request.user
+        data = request.data.copy()
+        
+        # Determine customer
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
+            customer_id = data.get("customerid")
+            if not customer_id:
+                return Response(
+                    {"customerid": ["Customer is required for staff bookings."]},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            try:
+                customer = Customer.objects.get(customerid=customer_id)
+            except Customer.DoesNotExist:
+                return Response(
+                    {"customerid": ["Customer not found."]},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            customer = Customer.objects.filter(user_id=user.id).first()
+            if not customer:
+                return Response(
+                    {"error": ["Customer profile not found. Please complete your profile first."]},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            data["customerid"] = customer.customerid
+        
+        # Extract booking details
+        service_id = data.get("serviceid")
+        appointment_time = data.get("appointmenttime")
+        
+        if not service_id or not appointment_time:
+            return Response(
+                {"error": ["Service and appointment time are required."]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check for duplicate booking
+        try:
+            self.check_duplicate_booking(customer, service_id, appointment_time)
+        except ValidationError as e:
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Proceed with normal creation
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     def perform_create(self, serializer):
-        user = self.request.user
-
-        # Employees can create booking for any customer
-        if user.groups.filter(
-            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
-        ).exists():
-            serializer.save()
-            return
-
-        # Customer creates booking only for themselves
-        customer = Customer.objects.filter(user_id=user.id).first()
-        if not customer:
-            raise PermissionDenied("You do not have permission to perform this action.")
-
-        serializer.save(customerid=customer)
+        """Save the booking"""
+        serializer.save()
     
 # -----------------------------------------------------------------------------
 # Invoice view -- Allows for CRUD

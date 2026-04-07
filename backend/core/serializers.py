@@ -320,7 +320,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
 # Booking Serializer
 class BookingSerializer(serializers.ModelSerializer):
     # Validators
-    appointmenttime = serializers.DateTimeField()  # Single datetime field
+    appointmenttime = serializers.DateTimeField()
     
     customer = CustomerSerializer(source="customerid", read_only=True)
     service = ServiceSerializer(source="serviceid", read_only=True)
@@ -342,9 +342,54 @@ class BookingSerializer(serializers.ModelSerializer):
             "customer", "service", 
             "appointmenttime", "status",
             "email", "phonenum"
-            ]
+        ]
         read_only_fields = ["bookingid", "customer", "service"]
 
+    def validate(self, data):
+        # Check for double booking
+        appointment_time = data.get('appointmenttime')
+        service = data.get('serviceid')
+        
+        if appointment_time and service:
+            # Check if this time slot is already booked (pending or confirmed)
+            if Booking.objects.filter(
+                appointmenttime=appointment_time,
+                serviceid=service,
+                status__in=['pending', 'confirmed']
+            ).exists():
+                raise serializers.ValidationError({
+                    "appointmenttime": "This time slot is already booked. Please select another time."
+                })
+        
+        return data
+
+    def validate_email(self, value):
+        """Validate email format"""
+        if value and len(value) > 30:
+            raise serializers.ValidationError("Email must not exceed 30 characters")
+        return value
+
+    def validate_phonenum(self, value):
+        """Validate phone number"""
+        if value:
+            # Remove any non-digit characters for validation
+            clean_phone = ''.join(filter(str.isdigit, value))
+            if len(clean_phone) < 10 or len(clean_phone) > 11:
+                raise serializers.ValidationError(
+                    "Phone number must have 10 or 11 digits"
+                )
+        return value
+
+    def validate_appointmenttime(self, value):
+        """Validate appointment time is in the future"""
+        from django.utils import timezone
+        
+        if value <= timezone.now():
+            raise serializers.ValidationError(
+                "Appointment time must be in the future"
+            )
+        return value
+    
 # Invoice Serializer
 class InvoiceSerializer(serializers.ModelSerializer):
     invoiceid = serializers.IntegerField(read_only=True)

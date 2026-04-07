@@ -226,7 +226,7 @@ const Settings = () => {
 
   return (
     <div>
-      <p className="settingsTitle">SETTINGS</p>
+      <p className="titleWrapper">SETTINGS</p>
       <div className="settings-page">
         <div className="settingsContainer">
           {/* User Information Section */}

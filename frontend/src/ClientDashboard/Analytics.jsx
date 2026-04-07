@@ -113,7 +113,9 @@ function Analytics() {
 
   const totalBudget = data.reduce((sum, month) => sum + month.budget, 0);
   const totalExpensesAmount = data.reduce((sum, month) => sum + month.expenses, 0);
-  const recentExpenses = expenses.slice().reverse().slice(0, 10);
+  const recentExpenses = [...expenses]
+    .sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at))
+    .slice(0, 10);
 
   const handleOverlayClick = (e) => {
     if (modalContentRef.current && !modalContentRef.current.contains(e.target)) {
