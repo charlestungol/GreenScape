@@ -2,197 +2,177 @@ import React, { useEffect, useState } from "react";
 import {
   Box,
   Typography,
-  Button,
   Paper,
+  Button,
   Table,
   TableHead,
   TableRow,
   TableCell,
   TableBody,
-  TextField,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
   MenuItem,
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
 import AxiosInstance from "../../components/AxiosInstance";
 
-const roles = ["Admin", "Supervisor", "Staff"];
+const GREEN = "#1c3d37";
+
+const emptyForm = {
+  email: "",
+  password: "",
+  employee_number: "",
+  group: "staff",
+};
 
 export default function EmployeeManagement() {
-  const navigate = useNavigate();
-
   const [employees, setEmployees] = useState([]);
-  const [savingId, setSavingId] = useState(null);
+  const [openAdd, setOpenAdd] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [loading, setLoading] = useState(false);
 
-  const [openAddDialog, setOpenAddDialog] = useState(false);
-  const [newEmployee, setNewEmployee] = useState({
-    firstname: "",
-    lastname: "",
-    phonenumber: "",
-    role: "",
-  });
-
-  const loadEmployees = async () => {
+  const fetchEmployees = async () => {
     try {
-      const res = await AxiosInstance.get("core/employees/");
-      setEmployees(res.data?.results ?? res.data ?? []);
-    } catch (err) {
-      console.error("Error loading employees:", err);
-      alert("Failed to load employees.");
+      const res = await AxiosInstance.get("/users/");
+      setEmployees(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error("Failed to fetch employees:", error);
     }
   };
 
   useEffect(() => {
-    loadEmployees();
+    fetchEmployees();
   }, []);
 
-  const updateEmployeeField = (id, field, value) => {
-    setEmployees((prev) =>
-      prev.map((emp) =>
-        emp.employeeid === id ? { ...emp, [field]: value } : emp
-      )
-    );
+  const handleOpenAdd = () => setOpenAdd(true);
+
+  const handleCloseAdd = () => {
+    setOpenAdd(false);
+    setForm(emptyForm);
   };
 
-  const saveEmployee = async (employee) => {
-    try {
-      setSavingId(employee.employeeid);
-
-      // Update role separately
-      await AxiosInstance.patch(
-        `core/employees/${employee.employeeid}/role/`,
-        {
-          role: employee.role,
-        }
-      );
-
-      alert("Role updated successfully.");
-    } catch (err) {
-      console.error("Error updating role:", err);
-      alert("Failed to update role.");
-    } finally {
-      setSavingId(null);
-    }
+  const handleChange = (e) => {
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
   };
 
   const handleAddEmployee = async () => {
-    const { firstname, lastname, phonenumber, role } = newEmployee;
-
-    if (!firstname || !lastname || !phonenumber || !role) {
-      alert("Please fill all fields.");
+    if (!form.email || !form.password || !form.employee_number || !form.group) {
+      alert("Please fill in all fields.");
       return;
     }
 
     try {
-      await AxiosInstance.post("core/employees/", {
-        firstname,
-        lastname,
-        phonenumber,
-        role,
+      setLoading(true);
+      await AxiosInstance.post("/register/employee/", {
+        email: form.email,
+        password: form.password,
+        employee_number: form.employee_number,
+        group: form.group,
       });
 
       alert("Employee added successfully.");
-      setOpenAddDialog(false);
-      setNewEmployee({
-        firstname: "",
-        lastname: "",
-        phonenumber: "",
-        role: "",
-      });
-      loadEmployees();
-    } catch (err) {
-      console.error("Error adding employee:", err);
+      handleCloseAdd();
+      fetchEmployees();
+    } catch (error) {
+      console.error("Add employee error:", error);
       alert("Failed to add employee.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteEmployee = async (employeeId, employeeName = "this employee") => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${employeeName}? This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await AxiosInstance.delete(`/users/${employeeId}/`);
+      alert("Employee deleted successfully.");
+      fetchEmployees();
+    } catch (error) {
+      console.error("Delete employee error:", error);
+      alert("Failed to delete employee.");
     }
   };
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-        Employee Management
-      </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 3,
+        }}
+      >
+        <Typography
+          variant="h4"
+          sx={{ fontWeight: 800, color: GREEN }}
+        >
+          Employee Management
+        </Typography>
 
-      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
         <Button
           variant="contained"
-          onClick={() => setOpenAddDialog(true)}
+          onClick={handleOpenAdd}
+          sx={{
+            backgroundColor: GREEN,
+            "&:hover": { backgroundColor: "#16302b" },
+            textTransform: "none",
+            fontWeight: 600,
+          }}
         >
           Add Employee
         </Button>
-
-        <Button
-          variant="outlined"
-          onClick={() => navigate("/employee/timesheets")}
-        >
-          View Timesheets
-        </Button>
       </Box>
 
-      <Paper>
+      <Paper elevation={1} sx={{ borderRadius: 3, overflow: "hidden" }}>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell><b>ID</b></TableCell>
-              <TableCell><b>First Name</b></TableCell>
-              <TableCell><b>Last Name</b></TableCell>
               <TableCell><b>Email</b></TableCell>
-              <TableCell><b>Phone</b></TableCell>
+              <TableCell><b>Employee Number</b></TableCell>
               <TableCell><b>Role</b></TableCell>
-              <TableCell><b>Action</b></TableCell>
+              <TableCell align="center"><b>Actions</b></TableCell>
             </TableRow>
           </TableHead>
-
           <TableBody>
-            {employees.map((emp) => (
-              <TableRow key={emp.employeeid}>
-                <TableCell>{emp.employeeid}</TableCell>
-
-                <TableCell>{emp.firstname}</TableCell>
-                <TableCell>{emp.lastname}</TableCell>
-                <TableCell>{emp.email}</TableCell>
-                <TableCell>{emp.phonenumber}</TableCell>
-
-                {/* ROLE DROPDOWN */}
-                <TableCell>
-                  <TextField
-                    select
-                    size="small"
-                    value={emp.role || ""}
-                    onChange={(e) =>
-                      updateEmployeeField(
-                        emp.employeeid,
-                        "role",
-                        e.target.value
-                      )
-                    }
-                  >
-                    {roles.map((r) => (
-                      <MenuItem key={r} value={r}>
-                        {r}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </TableCell>
-
-                <TableCell>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    disabled={savingId === emp.employeeid}
-                    onClick={() => saveEmployee(emp)}
-                  >
-                    {savingId === emp.employeeid ? "Saving..." : "Save"}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-
-            {employees.length === 0 && (
+            {employees.length > 0 ? (
+              employees.map((employee) => (
+                <TableRow key={employee.id || employee.employeeid}>
+                  <TableCell>{employee.id || employee.employeeid}</TableCell>
+                  <TableCell>{employee.email || "N/A"}</TableCell>
+                  <TableCell>{employee.employee_number || "N/A"}</TableCell>
+                  <TableCell>{employee.role || employee.group || "N/A"}</TableCell>
+                  <TableCell align="center">
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={() =>
+                        handleDeleteEmployee(
+                          employee.id || employee.employeeid,
+                          employee.email || "this employee"
+                        )
+                      }
+                      sx={{ textTransform: "none", fontWeight: 600 }}
+                    >
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
               <TableRow>
-                <TableCell colSpan={7} align="center">
+                <TableCell colSpan={5} align="center">
                   No employees found.
                 </TableCell>
               </TableRow>
@@ -201,62 +181,66 @@ export default function EmployeeManagement() {
         </Table>
       </Paper>
 
-      {/* ADD EMPLOYEE DIALOG */}
-      <Dialog open={openAddDialog} onClose={() => setOpenAddDialog(false)}>
+      <Dialog open={openAdd} onClose={handleCloseAdd} fullWidth maxWidth="sm">
         <DialogTitle>Add Employee</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ pt: 2 }}>
           <TextField
             fullWidth
-            label="First Name"
-            margin="dense"
-            value={newEmployee.firstname}
-            onChange={(e) =>
-              setNewEmployee({ ...newEmployee, firstname: e.target.value })
-            }
+            margin="normal"
+            label="Email"
+            name="email"
+            value={form.email}
+            onChange={handleChange}
           />
 
           <TextField
             fullWidth
-            label="Last Name"
-            margin="dense"
-            value={newEmployee.lastname}
-            onChange={(e) =>
-              setNewEmployee({ ...newEmployee, lastname: e.target.value })
-            }
+            margin="normal"
+            label="Password"
+            name="password"
+            type="password"
+            value={form.password}
+            onChange={handleChange}
           />
 
           <TextField
             fullWidth
-            label="Phone"
-            margin="dense"
-            value={newEmployee.phonenumber}
-            onChange={(e) =>
-              setNewEmployee({ ...newEmployee, phonenumber: e.target.value })
-            }
+            margin="normal"
+            label="Employee Number"
+            name="employee_number"
+            value={form.employee_number}
+            onChange={handleChange}
           />
 
           <TextField
             select
             fullWidth
-            label="Role"
-            margin="dense"
-            value={newEmployee.role}
-            onChange={(e) =>
-              setNewEmployee({ ...newEmployee, role: e.target.value })
-            }
+            margin="normal"
+            label="Group"
+            name="group"
+            value={form.group}
+            onChange={handleChange}
           >
-            {roles.map((r) => (
-              <MenuItem key={r} value={r}>
-                {r}
-              </MenuItem>
-            ))}
+            <MenuItem value="admin">Admin</MenuItem>
+            <MenuItem value="supervisor">Supervisor</MenuItem>
+            <MenuItem value="staff">Staff</MenuItem>
           </TextField>
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={() => setOpenAddDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleAddEmployee}>
-            Add
+          <Button onClick={handleCloseAdd}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleAddEmployee}
+            disabled={loading}
+            sx={{
+              backgroundColor: GREEN,
+              "&:hover": { backgroundColor: "#16302b" },
+              textTransform: "none",
+              fontWeight: 600,
+            }}
+          >
+            {loading ? "Saving..." : "Save"}
           </Button>
         </DialogActions>
       </Dialog>
