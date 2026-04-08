@@ -6,6 +6,10 @@ from django.core import exceptions
 from django.contrib.auth.models import Group
 from django.db import transaction
 
+# ---------------------------------------------------
+# Model Imports
+# ---------------------------------------------------
+from .models import CustomUser
 
 # ---------------------------------------------------
 # Django Allauth
@@ -332,4 +336,24 @@ class UserSerializer(serializers.ModelSerializer):
     def get_role(self, obj):
         group = obj.groups.first()
         return group.name if group else None
+
+# For employee management views, we need to include employee_number and role/group information.
+class EmployeeAccountSerializer(serializers.ModelSerializer):
+    group = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            "id",
+            "email",
+            "employee_number",
+            "role",
+            "group",
+            "is_active",
+        ]
+
+    def get_group(self, obj):
+        group = obj.groups.first()
+        return group.name if group else None
+
 

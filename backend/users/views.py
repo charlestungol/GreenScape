@@ -11,6 +11,9 @@ from django.shortcuts import redirect
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie, csrf_exempt
 
+# --- Models ---
+from .models import CustomUser
+
 # --- Django Allauth ---
 from allauth.account.models import EmailAddress
 
@@ -43,6 +46,7 @@ from .serializers import (
     ChangePasswordSerializer,
     ClientLoginSerializer,
     ClientRegisterSerializer,
+    EmployeeAccountSerializer,
     EmployeeLoginSerializer,
     EmployeeRegisterSerializer,
     CompleteCustomerProfileSerializer,
@@ -50,6 +54,11 @@ from .serializers import (
     UserSerializer,
 
 )
+
+#permissions
+from .permissions import IsSupervisorOrAdmin
+
+ALLOWED_GROUPS = ["Staff", "Supervisor", "Admin"]
 
 throttle_classes = [ScopedRateThrottle]
 User = get_user_model()
@@ -619,6 +628,7 @@ class RecaptchaGateAPIView(APIView):
         return final
 
 
+# For user management by admin, allow admin to view all users and change their group/role.
 class UserManagementViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated, IsAdminUser]
     serializer_class = UserSerializer
@@ -665,3 +675,102 @@ class UserManagementViewSet(viewsets.ReadOnlyModelViewSet):
             {"detail": f"User role updated to {new_role}."},
             status=status.HTTP_200_OK,
         )
+
+# This viewset allows admin users to view all employee accounts. It filters the CustomUser model to only include users with the role of "employee" and prefetches related group information for efficiency. The serializer used is EmployeeAccountSerializer, which should include fields relevant to employee accounts such as employee_number and group/role information.
+class EmployeeAccountViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = EmployeeAccountSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_permissions(self):
+        return [IsSupervisorOrAdmin()]
+
+    def get_queryset(self):
+        return (
+            CustomUser.objects
+            .filter(role="employee")
+            .prefetch_related("groups")
+            .order_by("id")
+        )
+    
+    
+    @action(detail=True, methods=["post"], url_path="deactivate")
+    def deactivate(self, request, pk=None):
+        user = self.get_object()
+        # Prevent admin from deactivating their own account to avoid locking themselves out.
+        if user == request.user:
+            return Response(
+                {"detail": "You cannot deactivate your own account."},
+                status=status.HTTP_400_BAD_REQUEST,
+        )
+        if not user.is_active:
+            return Response(
+                {"detail": "User is already deactivated."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+
+        return Response(
+            {"detail": "Employee account deactivated successfully."},
+            status=status.HTTP_200_OK,
+        )
+    
+    
+    @action(detail=True, methods=["post"], url_path="activate")
+    def activate(self, request, pk=None):
+        user = self.get_object()
+
+        if user.is_active:
+            return Response(
+                {"detail": "User is already active."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.is_active = True
+        user.save(update_fields=["is_active"])
+
+        return Response(
+            {"detail": "Employee account activated successfully."},
+            status=status.HTTP_200_OK,
+        )
+
+
+    @action(detail=True, methods=["post"], url_path="set-group")
+    def set_group(self, request, pk=None):
+        user = self.get_object()
+
+        # Prevent changing your own permissions
+        if user == request.user:
+            return Response(
+                {"detail": "You cannot change your own group."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        group_name = request.data.get("group")
+
+        if group_name not in ALLOWED_GROUPS:
+            return Response(
+                {"detail": "Invalid group."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            new_group = Group.objects.get(name=group_name)
+        except Group.DoesNotExist:
+            return Response(
+                {"detail": "Group does not exist."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Remove existing role groups
+        user.groups.clear()
+        user.groups.add(new_group)
+
+        return Response(
+            {"detail": f"Employee group updated to {group_name}."},
+            status=status.HTTP_200_OK,
+        )
+
+
+

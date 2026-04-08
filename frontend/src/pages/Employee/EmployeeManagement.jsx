@@ -33,19 +33,37 @@ export default function EmployeeManagement() {
   const [openAdd, setOpenAdd] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
+  const [groupSelections, setGroupSelections] = useState({});
+
 
   const fetchEmployees = async () => {
     try {
-      const res = await AxiosInstance.get("/core/employees/");
-      setEmployees(Array.isArray(res.data) ? res.data : []);
+      const res = await AxiosInstance.get("/employee-accounts/");
+
+      const employeesData = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.results)
+        ? res.data.results
+        : [];
+
+      setEmployees(employeesData);
     } catch (error) {
       console.error("Failed to fetch employees:", error);
+      setEmployees([]);
     }
   };
 
   useEffect(() => {
     fetchEmployees();
   }, []);
+
+  useEffect(() => {
+    const map = {};
+    employees.forEach(emp => {
+      map[emp.id] = emp.group || "Staff";
+    });
+    setGroupSelections(map);
+  }, [employees]);
 
   const handleOpenAdd = () => setOpenAdd(true);
 
@@ -94,20 +112,87 @@ export default function EmployeeManagement() {
     }
   };
 
-  const handleDeleteEmployee = async (employeeId, employeeName = "this employee") => {
+  const handleDeactivateEmployee = async (userId, email) => {
     const confirmed = window.confirm(
-      `Are you sure you want to delete ${employeeName}? This action cannot be undone.`
+      `Are you sure you want to deactivate ${email}?`
     );
 
     if (!confirmed) return;
 
     try {
-      await AxiosInstance.delete(`/core/employees/${employeeId}/`);
-      alert("Employee deleted successfully.");
+      await AxiosInstance.post(`/employee-accounts/${userId}/deactivate/`);
+      alert("Employee account deactivated.");
       fetchEmployees();
     } catch (error) {
-      console.error("Delete employee error:", error);
-      alert("Failed to delete employee.");
+      console.error("Deactivate error:", error);
+      alert("Failed to deactivate employee.");
+    }
+  };
+
+  const handleActivateEmployee = async (userId, email) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to activate ${email}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await AxiosInstance.post(`/employee-accounts/${userId}/activate/`);
+      alert("Employee account activated.");
+      fetchEmployees();
+    } catch (error) {
+      console.error("Activate error:", error);
+      alert(
+        error.response?.data?.detail || "Failed to activate employee."
+      );
+    }
+  };
+
+  // Helper
+  const getCurrentGroup = (userId) => {
+    const employee = employees.find(e => e.id === userId);
+    return employee?.group || "";
+  };
+  const handleUpdateGroup = async (userId) => {
+    const newGroup = groupSelections[userId];
+    const currentGroup = getCurrentGroup(userId);
+
+    //No selection guard
+    if (!newGroup) {
+      alert("Please select a group first.");
+      return;
+    }
+
+    //Same group guard
+    if (newGroup === currentGroup) {
+      alert(`This user is already in the ${currentGroup} group.`);
+      return;
+    }
+
+    //Secondary confirmation
+    const confirmed = window.confirm(
+      `Are you sure you want to change this employee's group?\n\n` +
+      `From: ${currentGroup || "None"}\n` +
+      `To:   ${newGroup}\n\n` +
+      `This will immediately affect their permissions.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await AxiosInstance.post(
+        `/employee-accounts/${userId}/set-group/`,
+        { group: newGroup }
+      );
+
+      alert("Group updated successfully.");
+      fetchEmployees(); // re-sync with backend
+
+    } catch (error) {
+      console.error("Group update error:", error);
+      alert(
+        error.response?.data?.detail || "Failed to update group."
+      );
     }
   };
 
@@ -151,30 +236,67 @@ export default function EmployeeManagement() {
               <TableCell><b>Employee Number</b></TableCell>
               <TableCell><b>Role</b></TableCell>
               <TableCell align="center"><b>Actions</b></TableCell>
+              <TableCell align="center"><b>Status</b></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {employees.length > 0 ? (
               employees.map((employee) => (
-                <TableRow key={employee?.id || employee.employeeid}>
-                  <TableCell>{employee?.id || employee.employeeid}</TableCell>
-                  <TableCell>{employee?.email || "N/A"}</TableCell>
-                  <TableCell>{employee?.employee_number || "N/A"}</TableCell>
-                  <TableCell>{employee?.group || employee?.group || "N/A"}</TableCell>
+                <TableRow key={employee.id}>
+                  <TableCell>{employee.id}</TableCell>
+                  <TableCell>{employee.email}</TableCell>
+                  <TableCell>{employee.employee_number || "N/A"}</TableCell>
+                  <TableCell>
+                    <TextField
+                      select
+                      size="small"
+                      value={groupSelections[employee.id] || "Staff"}
+                      onChange={(e) =>
+                        setGroupSelections(prev => ({
+                          ...prev,
+                          [employee.id]: e.target.value,
+                        }))
+                      }
+                    >
+                      <MenuItem value="Staff">Staff</MenuItem>
+                      <MenuItem value="Supervisor">Supervisor</MenuItem>
+                      <MenuItem value="Admin">Admin</MenuItem>
+                    </TextField>
+                  </TableCell>
                   <TableCell align="center">
                     <Button
                       variant="outlined"
-                      color="error"
-                      onClick={() =>
-                        handleDeleteEmployee(
-                          employee.id || employee.employeeid,
-                          employee.email || "this employee"
-                        )
-                      }
-                      sx={{ textTransform: "none", fontWeight: 600 }}
+                      size="small"
+                      disabled={groupSelections[employee.id] === employee.group}
+                      onClick={() => handleUpdateGroup(employee.id)}
                     >
-                      Delete
+                      Save
                     </Button>
+                  </TableCell>
+                  <TableCell align="center">
+                    {employee.is_active ? (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        onClick={() =>
+                          handleDeactivateEmployee(employee.id, employee.email)
+                        }
+                        sx={{ textTransform: "none", fontWeight: 600 }}
+                      >
+                        Deactivate
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        color="success"
+                        onClick={() =>
+                          handleActivateEmployee(employee.id, employee.email)
+                        }
+                        sx={{ textTransform: "none", fontWeight: 600 }}
+                      >
+                        Activate
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

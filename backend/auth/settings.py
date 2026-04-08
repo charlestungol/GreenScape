@@ -14,6 +14,8 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
+from corsheaders.defaults import default_headers
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -96,6 +98,10 @@ SIMPLE_JWT = {
 
 # Cookies settings for JWT
 CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "x-ignore-refresh",
+]
 
 # If using cookies, ensure the frontend is included in CSRF_TRUSTED_ORIGINS
 CSRF_TRUSTED_ORIGINS = [
