@@ -80,6 +80,7 @@ class CustomUser(AbstractUser):
 
     class Meta:
         db_table = "users_customuser"
+        ordering = ["id"]
     
     def __str__(self):
         label = self.email  or f"User#{self.pk}"

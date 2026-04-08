@@ -52,10 +52,13 @@ const handleLogin = async () => {
 
     const user = response.data.user;
     const access = response.data.access;
-
     localStorage.setItem("user_id", user.id);
     localStorage.setItem("access", access);
     localStorage.setItem("role", user.role);
+    localStorage.setItem(
+      "profile_ready",
+      response.data.profile_ready ? "true" : "false"
+    );
 
     if (user.role === "client" && !response.data.profile_ready) {
       navigate("/complete-profile");
@@ -127,6 +130,10 @@ const handleGoogleCredential = async (response) => {
     localStorage.setItem("access", access);
     localStorage.setItem("user_id", user.id);
     localStorage.setItem("role", user.role);
+    localStorage.setItem(
+      "profile_ready",
+      profile_ready ? "true" : "false"
+    );
 
     // Route user based on profile completion
     if (user.role === "client" && !profile_ready) {

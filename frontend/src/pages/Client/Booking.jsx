@@ -6,6 +6,7 @@ import AxiosInstance from "../../components/AxiosInstance";
 import { useNavigate } from "react-router-dom";
 
 const Booking = () => {
+  const profileReady = localStorage.getItem("profile_ready") === "true";
   const navigate = useNavigate();
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
@@ -97,6 +98,12 @@ const Booking = () => {
   };
 
   // ─── data loading ────────────────────────────────────────────────────────────
+  
+  useEffect(() => {
+    if (!profileReady) {
+      navigate("/complete-profile", { replace: true });
+    }
+  }, [profileReady, navigate]);
 
   const loadUserData = async () => {
     try {
@@ -116,15 +123,36 @@ const Booking = () => {
 
   const loadServices = async () => {
     setLoadingServices(true);
+
     try {
       const response = await AxiosInstance.get("core/services/");
-      const data = Array.isArray(response.data)
-        ? response.data
-        : response.data?.results ?? [];
-      setServices(data);
+
+      const servicesData =
+        Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response?.data?.results)
+          ? response.data.results
+          : [];
+
+      setServices(servicesData);
     } catch (error) {
-      console.error("Error loading services:", error);
-      showMessage("error", "Failed to load services. Please refresh the page.");
+      const status = error?.response?.status;
+
+      if (status === 401) {
+        showMessage("error", "Your session has expired. Please log in again.");
+      } else if (status === 403) {
+        showMessage("error", "You do not have permission to view services.");
+      } else {
+        showMessage(
+          "error",
+          "Failed to load services. Please try again."
+        );
+      }
+
+      console.error("Error loading services:", {
+        status,
+        data: error?.response?.data,
+      });
     } finally {
       setLoadingServices(false);
     }
@@ -193,15 +221,18 @@ const Booking = () => {
   useEffect(() => {
     const token = localStorage.getItem("access");
     const userId = localStorage.getItem("user_id");
+    const profileReady = localStorage.getItem("profile_ready") === "true";
 
     if (!token || !userId) {
       navigate("/client-login");
       return;
     }
 
-    setIsAuthenticated(true);
-    loadUserData();
-    loadServices();
+    if (profileReady) {
+      setIsAuthenticated(true);
+      loadUserData();
+      loadServices();
+    }
 
     return () => {
       if (availabilityInterval.current) clearInterval(availabilityInterval.current);

@@ -62,6 +62,7 @@ const CompleteClientProfile = () => {
         });
 
         // Profile completed successfully, redirect to home
+        localStorage.setItem("profile_ready", "true");
         navigate('/home');
     } catch (err) {
         console.error(err.response || err);

@@ -25,7 +25,7 @@ const emptyForm = {
   email: "",
   password: "",
   employee_number: "",
-  group: "staff",
+  group: "Staff",
 };
 
 export default function EmployeeManagement() {
@@ -36,7 +36,7 @@ export default function EmployeeManagement() {
 
   const fetchEmployees = async () => {
     try {
-      const res = await AxiosInstance.get("/users/");
+      const res = await AxiosInstance.get("/core/employees/");
       setEmployees(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
       console.error("Failed to fetch employees:", error);
@@ -77,11 +77,18 @@ export default function EmployeeManagement() {
       });
 
       alert("Employee added successfully.");
-      handleCloseAdd();
       fetchEmployees();
+      handleCloseAdd();
     } catch (error) {
-      console.error("Add employee error:", error);
-      alert("Failed to add employee.");
+      console.error("Add employee error:", {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+
+      alert(
+        JSON.stringify(error.response?.data, null, 2) ||
+        "Failed to add employee."
+      );
     } finally {
       setLoading(false);
     }
@@ -95,7 +102,7 @@ export default function EmployeeManagement() {
     if (!confirmed) return;
 
     try {
-      await AxiosInstance.delete(`/users/${employeeId}/`);
+      await AxiosInstance.delete(`/core/employees/${employeeId}/`);
       alert("Employee deleted successfully.");
       fetchEmployees();
     } catch (error) {
@@ -149,11 +156,11 @@ export default function EmployeeManagement() {
           <TableBody>
             {employees.length > 0 ? (
               employees.map((employee) => (
-                <TableRow key={employee.id || employee.employeeid}>
-                  <TableCell>{employee.id || employee.employeeid}</TableCell>
-                  <TableCell>{employee.email || "N/A"}</TableCell>
-                  <TableCell>{employee.employee_number || "N/A"}</TableCell>
-                  <TableCell>{employee.role || employee.group || "N/A"}</TableCell>
+                <TableRow key={employee?.id || employee.employeeid}>
+                  <TableCell>{employee?.id || employee.employeeid}</TableCell>
+                  <TableCell>{employee?.email || "N/A"}</TableCell>
+                  <TableCell>{employee?.employee_number || "N/A"}</TableCell>
+                  <TableCell>{employee?.group || employee?.group || "N/A"}</TableCell>
                   <TableCell align="center">
                     <Button
                       variant="outlined"
@@ -190,6 +197,7 @@ export default function EmployeeManagement() {
             margin="normal"
             label="Email"
             name="email"
+            title="Must be a valid email address (e.g., john.doe@example.com)"
             value={form.email}
             onChange={handleChange}
           />
@@ -200,6 +208,7 @@ export default function EmployeeManagement() {
             label="Password"
             name="password"
             type="password"
+            title="Must be a valid password (e.g., P@ssw0rd1234)"
             value={form.password}
             onChange={handleChange}
           />
@@ -209,6 +218,7 @@ export default function EmployeeManagement() {
             margin="normal"
             label="Employee Number"
             name="employee_number"
+            title="Must be a valid employee number (e.g., 0001)"
             value={form.employee_number}
             onChange={handleChange}
           />
@@ -222,9 +232,9 @@ export default function EmployeeManagement() {
             value={form.group}
             onChange={handleChange}
           >
-            <MenuItem value="admin">Admin</MenuItem>
-            <MenuItem value="supervisor">Supervisor</MenuItem>
-            <MenuItem value="staff">Staff</MenuItem>
+            <MenuItem value="Admin">Admin</MenuItem>
+            <MenuItem value="Supervisor">Supervisor</MenuItem>
+            <MenuItem value="Staff">Staff</MenuItem>
           </TextField>
         </DialogContent>
 

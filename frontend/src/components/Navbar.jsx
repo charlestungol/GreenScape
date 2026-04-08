@@ -36,7 +36,6 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 
 const GREEN = "#1c3d37";
 const drawerWidth = 300;
-const EMPLOYEE_ROLES = ["employee", "admin", "supervisor", "staff", "superadmin"];
 
 const theme = createTheme({
   typography: {
@@ -146,6 +145,7 @@ const menuConfig = {
   ],
 };
 
+
 export default function Navbar({ content }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -156,66 +156,67 @@ export default function Navbar({ content }) {
   const [bottomNavValue, setBottomNavValue] = useState(0);
   const [userData, setUserData] = useState({ firstName: "User", role: "client" });
   const [isLoading, setIsLoading] = useState(true);
-
-  const normalizeRole = (role) => {
-    return role === "client" ? "client" : "employee";
-  };
   
   const fetchUserData = async () => {
     setIsLoading(true);
-    
+
     try {
-      const token = localStorage.getItem("token") || localStorage.getItem("access");
-      if (!token) {
-        setIsLoading(false);
+      const role = localStorage.getItem("role"); // customer | employee | superadmin
+      const group = localStorage.getItem("group");
+      //CUSTOMER
+      if (role === "customer" && !group) {
+        
+  if (!profileReady) {
+        //customer EXISTS logically but profile is incomplete
+        setUserData({
+            firstName: "User",
+            role: "client",
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        const res = await AxiosInstance.get("core/customers/me/");
+        setUserData({
+          firstName: res.data.firstname || "User",
+          role: "client",
+        });
         return;
       }
 
-      try {
-        const response = await AxiosInstance.get("core/customers/me/");
-        if (response.data) {
-          const firstName = response.data.firstname || "User";
-          setUserData({
-            firstName: firstName,
-            role: "client"
-          });
-          localStorage.setItem("first_name", firstName);
-          setIsLoading(false);
-          return;
-        }
-      } catch (error) {}
+      //EMPLOYEE
+      if (role === "employee" && group.toLowerCase() !== "superadmin") {
+        const res = await AxiosInstance.get("core/employees/me/");
+        setUserData({
+          firstName:
+            res.data.firstname ||
+            res.data.user?.email?.split("@")[0] ||
+            "Employee",
+          role: "employee",
+        });
+        return;
+      }
 
-      try {
-        const response = await AxiosInstance.get("core/employees/me/");
-        if (response.data) {
-          const firstName = response.data.firstname || 
-                           response.data.user?.email?.split("@")[0] || 
-                           "Employee";
-          setUserData({
-            firstName: firstName,
-            role: "employee"
-          });
-          localStorage.setItem("first_name", firstName);
-          setIsLoading(false);
-          return;
-        }
-      } catch (error) {}
-
-      const rawRole = localStorage.getItem("role") || localStorage.getItem("group") || "client";
-      const role = normalizeRole(rawRole);
-      let firstName = localStorage.getItem("first_name") || "User";
-      
-      setUserData({ firstName, role });
-      
-    } catch (error) {
-      const rawRole = localStorage.getItem("role") || localStorage.getItem("group") || "client";
-      const role = normalizeRole(rawRole);
-      const firstName = localStorage.getItem("first_name") || "User";
-      setUserData({ firstName, role });
-    } finally {
-      setIsLoading(false);
-    }
+      //SUPERADMIN (NO PROFILE)
+      if (group.toLowerCase() === "superadmin") {
+        setUserData({
+          firstName: localStorage.getItem("first_name") || "Super Admin",
+          role: "employee", // UI role
+        });
+        return;
+      }
+    } catch (err) {
+      if (err?.response) {
+        console.warn(
+          "User fetch failed:",
+          err.response.status,
+          err.response.data
+        );
+      } } finally {
+        setIsLoading(false);
+          }
   };
+
 
   useEffect(() => {
     fetchUserData();
@@ -243,7 +244,7 @@ export default function Navbar({ content }) {
 
   const handleLogout = async () => {
     const userId = localStorage.getItem("user_id");
-    const role = normalizeRole(localStorage.getItem("role"));
+    const role = localStorage.getItem("role");
 
     if (userId && role === "client") {
       const userDataKeys = [

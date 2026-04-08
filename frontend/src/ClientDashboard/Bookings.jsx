@@ -31,39 +31,16 @@ function Bookings() {
       // Log one booking so we can see the shape of serviceid and status
       if (bookingsData.length > 0) {
         console.log("Booking sample:", bookingsData[0]);
-        console.log("serviceid value:", bookingsData[0].serviceid);
         console.log("Status value:", bookingsData[0].status);
         console.log("All keys:", Object.keys(bookingsData[0]));
       }
 
-      const enrichedBookings = await Promise.all(
-        bookingsData.map(async (booking) => {
-          let serviceDetails = null;
-
-          // Case 1: serviceid is already a nested object from the serializer
-          if (typeof booking.serviceid === "object" && booking.serviceid !== null) {
-            serviceDetails = booking.serviceid;
-          }
-          // Case 2: serviceid is a plain number/string — fetch it
-          else if (booking.serviceid) {
-            try {
-              const serviceResponse = await AxiosInstance.get(
-                `core/services/${booking.serviceid}/`
-              );
-              serviceDetails = serviceResponse.data;
-            } catch (err) {
-              console.error(`Error fetching service ${booking.serviceid}:`, err);
-            }
-          }
-
-          return {
-            ...booking,
-            serviceDetails,
-            date: booking.appointmenttime ? new Date(booking.appointmenttime) : null,
-            status: booking.status?.toLowerCase(),
-          };
-        })
-      );
+      const enrichedBookings = bookingsData.map((booking) => ({
+        ...booking,
+        serviceDetails: booking.service,
+        date: booking.appointmenttime ? new Date(booking.appointmenttime) : null,
+        status: booking.status?.toLowerCase(),
+      }));
 
       enrichedBookings.sort((a, b) => {
         if (!a.date) return 1;

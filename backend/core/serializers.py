@@ -277,38 +277,51 @@ class UserImageSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(f"/core/profiles/{obj.id}/bytes/")
 
 # Employee Serializer
-class EmployeeSerializer(serializers.ModelSerializer):
-    user_id = serializers.IntegerField(source="user.id", read_only=True)
-    email = serializers.EmailField(source="user.email", read_only=True)
+from django.contrib.auth.models import Group
 
+class EmployeeSerializer(serializers.ModelSerializer):
+    # ---- IDs ----
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+
+    # ---- User fields (read-only) ----
+    email = serializers.EmailField(source="user.email", read_only=True)
+    employee_number = serializers.CharField(
+        source="user.employee_number",
+        read_only=True
+    )
+
+    role = serializers.CharField(
+        source="user.role",
+        read_only=True
+    )
+
+    group = serializers.SerializerMethodField()
+
+    # ---- Employee profile fields ----
     firstname = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     lastname = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     phonenumber = serializers.CharField(allow_null=True, allow_blank=True, required=False)
 
-    # Return full address
     address = AddressSerializer(source="addressid", read_only=True)
-
-    # Accept only the ID for assignment
-    addressid = serializers.PrimaryKeyRelatedField(
-        queryset=Address.objects.all(),
-        write_only=True,
-        allow_null=True,
-        required=False
-    )
 
     class Meta:
         model = Employee
         fields = [
             "employeeid",
             "user_id",
+            "email",
+            "employee_number",
+            "role",
+            "group",
             "firstname",
             "lastname",
             "phonenumber",
-            "email",
             "address",
-            "addressid",
         ]
-        read_only_fields = ["employeeid"]
+
+    def get_group(self, obj):
+        group = obj.user.groups.first()
+        return group.name if group else None
 
     def create(self, validated_data):
         return Employee.objects.create(**validated_data)
