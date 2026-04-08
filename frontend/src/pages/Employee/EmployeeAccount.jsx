@@ -1,23 +1,280 @@
 import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Typography,
-  Paper,
-  TextField,
-  Button,
-  Divider,
-  Avatar,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  CircularProgress,
-} from "@mui/material";
 import AxiosInstance from "../../components/AxiosInstance";
 
 const GREEN = "#1c3d37";
 const GREEN_MID = "#2e6b5e";
+const GREEN_LIGHT = "#e1f5ee";
+
+const styles = {
+  page: {
+    padding: "2rem",
+    fontFamily: "inherit",
+  },
+  title: {
+    fontSize: "1.75rem",
+    fontWeight: 800,
+    color: GREEN,
+    letterSpacing: "0.05em",
+    marginBottom: "1.5rem",
+  },
+  container: {
+    display: "grid",
+    gridTemplateColumns: "1fr 2fr",
+    gap: "1.5rem",
+    alignItems: "start",
+  },
+  card: {
+    background: "#fff",
+    border: "1px solid #e0e0e0",
+    borderRadius: "12px",
+    padding: "1.5rem",
+  },
+  sectionTitle: {
+    fontSize: "0.85rem",
+    fontWeight: 800,
+    color: GREEN,
+    letterSpacing: "0.08em",
+    marginBottom: "1.25rem",
+    borderBottom: `2px solid ${GREEN_LIGHT}`,
+    paddingBottom: "0.5rem",
+  },
+  avatarWrapper: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "0.75rem",
+    marginBottom: "1.25rem",
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: "50%",
+    objectFit: "cover",
+    border: `3px solid ${GREEN}`,
+  },
+  avatarInitials: {
+    width: 100,
+    height: 100,
+    borderRadius: "50%",
+    background: GREEN_LIGHT,
+    border: `3px solid ${GREEN}`,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "2rem",
+    fontWeight: 800,
+    color: GREEN,
+  },
+  fileNote: {
+    fontSize: "0.75rem",
+    color: "#888",
+    textAlign: "center",
+  },
+  fileError: {
+    fontSize: "0.75rem",
+    color: "#c0392b",
+    textAlign: "center",
+    background: "#fdecea",
+    borderRadius: "6px",
+    padding: "0.4rem 0.75rem",
+  },
+  chooseBtn: {
+    display: "inline-block",
+    padding: "0.4rem 1rem",
+    border: `1.5px solid ${GREEN}`,
+    borderRadius: "6px",
+    color: GREEN,
+    fontSize: "0.8rem",
+    fontWeight: 800,
+    cursor: "pointer",
+    letterSpacing: "0.05em",
+    background: "transparent",
+    transition: "background 0.15s",
+  },
+  removeBtn: {
+    padding: "0.4rem 1rem",
+    border: "1.5px solid #c0392b",
+    borderRadius: "6px",
+    color: "#c0392b",
+    fontSize: "0.8rem",
+    fontWeight: 800,
+    cursor: "pointer",
+    background: "transparent",
+  },
+  saveImgBtn: {
+    padding: "0.4rem 1.25rem",
+    background: GREEN,
+    border: "none",
+    borderRadius: "6px",
+    color: "#fff",
+    fontSize: "0.8rem",
+    fontWeight: 800,
+    cursor: "pointer",
+    letterSpacing: "0.05em",
+  },
+  infoGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "1rem 1.5rem",
+  },
+  infoItem: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.2rem",
+  },
+  infoItemFull: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.2rem",
+    gridColumn: "1 / -1",
+  },
+  infoLabel: {
+    fontSize: "0.72rem",
+    fontWeight: 800,
+    color: "#888",
+    letterSpacing: "0.08em",
+  },
+  infoValue: {
+    fontSize: "0.95rem",
+    color: "#222",
+    fontWeight: 500,
+  },
+  divider: {
+    border: "none",
+    borderTop: `1px solid ${GREEN_LIGHT}`,
+    margin: "1.25rem 0",
+  },
+  input: {
+    width: "100%",
+    padding: "0.5rem 0.75rem",
+    border: "1px solid #ccc",
+    borderRadius: "6px",
+    fontSize: "0.95rem",
+    boxSizing: "border-box",
+    outline: "none",
+    fontFamily: "inherit",
+  },
+  inputGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.75rem",
+    marginBottom: "1rem",
+  },
+  label: {
+    fontSize: "0.78rem",
+    fontWeight: 700,
+    color: "#555",
+    letterSpacing: "0.04em",
+    marginBottom: "0.2rem",
+    display: "block",
+  },
+  btnPrimary: {
+    width: "100%",
+    padding: "0.55rem",
+    background: GREEN,
+    color: "#fff",
+    border: "none",
+    borderRadius: "6px",
+    fontWeight: 800,
+    fontSize: "0.9rem",
+    cursor: "pointer",
+    letterSpacing: "0.03em",
+  },
+  btnOutlined: {
+    width: "100%",
+    padding: "0.55rem",
+    background: "transparent",
+    color: GREEN,
+    border: `1.5px solid ${GREEN}`,
+    borderRadius: "6px",
+    fontWeight: 800,
+    fontSize: "0.9rem",
+    cursor: "pointer",
+  },
+  messageAlert: {
+    padding: "0.6rem 1rem",
+    borderRadius: "6px",
+    marginBottom: "1rem",
+    fontSize: "0.9rem",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.4)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  modal: {
+    background: "#fff",
+    borderRadius: "12px",
+    padding: "1.5rem",
+    width: 380,
+    maxWidth: "90vw",
+    boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+  },
+  modalTitle: {
+    fontWeight: 800,
+    fontSize: "1.1rem",
+    color: GREEN,
+    marginBottom: "0.75rem",
+  },
+  modalText: {
+    fontSize: "0.9rem",
+    color: "#444",
+    marginBottom: "1.25rem",
+    lineHeight: 1.5,
+  },
+  modalActions: {
+    display: "flex",
+    gap: "0.75rem",
+    justifyContent: "flex-end",
+  },
+  modalCancel: {
+    padding: "0.45rem 1rem",
+    background: "transparent",
+    border: "1px solid #ccc",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: 700,
+    fontSize: "0.85rem",
+  },
+  modalConfirm: {
+    padding: "0.45rem 1.25rem",
+    background: GREEN,
+    color: "#fff",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: 800,
+    fontSize: "0.85rem",
+  },
+};
+
+const DEFAULT_IMAGE = null;
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+function ConfirmModal({ open, title, message, onConfirm, onCancel, saving }) {
+  if (!open) return null;
+  return (
+    <div style={styles.overlay}>
+      <div style={styles.modal}>
+        <div style={styles.modalTitle}>{title}</div>
+        <div style={styles.modalText}>{message}</div>
+        <div style={styles.modalActions}>
+          <button style={styles.modalCancel} onClick={onCancel} disabled={saving}>Cancel</button>
+          <button style={styles.modalConfirm} onClick={onConfirm} disabled={saving}>
+            {saving ? "Saving…" : "Confirm"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function EmployeeAccount() {
   const [employeeId, setEmployeeId] = useState(localStorage.getItem("employee_id") || "");
@@ -28,15 +285,16 @@ export default function EmployeeAccount() {
     email: localStorage.getItem("email") || "",
   });
 
-  const [password, setPassword] = useState({
-    old_password: "",
-    new_password: "",
-    confirm: "",
-  });
-
+  const [password, setPassword] = useState({ old_password: "", new_password: "", confirm: "" });
   const [emailCurrentPassword, setEmailCurrentPassword] = useState("");
-  const [previewImage, setPreviewImage] = useState(null);
+
+  const [selectedImage, setSelectedImage] = useState(localStorage.getItem("profileImage") || null);
+  const [fileError, setFileError] = useState("");
+  const [fileSize, setFileSize] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
   const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState({ type: "", text: "" });
 
   const [emailConfirmOpen, setEmailConfirmOpen] = useState(false);
   const [passwordConfirmOpen, setPasswordConfirmOpen] = useState(false);
@@ -51,7 +309,6 @@ export default function EmployeeAccount() {
           rows.find((r) => String(r.employeeid) === String(employeeId)) ||
           rows[0] ||
           null;
-
         if (myRow) {
           setEmployeeId(String(myRow.employeeid));
           setProfile({
@@ -61,86 +318,98 @@ export default function EmployeeAccount() {
             email: myRow.email || localStorage.getItem("email") || "",
           });
         }
-      } catch (error) {
-        console.error("Account load error:", error);
+      } catch (err) {
+        console.error("Account load error:", err);
+        showMessage("error", "Failed to load profile.");
       } finally {
         setLoading(false);
       }
     };
-
     loadProfile();
-  }, [employeeId]);
+  }, []);
 
-  const handleProfileChange = (field, value) => {
-    setProfile((prev) => ({ ...prev, [field]: value }));
+  const showMessage = (type, text) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage({ type: "", text: "" }), 3500);
   };
 
-  const handleImageChange = (event) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const preview = URL.createObjectURL(file);
-      setPreviewImage(preview);
-      localStorage.setItem("profileImage", preview);
+  const formatFileSize = (bytes) => {
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_FILE_SIZE) {
+      setFileError(`File too large. Max 5MB. Your file: ${formatFileSize(file.size)}`);
+      setFileSize(file.size);
+      return;
+    }
+    setFileError("");
+    setFileSize(file.size);
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => { setSelectedImage(ev.target.result); setIsUploading(false); };
+    reader.onerror = () => { setFileError("Error reading file."); setIsUploading(false); };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveImage = () => {
+    if (selectedImage) {
+      localStorage.setItem("profileImage", selectedImage);
+      window.dispatchEvent(new Event("storage"));
+      showMessage("success", "Profile picture saved!");
     }
   };
 
-  const handleSaveProfile = async () => {
-    try {
-      if (employeeId) {
-        await AxiosInstance.patch(`core/employees/me/`, {
-          firstname: profile.firstname,
-          lastname: profile.lastname,
-          phonenumber: profile.phonenumber,
-        });
-      }
-      localStorage.setItem("email", profile.email);
-      localStorage.setItem("first_name", profile.firstname);
-      localStorage.setItem("last_name", profile.lastname);
-      alert("Profile updated successfully.");
-    } catch (error) {
-      console.error("Profile update error:", error);
-      alert("Profile update failed.");
+  const handleRemoveImage = () => {
+    if (window.confirm("Remove your profile picture?")) {
+      localStorage.removeItem("profileImage");
+      window.dispatchEvent(new Event("storage"));
+      setSelectedImage(null);
+      setFileError("");
+      setFileSize(null);
+      showMessage("success", "Profile picture removed.");
     }
   };
 
-  const handleUpdateEmailClick = async () => {
-  if (!profile.email) {
-    alert("Please enter a new email address.");
-    return;
-  }
-  if (!emailCurrentPassword) {
-    alert("Please enter your current password to update your email.");
-    return;
-  }
-    setEmailConfirmOpen(true); // only opens if password was correct
-};
+  const hasImageChanged = () => selectedImage !== (localStorage.getItem("profileImage") || null);
+
+  const handleUpdateEmailClick = () => {
+    if (!profile.email) { showMessage("error", "Please enter a new email."); return; }
+    if (!emailCurrentPassword) { showMessage("error", "Please enter your current password."); return; }
+    setEmailConfirmOpen(true);
+  };
 
   const handleEmailConfirm = async () => {
     setSaving(true);
     try {
-      if (employeeId) {
-        await AxiosInstance.patch(`core/employees/me/`, {
-          email: profile.email,
-        });
-      }
+      await AxiosInstance.patch("core/employees/me/", { email: profile.email });
       try {
-        await AxiosInstance.post("change-email/", {
-          email: profile.email,
-          current_password: emailCurrentPassword,
-        });
-      } catch (emailErr) {
-        console.warn("Email update endpoint warning:", emailErr);
-      }
+        await AxiosInstance.post("change-email/", { email: profile.email, current_password: emailCurrentPassword });
+      } catch {}
       localStorage.setItem("email", profile.email);
       setEmailConfirmOpen(false);
       setEmailCurrentPassword("");
-      alert("Email updated successfully.");
-    } catch (error) {
-      console.error("Email update error:", error);
-      alert("Email update failed.");
+      showMessage("success", "Email updated successfully.");
+    } catch {
+      showMessage("error", "Email update failed.");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleChangePasswordClick = () => {
+    if (!password.old_password || !password.new_password || !password.confirm) {
+      showMessage("error", "Please fill in all password fields."); return;
+    }
+    if (password.new_password !== password.confirm) {
+      showMessage("error", "New passwords do not match."); return;
+    }
+    setPasswordConfirmOpen(true);
   };
 
   const handlePasswordConfirm = async () => {
@@ -151,256 +420,193 @@ export default function EmployeeAccount() {
         new_password: password.new_password,
       });
       setPasswordConfirmOpen(false);
-      alert("Password changed successfully.");
       setPassword({ old_password: "", new_password: "", confirm: "" });
-    } catch (error) {
-      console.error("Password change error:", error);
-      alert("Password update failed. Make sure your current password is correct and that new password falls within guidelines.");
+      showMessage("success", "Password changed successfully.");
+    } catch {
+      showMessage("error", "Password update failed. Check your current password and try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleChangePasswordClick = () => {
-    if (!password.old_password || !password.new_password || !password.confirm) {
-      alert("Please fill in all password fields.");
-      return;
-    }
-    if (password.new_password !== password.confirm) {
-      alert("New password and confirm password do not match.");
-      return;
-    }
-    setPasswordConfirmOpen(true);
+  const initials = `${profile.firstname?.[0] || ""}${profile.lastname?.[0] || ""}`.toUpperCase();
+
+  const msgColors = {
+    success: { background: "#e6f4ea", color: "#1c6b3a", border: "1px solid #a8d5b5" },
+    error: { background: "#fdecea", color: "#8b0000", border: "1px solid #f5c6c6" },
   };
 
-  // ── Shared style tokens (mirrored from AdminDashboard) ──
-  const btnStyle = {
-    bgcolor: GREEN,
-    "&:hover": { bgcolor: GREEN_MID },
-    borderRadius: 2,
-    textTransform: "none",
-    fontWeight: 800,
-  };
-
-  const outlinedBtnStyle = {
-    color: GREEN,
-    borderColor: GREEN,
-    borderRadius: 2,
-    textTransform: "none",
-    fontWeight: 800,
-    "&:hover": { borderColor: GREEN_MID, color: GREEN_MID },
-  };
-
-  const cancelBtnStyle = {
-    color: "text.secondary",
-    textTransform: "none",
-    fontWeight: 800,
-  };
+  if (loading) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.title}>ACCOUNT SETTINGS</div>
+        <p style={{ color: GREEN }}>Loading account...</p>
+      </div>
+    );
+  }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
-        Account Settings
-      </Typography>
-
-      {/* ── Email Confirmation Dialog ── */}
-      <Dialog open={emailConfirmOpen} onClose={() => !saving && setEmailConfirmOpen(false)}>
-        <DialogTitle sx={{ fontWeight: 800, color: GREEN }}>Update Email</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to change your email to{" "}
-            <strong>{profile.email}</strong>? You may need to verify your new
-            email address.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={() => setEmailConfirmOpen(false)}
-            disabled={saving}
-            sx={cancelBtnStyle}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleEmailConfirm}
-            disabled={saving}
-            endIcon={saving && <CircularProgress size={14} color="inherit" />}
-            sx={btnStyle}
-          >
-            {saving ? "Updating…" : "Yes, Update Email"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── Password Confirmation Dialog ── */}
-      <Dialog
+    <div style={styles.page}>
+      <ConfirmModal
+        open={emailConfirmOpen}
+        title="Update Email"
+        message={`Are you sure you want to change your email to ${profile.email}?`}
+        onConfirm={handleEmailConfirm}
+        onCancel={() => !saving && setEmailConfirmOpen(false)}
+        saving={saving}
+      />
+      <ConfirmModal
         open={passwordConfirmOpen}
-        onClose={() => !saving && setPasswordConfirmOpen(false)}
-      >
-        <DialogTitle sx={{ fontWeight: 800, color: GREEN }}>Change Password</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to change your password? You will need to use
-            your new password next time you log in.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={() => setPasswordConfirmOpen(false)}
-            disabled={saving}
-            sx={cancelBtnStyle}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handlePasswordConfirm}
-            disabled={saving}
-            endIcon={saving && <CircularProgress size={14} color="inherit" />}
-            sx={btnStyle}
-          >
-            {saving ? "Changing…" : "Yes, Change Password"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        title="Change Password"
+        message="Are you sure you want to change your password? You'll need to use the new one next time you log in."
+        onConfirm={handlePasswordConfirm}
+        onCancel={() => !saving && setPasswordConfirmOpen(false)}
+        saving={saving}
+      />
 
-      {loading ? (
-        <Typography sx={{ color: GREEN }}>Loading account...</Typography>
-      ) : (
-        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-          {/* ── Profile Info ── */}
-          <Paper elevation={1} sx={{ p: 2, borderRadius: 2, display: "flex", flexDirection: "column" }}>
-            <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
-              Profile Information
-            </Typography>
+      <div style={styles.title}>ACCOUNT SETTINGS</div>
 
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                mb: 2,
-              }}
-            >
-              <Avatar
-                src={previewImage || localStorage.getItem("profileImage") || ""}
-                sx={{ width: 100, height: 100, mb: 2, border: `2px solid ${GREEN}` }}
-              >
-                {!previewImage && profile.firstname?.[0]?.toUpperCase()}
-              </Avatar>
-
-              <Button variant="outlined" component="label" sx={outlinedBtnStyle}>
-                Upload Profile Picture
-                <input type="file" hidden accept="image/*" onChange={handleImageChange} />
-              </Button>
-
-              <Typography variant="body2" sx={{ mt: 1, opacity: 0.7, color: GREEN }}>
-                Preview works now. Saving profile pictures to backend still needs
-                an image upload endpoint.
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2, flexGrow: 1 }}>
-              <TextField
-                label="First Name"
-                value={profile.firstname}
-                onChange={(e) => handleProfileChange("firstname", e.target.value)}
-                fullWidth
-                slotProps={{ htmlInput: { maxLength: 50 } }}
-              />
-              <TextField
-                label="Last Name"
-                value={profile.lastname}
-                onChange={(e) => handleProfileChange("lastname", e.target.value)}
-                fullWidth
-                slotProps={{ htmlInput: { maxLength: 50 } }}
-              />
-              <TextField
-                label="Phone Number"
-                value={profile.phonenumber}
-                onChange={(e) => handleProfileChange("phonenumber", e.target.value)}
-                fullWidth
-                slotProps={{ htmlInput: { maxLength: 12 } }}
-              />
-              <Button variant="contained" onClick={handleSaveProfile} sx={{ ...btnStyle, mt: "auto" }}>
-                Save Profile
-              </Button>
-            </Box>
-          </Paper>
-
-          {/* ── Security ── */}
-          <Paper elevation={1} sx={{ p: 2, borderRadius: 2, display: "flex", flexDirection: "column" }}>
-            <Typography variant="h6" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
-              Security
-            </Typography>
-
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2, flexGrow: 1 }}>
-              {/* ── Email Section ── */}
-              <TextField
-                label="New Email"
-                type="email"
-                value={profile.email}
-                onChange={(e) => handleProfileChange("email", e.target.value)}
-                fullWidth
-                slotProps={{ htmlInput: { maxLength: 50 } }}
-              />
-              <TextField
-                label="Current Password"
-                type="password"
-                value={emailCurrentPassword}
-                onChange={(e) => setEmailCurrentPassword(e.target.value)}
-                fullWidth
-                slotProps={{ htmlInput: { maxLength: 16 } }}
-              />
-              <Button
-                variant="outlined"
-                onClick={handleUpdateEmailClick}
-                sx={outlinedBtnStyle}
-              >
-                Update Email
-              </Button>
-
-              <Divider sx={{ my: 1 }} />
-
-              {/* ── Password Section ── */}
-              <TextField
-                label="Current Password"
-                type="password"
-                value={password.old_password}
-                onChange={(e) =>
-                  setPassword((prev) => ({ ...prev, old_password: e.target.value }))
-                }
-                fullWidth
-                slotProps={{ htmlInput: { maxLength: 16 } }}
-              />
-              <TextField
-                label="New Password"
-                type="password"
-                value={password.new_password}
-                onChange={(e) =>
-                  setPassword((prev) => ({ ...prev, new_password: e.target.value }))
-                }
-                fullWidth
-                slotProps={{ htmlInput: { maxLength: 16 } }}
-              />
-              <TextField
-                label="Confirm New Password"
-                type="password"
-                value={password.confirm}
-                onChange={(e) =>
-                  setPassword((prev) => ({ ...prev, confirm: e.target.value }))
-                }
-                fullWidth
-                slotProps={{ htmlInput: { maxLength: 16 } }}
-              />
-              <Button variant="contained" onClick={handleChangePasswordClick} sx={btnStyle}>
-                Change Password
-              </Button>
-            </Box>
-          </Paper>
-        </Box>
+      {message.text && (
+        <div style={{ ...styles.messageAlert, ...msgColors[message.type] }}>
+          <span>{message.text}</span>
+          <button
+            onClick={() => setMessage({ type: "", text: "" })}
+            style={{ background: "none", border: "none", cursor: "pointer", fontWeight: 800, fontSize: "1rem", color: "inherit" }}
+          >×</button>
+        </div>
       )}
-    </Box>
+
+      <div style={styles.container}>
+        {/* ── Left: Profile Image ── */}
+        <div style={styles.card}>
+          <div style={styles.sectionTitle}>PROFILE PICTURE</div>
+          <div style={styles.avatarWrapper}>
+            {selectedImage
+              ? <img src={selectedImage} alt="Profile" style={styles.avatar} />
+              : <div style={styles.avatarInitials}>{initials || "?"}</div>
+            }
+
+            {fileSize && !fileError && (
+              <span style={styles.fileNote}>Size: {formatFileSize(fileSize)}</span>
+            )}
+            {fileError && <div style={styles.fileError}>{fileError}</div>}
+            {isUploading && <span style={styles.fileNote}>Uploading…</span>}
+
+            <label style={styles.chooseBtn}>
+              CHOOSE IMAGE
+              <input type="file" accept="image/*" onChange={handleImageUpload} disabled={isUploading} style={{ display: "none" }} />
+            </label>
+
+            {selectedImage && (
+              <button style={styles.removeBtn} onClick={handleRemoveImage} disabled={isUploading}>REMOVE</button>
+            )}
+
+            {hasImageChanged() && !fileError && (
+              <button style={styles.saveImgBtn} onClick={handleSaveImage} disabled={isUploading}>SAVE IMAGE</button>
+            )}
+
+            <span style={styles.fileNote}>Max 5MB · JPG, PNG, WEBP</span>
+          </div>
+        </div>
+
+        {/* ── Right: Info + Security ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+
+          {/* Personal Information (display-only, like ClientProfile) */}
+          <div style={styles.card}>
+            <div style={styles.sectionTitle}>PERSONAL INFORMATION</div>
+            <div style={styles.infoGrid}>
+              <div style={styles.infoItem}>
+                <span style={styles.infoLabel}>FIRST NAME</span>
+                <span style={styles.infoValue}>{profile.firstname || "—"}</span>
+              </div>
+              <div style={styles.infoItem}>
+                <span style={styles.infoLabel}>LAST NAME</span>
+                <span style={styles.infoValue}>{profile.lastname || "—"}</span>
+              </div>
+              <div style={styles.infoItem}>
+                <span style={styles.infoLabel}>EMAIL</span>
+                <span style={styles.infoValue}>{profile.email || "—"}</span>
+              </div>
+              <div style={styles.infoItem}>
+                <span style={styles.infoLabel}>PHONE NUMBER</span>
+                <span style={styles.infoValue}>{profile.phonenumber || "—"}</span>
+              </div>
+              <div style={styles.infoItem}>
+                <span style={styles.infoLabel}>EMPLOYEE ID</span>
+                <span style={styles.infoValue}>{employeeId || "—"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Security */}
+          <div style={styles.card}>
+            <div style={styles.sectionTitle}>SECURITY</div>
+
+            {/* Email update */}
+            <div style={styles.inputGroup}>
+              <div>
+                <label style={styles.label}>NEW EMAIL</label>
+                <input
+                  style={styles.input}
+                  type="email"
+                  maxLength={50}
+                  value={profile.email}
+                  onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label style={styles.label}>CURRENT PASSWORD</label>
+                <input
+                  style={styles.input}
+                  type="password"
+                  maxLength={16}
+                  value={emailCurrentPassword}
+                  onChange={(e) => setEmailCurrentPassword(e.target.value)}
+                />
+              </div>
+              <button style={styles.btnOutlined} onClick={handleUpdateEmailClick}>Update Email</button>
+            </div>
+
+            <hr style={styles.divider} />
+
+            {/* Password change */}
+            <div style={styles.inputGroup}>
+              <div>
+                <label style={styles.label}>CURRENT PASSWORD</label>
+                <input
+                  style={styles.input}
+                  type="password"
+                  maxLength={16}
+                  value={password.old_password}
+                  onChange={(e) => setPassword((p) => ({ ...p, old_password: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label style={styles.label}>NEW PASSWORD</label>
+                <input
+                  style={styles.input}
+                  type="password"
+                  maxLength={16}
+                  value={password.new_password}
+                  onChange={(e) => setPassword((p) => ({ ...p, new_password: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label style={styles.label}>CONFIRM NEW PASSWORD</label>
+                <input
+                  style={styles.input}
+                  type="password"
+                  maxLength={16}
+                  value={password.confirm}
+                  onChange={(e) => setPassword((p) => ({ ...p, confirm: e.target.value }))}
+                />
+              </div>
+              <button style={styles.btnPrimary} onClick={handleChangePasswordClick}>Change Password</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
