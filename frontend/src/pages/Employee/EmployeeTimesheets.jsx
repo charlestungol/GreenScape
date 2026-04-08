@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Typography, Paper, Button, Table, TableHead, TableRow, TableCell, TableBody } from "@mui/material";
 import AxiosInstance from "../../components/AxiosInstance";
+import { Box, Typography, Paper, Button, Table, TableHead, TableRow, TableCell, TableBody,
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select,
+  InputLabel, FormControl, Stack } from "@mui/material";
 
 const GREEN = "#1c3d37";
 
@@ -31,6 +33,9 @@ export default function EmployeeTimesheets() {
   const [weekAnchor, setWeekAnchor] = useState(() => mondayOf(new Date()));
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState({ employeeId: "", dateKey: "", startTime: "09:00", endTime: "17:00" });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const loadSchedules = async () => {
@@ -86,6 +91,32 @@ export default function EmployeeTimesheets() {
       .join(", ");
   };
 
+  const handleFormChange = (field) => (e) => {
+  setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    };
+
+  const handleSave = async () => {
+  const { employeeId, dateKey, startTime, endTime } = form;
+  if (!employeeId || !dateKey || !startTime || !endTime) return alert("Please fill in all fields.");
+  if (startTime >= endTime) return alert("End time must be after start time.");
+  setSaving(true);
+  try {
+    await AxiosInstance.post("core/schedules/", {
+      employee: employeeId,
+      starttime: new Date(`${dateKey}T${startTime}:00`).toISOString(),
+      endtime: new Date(`${dateKey}T${endTime}:00`).toISOString(),
+    });
+    alert("Schedule added!");
+    setModalOpen(false);
+    const res = await AxiosInstance.get("core/schedules/");
+    setSchedules(res.data?.results || res.data || []);
+  } catch (err) {
+    alert("Failed to save schedule.");
+  } finally {
+    setSaving(false);
+  }
+    };
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
@@ -102,6 +133,20 @@ export default function EmployeeTimesheets() {
         <Typography variant="body1" sx={{ ml: 2, alignSelf: "center", fontWeight: 700 }}>
           Week of {toKey(weekAnchor)}
         </Typography>
+          <Button
+            variant="contained"
+            onClick={() => setModalOpen(true)}
+            sx={{
+              ml: "auto",
+              bgcolor: GREEN,
+              "&:hover": { bgcolor: "#264d45" },
+              borderRadius: 2,
+              fontWeight: 700,
+              textTransform: "none",
+            }}
+        >
+          + Add Schedule
+        </Button>
       </Box>
 
       {loading ? (
@@ -147,6 +192,35 @@ export default function EmployeeTimesheets() {
           </Table>
         </Paper>
       )}
-    </Box>
+      <Dialog open={modalOpen} onClose={() => setModalOpen(false)} maxWidth="xs" fullWidth>
+      <DialogTitle sx={{ fontWeight: 800, color: GREEN }}>Add Work Schedule</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2.5} sx={{ mt: 0.5 }}>
+          <FormControl fullWidth size="small">
+            <InputLabel>Employee</InputLabel>
+            <Select label="Employee" value={form.employeeId} onChange={handleFormChange("employeeId")}>
+              {employees.map((emp) => (
+                <MenuItem key={emp.id} value={emp.id}>{emp.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField label="Date" type="date" size="small" fullWidth value={form.dateKey}
+            onChange={handleFormChange("dateKey")} InputLabelProps={{ shrink: true }} />
+          <TextField label="Start Time" type="time" size="small" fullWidth value={form.startTime}
+            onChange={handleFormChange("startTime")} InputLabelProps={{ shrink: true }} />
+          <TextField label="End Time" type="time" size="small" fullWidth value={form.endTime}
+            onChange={handleFormChange("endTime")} InputLabelProps={{ shrink: true }} />
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button onClick={() => setModalOpen(false)} disabled={saving}>Cancel</Button>
+        <Button variant="contained" onClick={handleSave} disabled={saving}
+          sx={{ bgcolor: GREEN, "&:hover": { bgcolor: "#264d45" }, textTransform: "none", fontWeight: 700 }}>
+          {saving ? "Saving…" : "Save Schedule"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  </Box>
   );
 }
+
