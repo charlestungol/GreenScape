@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -33,6 +34,7 @@ export default function EmployeeManagement() {
   const [openAdd, setOpenAdd] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const fetchEmployees = async () => {
     try {
@@ -128,6 +130,21 @@ export default function EmployeeManagement() {
           Employee Management
         </Typography>
 
+        <Box sx={{ display: "flex", gap: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => navigate("/employee/timesheets")}
+            sx={{
+              borderColor: GREEN,
+              color: GREEN,
+              "&:hover": { borderColor: "#16302b", backgroundColor: "#f0f5f4" },
+              textTransform: "none",
+              fontWeight: 600,
+            }}
+        >
+          View Timesheets
+        </Button>
+      
         <Button
           variant="contained"
           onClick={handleOpenAdd}
@@ -141,6 +158,7 @@ export default function EmployeeManagement() {
           Add Employee
         </Button>
       </Box>
+    </Box>
 
       <Paper elevation={1} sx={{ borderRadius: 3, overflow: "hidden" }}>
         <Table>
