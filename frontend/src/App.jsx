@@ -155,7 +155,7 @@ function App() {
           }
         />
         <Route
-          path="/employee/employee-management/timesheets"
+          path="/employee/timesheets"
           element={
             <RouteProtection allowedRole="employee">
               <EmployeeTimesheets />
