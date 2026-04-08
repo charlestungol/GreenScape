@@ -14,6 +14,8 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
+from corsheaders.defaults import default_headers
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -97,6 +99,10 @@ SIMPLE_JWT = {
 # Cookies settings for JWT
 CORS_ALLOW_CREDENTIALS = True
 
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "x-ignore-refresh",
+]
+
 # If using cookies, ensure the frontend is included in CSRF_TRUSTED_ORIGINS
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
@@ -120,6 +126,7 @@ JWT_AUTH_COOKIE_SECURE = False  # True in production
 
 # --- Google OAuth ---
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 
 # --- Google Captcha ---
 RECAPTCHA_PRIVATE_KEY = os.getenv("RECAPTCHA_PRIVATE_KEY")
@@ -147,11 +154,36 @@ INSTALLED_APPS = [
 
 LOGGING = {
     "version": 1,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "ERROR",
+    },
     "loggers": {
-        "django.core.mail": {"handlers": ["console"], "level": "DEBUG"},
-        "allauth": {"handlers": ["console"], "level": "INFO"},
-        "allauth.account": {"handlers": ["console"], "level": "INFO"},
+        "django": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "rest_framework": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.db.backends": {
+            "handlers": ["console"],
+            "level": "ERROR",
+        },
     },
 }
 

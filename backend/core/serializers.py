@@ -29,7 +29,11 @@ from .models import (
     Schedule,
     UserImage,
     RequestQuote,
-    ServiceLocation
+    ServiceLocation,
+    Budget,
+    Expense,
+    LocationService,
+    EmployeeAvailability
 );
 
 
@@ -233,29 +237,30 @@ class CustomerServiceSerializer(serializers.ModelSerializer):
     reqdate = serializers.DateField(validators=[validate_not_past_date])
     redyear = serializers.IntegerField(validators=[validate_not_past_year])
 
-
     # View customer data
-    customer = CustomerSerializer(source = "customerid", read_only = True)
+    customer = CustomerSerializer(source="customerid", read_only=True)
 
     # View Service
-    service = ServiceSerializer(source = "serviceid", read_only = True)
+    service = ServiceSerializer(source="serviceid", read_only=True)
 
-    # Have a customer
+    # Have a customer - make it optional since we set it in perform_create
     customerid = serializers.PrimaryKeyRelatedField(
-        queryset = Customer.objects.all(),  
-        write_only = True
+        queryset=Customer.objects.all(),
+        write_only=True,
+        required=False
     )
 
     # Have a service
     serviceid = serializers.PrimaryKeyRelatedField(
-        queryset = Service.objects.all(),
-        write_only = True
+        queryset=Service.objects.all(),
+        write_only=True,
+        required=True
     )
 
     class Meta:
         model = Customerservice
-        fields = ["customerid", "serviceid", "customer", "service", "createdat", "reqdate", "redyear", "completed"]
-        read_only_fields = ["createdat", "customer", "service"]
+        fields = ["customerserviceid", "customerid", "serviceid", "customer", "service", "createdat", "reqdate", "redyear", "completed"]
+        read_only_fields = ["createdat", "customer", "service", "customerserviceid"]
 
 # Service Image 
 class UserImageSerializer(serializers.ModelSerializer):
@@ -273,45 +278,63 @@ class UserImageSerializer(serializers.ModelSerializer):
         return request.build_absolute_uri(f"/core/profiles/{obj.id}/bytes/")
 
 # Employee Serializer
-# Employee Serializer
+from django.contrib.auth.models import Group
+
 class EmployeeSerializer(serializers.ModelSerializer):
+    # ---- IDs ----
     user_id = serializers.IntegerField(source="user.id", read_only=True)
-    firstname = serializers.CharField(
-        allow_null=True,
-        allow_blank=True,
-        required=False
-    )
-    lastname = serializers.CharField(
-        allow_null=True,
-        allow_blank=True,
-        required=False
-    )
-    phonenumber = serializers.CharField(
-        allow_null=True,
-        allow_blank=True,
-        required=False
-    )
-    email = serializers.EmailField(
-        source="user.email",
+
+    # ---- User fields (read-only) ----
+    email = serializers.EmailField(source="user.email", read_only=True)
+    employee_number = serializers.CharField(
+        source="user.employee_number",
         read_only=True
     )
-    address = AddressSerializer(source="addressid", read_only=True)
-    addressid = serializers.PrimaryKeyRelatedField(
-        queryset=Address.objects.all(),
-        write_only=True,
-        allow_null=True,
-        required=False
+
+    role = serializers.CharField(
+        source="user.role",
+        read_only=True
     )
+
+    group = serializers.SerializerMethodField()
+
+    # ---- Employee profile fields ----
+    firstname = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    lastname = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    phonenumber = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+
+    address = AddressSerializer(source="addressid", read_only=True)
 
     class Meta:
         model = Employee
-        fields = ["employeeid","user_id","firstname","lastname","phonenumber","email","address","addressid",]
-        read_only_fields = ["employeeid"]
+        fields = [
+            "employeeid",
+            "user_id",
+            "email",
+            "employee_number",
+            "role",
+            "group",
+            "firstname",
+            "lastname",
+            "phonenumber",
+            "address",
+        ]
+
+    def get_group(self, obj):
+        group = obj.user.groups.first()
+        return group.name if group else None
+
+    def create(self, validated_data):
+        return Employee.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        return super().update(instance, validated_data)
+
 
 # Booking Serializer
 class BookingSerializer(serializers.ModelSerializer):
     # Validators
-    appointmenttime = serializers.DateTimeField()  # Single datetime field
+    appointmenttime = serializers.DateTimeField()
     
     customer = CustomerSerializer(source="customerid", read_only=True)
     service = ServiceSerializer(source="serviceid", read_only=True)
@@ -333,45 +356,101 @@ class BookingSerializer(serializers.ModelSerializer):
             "customer", "service", 
             "appointmenttime", "status",
             "email", "phonenum"
-            ]
+        ]
         read_only_fields = ["bookingid", "customer", "service"]
 
+    def validate(self, data):
+        # Check for double booking
+        appointment_time = data.get('appointmenttime')
+        service = data.get('serviceid')
+        
+        if appointment_time and service:
+            # Check if this time slot is already booked (pending or confirmed)
+            if Booking.objects.filter(
+                appointmenttime=appointment_time,
+                serviceid=service,
+                status__in=['pending', 'confirmed']
+            ).exists():
+                raise serializers.ValidationError({
+                    "appointmenttime": "This time slot is already booked. Please select another time."
+                })
+        
+        return data
+
+    def validate_email(self, value):
+        """Validate email format"""
+        if value and len(value) > 30:
+            raise serializers.ValidationError("Email must not exceed 30 characters")
+        return value
+
+    def validate_phonenum(self, value):
+        """Validate phone number"""
+        if value:
+            # Remove any non-digit characters for validation
+            clean_phone = ''.join(filter(str.isdigit, value))
+            if len(clean_phone) < 10 or len(clean_phone) > 11:
+                raise serializers.ValidationError(
+                    "Phone number must have 10 or 11 digits"
+                )
+        return value
+
+    def validate_appointmenttime(self, value):
+        """Validate appointment time is in the future"""
+        from django.utils import timezone
+        
+        if value <= timezone.now():
+            raise serializers.ValidationError(
+                "Appointment time must be in the future"
+            )
+        return value
+    
 # Invoice Serializer
 class InvoiceSerializer(serializers.ModelSerializer):
-    customer = CustomerSerializer(source="customerid", read_only = True)
+    invoiceid = serializers.IntegerField(read_only=True)
+    invoicedate = serializers.DateTimeField(source="issuedate", read_only=True)
+    customer = CustomerSerializer(source="customerid", read_only=True)
     customerid = serializers.PrimaryKeyRelatedField(
-        queryset = Customer.objects.all(),
-        write_only = True
+        queryset=Customer.objects.all(),
+        write_only=True
     )
 
     class Meta:
         model = Invoice
-        fields = ["invoiceid", "customerid", "customer", "amount", "invoicedate", "status"]
-        read_only_fields = ["invoiceid", "customer", "service"]
+        fields = [
+            "invoiceid",
+            "customerid",
+            "customer",
+            "amount",
+            "invoicedate",
+        ]
+        read_only_fields = ["invoiceid", "customer", "invoicedate"]
 
 #Quote Serializer
 class QuoteSerializer(serializers.ModelSerializer):
-    # Validators
-    quotedate = serializers.DateField(validators=[validate_not_past])
-    
-
-    customer = CustomerSerializer(source="customerid", read_only = True)
-    service = ServiceSerializer(source="serviceid", read_only = True)
-
+    quoteid = serializers.IntegerField(source="quotesid", read_only=True)
+    customer = CustomerSerializer(source="customerid", read_only=True)
+    service = ServiceSerializer(source="serviceid", read_only=True)
     customerid = serializers.PrimaryKeyRelatedField(
-        queryset = Customer.objects.all(),
-        write_only = True
+        queryset=Customer.objects.all(),
+        write_only=True
     )
-
     serviceid = serializers.PrimaryKeyRelatedField(
-        queryset = Service.objects.all(),
-        write_only = True
+        queryset=Service.objects.all(),
+        write_only=True
     )
 
     class Meta:
         model = Quotes
-        fields = ["quoteid", "customerid", "serviceid", "customer", "service", "amount", "quotedate", "status"]
-        read_only_fields = ["quoteid", "customer", "service"]
+        fields = [
+            "quoteid",
+            "status",
+            "totalamount",
+            "customerid",
+            "serviceid",
+            "customer",
+            "service",
+        ]
+        read_only_fields = ["quoteid", "quotedate", "customer", "service"]
 
 # Schedule Serializer
 class ScheduleSerializer(serializers.ModelSerializer):
@@ -438,6 +517,9 @@ class RequestQuoteSerializer(serializers.ModelSerializer):
 #Service Location Serializer
 class ServiceLocationSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source='customerid.__str__', read_only=True)
+    
+    # Get services linked to this location through LocationService
+    services = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceLocation
@@ -448,8 +530,116 @@ class ServiceLocationSerializer(serializers.ModelSerializer):
             "province",
             "postalcode",
             "customerid",
-            "customer_name"
+            "customer_name",
+            "services"  
         ]
-        
-        read_only_fields = ["servicelocationid","customer_name"]
+        read_only_fields = ["servicelocationid", "customer_name", "services"]
 
+    def get_services(self, obj):
+        """Get all services linked to this specific location through LocationService"""
+        from .models import LocationService
+        
+        # Get location services linked to this location
+        location_services = LocationService.objects.filter(
+            servicelocationid=obj
+        ).select_related(
+            'customerserviceid__serviceid',
+            'customerserviceid__customerid'
+        ).order_by('-created_at')
+        
+        # Format the services data
+        services_data = []
+        for ls in location_services:
+            cs = ls.customerserviceid
+            if cs.serviceid:
+                services_data.append({
+                    'id': cs.customerserviceid,
+                    'service_id': cs.serviceid.serviceid,
+                    'title': cs.serviceid.title,
+                    'description': cs.serviceid.description,
+                    'base_price': str(cs.serviceid.baseprice),
+                    'req_date': cs.reqdate,
+                    'completed': cs.completed,
+                    'created_at': cs.createdat,
+                    'red_year': cs.redyear,
+                    'linked_at': ls.created_at,
+                })
+        
+        return services_data
+
+#Location Service
+class LocationServiceSerializer(serializers.ModelSerializer):
+    service_details = CustomerServiceSerializer(source='customerserviceid', read_only=True)
+    
+    class Meta:
+        model = LocationService
+        fields = ['locationserviceid', 'servicelocationid', 'customerserviceid', 'service_details', 'created_at']
+        read_only_fields = ['locationserviceid', 'created_at', 'service_details']
+
+#Budget & Expense
+class BudgetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Budget
+        fields = ['id', 'amount', 'updated_at']
+
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Expense
+        fields = ['id', 'name', 'amount', 'category', 'date']
+
+# Employee Availability Serializer
+from rest_framework import serializers
+from django.db.models import Q
+from .models import EmployeeAvailability
+
+class EmployeeAvailabilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeeAvailability
+        fields = [
+            "id",
+            "user",
+            "starttime",
+            "endtime",
+            "created_at",
+        ]
+        read_only_fields = ["created_at"]
+
+    def validate(self, data):
+        """
+        1. Ensure starttime < endtime
+        2. Prevent overlapping availability for the same user
+        """
+
+        start = data.get("starttime")
+        end = data.get("endtime")
+        user = data.get("user")
+
+        if not start or not end or not user:
+            return data
+
+        #Rule 1: time order
+        if start >= end:
+            raise serializers.ValidationError({
+                "endtime": "End time must be after start time."
+            })
+
+        #Rule 2: overlap check
+        qs = EmployeeAvailability.objects.filter(
+            user=user
+        ).filter(
+            Q(starttime__lt=end) & Q(endtime__gt=start)
+        )
+
+        #Allow updating the same record
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+
+        if qs.exists():
+            raise serializers.ValidationError({
+                "non_field_errors": [
+                    "This employee already has availability that overlaps with this time range."
+                ]
+            })
+
+        return data

@@ -13,6 +13,9 @@ import IconButton from "@mui/material/IconButton";
 import MenuIcon from "@mui/icons-material/Menu";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
+import BottomNavigation from "@mui/material/BottomNavigation";
+import BottomNavigationAction from "@mui/material/BottomNavigationAction";
+import Paper from "@mui/material/Paper";
 
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
@@ -23,7 +26,6 @@ import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import RequestQuoteIcon from "@mui/icons-material/RequestQuote";
 import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
-import CalculateIcon from '@mui/icons-material/Calculate';
 
 import Logo from "../assets/img/Logo.png";
 import DefaultProfilePic from "../assets/img/Profile.webp";
@@ -34,7 +36,6 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 
 const GREEN = "#1c3d37";
 const drawerWidth = 300;
-const EMPLOYEE_ROLES = ["employee", "admin", "supervisor", "staff", "superadmin"];
 
 const theme = createTheme({
   typography: {
@@ -98,7 +99,6 @@ const menuConfig = {
     { label: "DASHBOARD", path: "/home", icon: <DashboardIcon sx={{ color: "#1c3d37" }} /> },
     { label: "SERVICES", path: "/services", icon: <WaterDropIcon sx={{ color: "#1c3d37" }} /> },
     { label: "BOOKING", path: "/booking", icon: <CalendarMonthIcon sx={{ color: "#1c3d37" }} /> },
-    { label: "REQUEST QUOTE", path: "/request-quote", icon: <CalculateIcon sx={{ color: "#1c3d37" }} /> },
     { label: "SETTINGS", path: "/settings", icon: <SettingsIcon sx={{ color: "#1c3d37" }} /> },
   ],
   employee: [
@@ -145,6 +145,7 @@ const menuConfig = {
   ],
 };
 
+
 export default function Navbar({ content }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -152,58 +153,98 @@ export default function Navbar({ content }) {
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
-  const normalizeRole = (role) => {
-    return role === "client" ? "client" : "employee";
-  };
+  const [bottomNavValue, setBottomNavValue] = useState(0);
+  const [userData, setUserData] = useState({ firstName: "User", role: "client" });
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const fetchUserData = async () => {
+    setIsLoading(true);
 
+    try {
+      const role = localStorage.getItem("role"); // customer | employee | superadmin
+      const group = localStorage.getItem("group");
+      //CUSTOMER
+      if (role === "customer" && !group) {
+        
+  if (!profileReady) {
+        //customer EXISTS logically but profile is incomplete
+        setUserData({
+            firstName: "User",
+            role: "client",
+          });
+          setIsLoading(false);
+          return;
+        }
 
-  const getUserData = () => {
-    
-    const rawRole = localStorage.getItem("role") || "client";
-
-    const role = normalizeRole(rawRole);
-
-    let displayName = "User";
-
-    if (role === "employee") {
-      const firstName = localStorage.getItem("first_name");
-      const email = localStorage.getItem("email");
-      const employeeNumber = localStorage.getItem("employee_number");
-
-      if (firstName) displayName = firstName;
-      else if (employeeNumber) displayName = `Employee ${employeeNumber}`;
-      else if (email) displayName = email.split("@")[0];
-    } else {
-      const userId = localStorage.getItem("user_id");
-
-      if (userId) {
-        const userFirstName = localStorage.getItem(`user_${userId}_first_name`);
-        if (userFirstName) displayName = userFirstName;
+        const res = await AxiosInstance.get("core/customers/me/");
+        setUserData({
+          firstName: res.data.firstname || "User",
+          role: "client",
+        });
+        return;
       }
 
-      if (displayName === "User") {
-        const globalFirstName = localStorage.getItem("first_name");
-        const email = localStorage.getItem("email");
-
-        if (globalFirstName) displayName = globalFirstName;
-        else if (email) displayName = email.split("@")[0];
+      //EMPLOYEE
+      if (role === "employee" && group.toLowerCase() !== "superadmin") {
+        const res = await AxiosInstance.get("core/employees/me/");
+        setUserData({
+          firstName:
+            res.data.firstname ||
+            res.data.user?.email?.split("@")[0] ||
+            "Employee",
+          role: "employee",
+        });
+        return;
       }
-    }
 
-    return { firstName: displayName, role };
+      //SUPERADMIN (NO PROFILE)
+      if (group.toLowerCase() === "superadmin") {
+        setUserData({
+          firstName: localStorage.getItem("first_name") || "Super Admin",
+          role: "employee", // UI role
+        });
+        return;
+      }
+    } catch (err) {
+      if (err?.response) {
+        console.warn(
+          "User fetch failed:",
+          err.response.status,
+          err.response.data
+        );
+      } } finally {
+        setIsLoading(false);
+          }
   };
 
-  const [userData, setUserData] = useState(getUserData());
 
   useEffect(() => {
-    setUserData(getUserData());
+    fetchUserData();
+  }, []);
+
+  useEffect(() => {
+    fetchUserData();
   }, [location.pathname]);
 
   const menuItems = menuConfig[userData.role] || menuConfig.client;
 
+  // Create bottom nav items: first 4 menu items + logout button
+  const bottomNavItems = [
+    ...menuItems.slice(0, 4),
+    { label: "LOGOUT", path: "logout", icon: <LogoutIcon sx={{ color: "#9e2c2c" }} /> }
+  ];
+
+  // Find current index for bottom navigation
+  useEffect(() => {
+    const currentIndex = bottomNavItems.findIndex(item => item.path === path);
+    if (currentIndex !== -1) {
+      setBottomNavValue(currentIndex);
+    }
+  }, [path, bottomNavItems]);
+
   const handleLogout = async () => {
     const userId = localStorage.getItem("user_id");
-    const role = normalizeRole(localStorage.getItem("role"));
+    const role = localStorage.getItem("role");
 
     if (userId && role === "client") {
       const userDataKeys = [
@@ -328,7 +369,7 @@ export default function Navbar({ content }) {
           letterSpacing: "-0.01em",
         }}
       >
-        Welcome, {userData.firstName}!
+        {isLoading ? "Loading..." : `Welcome, ${userData.firstName}!`}
       </Typography>
 
       <Box sx={{ overflow: "auto", px: 2 }}>
@@ -391,13 +432,25 @@ export default function Navbar({ content }) {
     </>
   );
 
+  const handleBottomNavChange = (event, newValue) => {
+    const selectedItem = bottomNavItems[newValue];
+    
+    if (selectedItem.label === "LOGOUT") {
+      handleLogout();
+    } else {
+      setBottomNavValue(newValue);
+      navigate(selectedItem.path);
+    }
+  };
+
   return (
     <ThemeProvider theme={theme}>
-      <Box sx={{ display: "flex" }}>
+      <Box sx={{ display: "flex", pb: { xs: "56px", md: 0 } }}>
+        {/* Mobile AppBar */}
         <AppBar
           position="fixed"
           sx={{
-            display: { xs: "block", sm: "block", md: "none" },
+            display: { xs: "flex", md: "none" },
             backgroundColor: "#F8F8F8",
             color: GREEN,
             boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
@@ -436,6 +489,7 @@ export default function Navbar({ content }) {
           </Toolbar>
         </AppBar>
 
+        {/* Mobile Drawer */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -444,7 +498,7 @@ export default function Navbar({ content }) {
             keepMounted: true,
           }}
           sx={{
-            display: { xs: "block", sm: "block", md: "none" },
+            display: { xs: "block", md: "none" },
             "& .MuiDrawer-paper": {
               boxSizing: "border-box",
               width: drawerWidth,
@@ -455,10 +509,11 @@ export default function Navbar({ content }) {
           {drawer}
         </Drawer>
 
+        {/* Desktop Drawer */}
         <Drawer
           variant="permanent"
           sx={{
-            display: { xs: "none", sm: "none", md: "block" },
+            display: { xs: "none", md: "block" },
             width: drawerWidth,
             flexShrink: 0,
             [`& .MuiDrawer-paper`]: {
@@ -471,19 +526,69 @@ export default function Navbar({ content }) {
           {drawer}
         </Drawer>
 
+        {/* Main Content */}
         <Box
           component="main"
           sx={{
             flexGrow: 1,
             p: { xs: 2, md: 3 },
             width: { xs: "100%", md: `calc(100% - ${drawerWidth}px)` },
-            mt: { xs: "64px", md: 0 },
+            mt: { xs: "56px", md: 0 },
+            mb: { xs: "56px", md: 0 },
             minHeight: "100vh",
           }}
         >
-          <Toolbar sx={{ display: { xs: "block", md: "none" } }} />
           {content}
         </Box>
+
+        {/* Bottom Navigation Bar for Mobile - 5 items including logout */}
+        <Paper
+          sx={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            display: { xs: "block", md: "none" },
+            zIndex: 1100,
+            backgroundColor: "#F8F8F8",
+            borderTop: "1px solid rgba(28, 61, 55, 0.12)",
+          }}
+          elevation={3}
+        >
+          <BottomNavigation
+            showLabels
+            value={bottomNavValue}
+            onChange={handleBottomNavChange}
+            sx={{
+              backgroundColor: "#F8F8F8",
+              height: "56px",
+              "& .MuiBottomNavigationAction-root": {
+                color: "#8a9e98",
+                "&.Mui-selected": {
+                  color: GREEN,
+                },
+              },
+            }}
+          >
+            {bottomNavItems.map((item, index) => (
+              <BottomNavigationAction
+                key={index}
+                label={item.label}
+                icon={React.cloneElement(item.icon, { 
+                  sx: { 
+                    color: item.label === "LOGOUT" ? "#9e2c2c" : "inherit",
+                    fontSize: "24px"
+                  } 
+                })}
+                sx={{
+                  "& .MuiBottomNavigationAction-label": {
+                    color: item.label === "LOGOUT" ? "#9e2c2c" : "inherit",
+                  },
+                }}
+              />
+            ))}
+          </BottomNavigation>
+        </Paper>
       </Box>
     </ThemeProvider>
   );

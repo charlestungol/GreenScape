@@ -2,11 +2,11 @@
 # Standard Library
 # ---------------------------------------------------
 import os
+from decimal import Decimal
 
 # ---------------------------------------------------
 # Django
 # ---------------------------------------------------
-from django.contrib.auth.models import Group
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 
@@ -19,6 +19,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 # ---------------------------------------------------
 # Third-Party / Services
@@ -40,17 +41,19 @@ from .models import (
     Customer,
     Customerservice,
     Employee,
+    EmployeeAvailability,
     Invoice,
     Quotes,
     Schedule,
     Service,
-    ServiceImage,
     Servicetype,
     Site,
     Zone,
     UserImage,
     RequestQuote,
     ServiceLocation,
+    Budget,
+    Expense
 )
 
 # ---------------------------------------------------
@@ -61,11 +64,11 @@ from .serializers import (
     BookingSerializer,
     CustomerSerializer,
     CustomerServiceSerializer,
+    EmployeeAvailabilitySerializer,
     EmployeeSerializer,
     InvoiceSerializer,
     QuoteSerializer,
     ScheduleSerializer,
-    ServiceImageSerializer,
     ServiceSerializer,
     ServiceTypeSerializer,
     SiteSerializer,
@@ -73,6 +76,9 @@ from .serializers import (
     UserImageSerializer,
     RequestQuoteSerializer,
     ServiceLocationSerializer,
+    BudgetSerializer,
+    ExpenseSerializer,
+    LocationServiceSerializer
 )
 
 # ---------------------------------------------------
@@ -300,18 +306,27 @@ class EmployeeViewSet(viewsets.ModelViewSet):
         }
 
     # GET/PATCH /core/employees/me/
-    @action(detail=False,methods=["get", "patch"],url_path="me",permission_classes=[IsAuthenticated],)
+    @action(
+        detail=False,
+        methods=["get", "patch"],
+        url_path="me",
+        permission_classes=[IsAuthenticated],
+    )
     def me(self, request):
         user = request.user
 
-        #Only operational employees
-        if not user.groups.filter(name__in=["Staff", "Supervisor", "Admin"]).exists():
+        # Only operational employees
+        if not user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
             return Response(
                 {"detail": "Employee profile not applicable."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        employee = Employee.objects.filter(user=user).first()
-        #GET → fetch only
+
+        employee = Employee.objects.select_related("addressid").filter(user=user).first()
+
+        # ---------- GET ----------
         if request.method == "GET":
             if not employee:
                 return Response(
@@ -319,18 +334,42 @@ class EmployeeViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
             serializer = self.get_serializer(employee)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        #PATCH → create OR update
-        if not employee:
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save(user=user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.data)
 
-        #PATCH existing
-        serializer = self.get_serializer(employee, data=request.data, partial=True)
+        # ---------- PATCH (CREATE OR UPDATE) ----------
+        data = request.data.copy()
+        address_data = data.pop("address", None)
+
+        #CREATE
+        if not employee:
+            address = None
+
+            if address_data:
+                address = Address.objects.create(**address_data)
+
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            employee = serializer.save(user=user, addressid=address)
+
+            return Response(
+                self.get_serializer(employee).data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        # ---------- PATCH (UPDATE) ----------
+        if address_data:
+            if employee.addressid:
+                for attr, value in address_data.items():
+                    setattr(employee.addressid, attr, value)
+                employee.addressid.save()
+            else:
+                employee.addressid = Address.objects.create(**address_data)
+                employee.save(update_fields=["addressid"])
+
+        serializer = self.get_serializer(employee, data=data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -395,20 +434,30 @@ class CustomerServiceViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         user = self.request.user
-
-        # Employees can create for any customer
-        if user.groups.filter(
-            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
-        ).exists():
-            serializer.save()
+        print(f"Creating customer service for user: {user.email}")
+        
+        # Check if user is staff/admin - they can create for any customer?
+        if user.groups.filter(name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]).exists():
+            # If customerid is provided in request, use that
+            customer_id = self.request.data.get('customerid')
+            if customer_id:
+                try:
+                    customer = Customer.objects.get(customerid=customer_id)
+                    print(f"Staff creating service for customer: {customer.customerid}")
+                    serializer.save(customerid=customer)
+                    return
+                except Customer.DoesNotExist:
+                    pass
+        
+        # Try to get customer from the authenticated user
+        customer = Customer.objects.filter(user=user).first()
+        if customer:
+            print(f"Using customer from user: {customer.customerid}")
+            serializer.save(customerid=customer)
             return
-
-        # Customer creates for themselves
-        customer = Customer.objects.filter(user_id=user.id).first()
-        if not customer:
-            raise PermissionDenied("You do not have permission to perform this action.")
-
-        serializer.save(customerid=customer)
+        
+        print("No customer found for user")
+        raise PermissionDenied("Customer profile not found. Please complete your profile.")
 
 # -----------------------------------------------------------------------------
 # Booking service view -- Allows for CRUD
@@ -416,49 +465,142 @@ class CustomerServiceViewSet(viewsets.ModelViewSet):
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.select_related("customerid", "serviceid").all()
     serializer_class = BookingSerializer
-    permission_classes = [IsAuthenticated]  # Only authenticated users can access
+    permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
         if self.request.method == "DELETE":
             return [IsSuperAdminOnly()]
         return [IsOwnerOrAdminOrStaffReadOnly()]
 
-    # Getting data
     def get_queryset(self):
         user = self.request.user
 
         if not user.is_authenticated:
             return Booking.objects.none()
 
-        # Staff / Supervisor / Admin / SuperAdmin → all bookings
         if user.groups.filter(
             name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
         ).exists():
-            return self.queryset
+            qs = self.queryset
+        else:
+            customer = Customer.objects.filter(user_id=user.id).first()
+            qs = self.queryset.filter(customerid=customer) if customer else Booking.objects.none()
 
-        # Customer → own bookings only
-        customer = Customer.objects.filter(user_id=user.id).first()
-        if customer:
-            return self.queryset.filter(customerid=customer)
+        date = self.request.query_params.get("date")
+        service = self.request.query_params.get("service")
 
-        return Booking.objects.none()
-    
+        if date and service:
+            # Only filter by both together — never bleed across dates
+            from datetime import datetime, timedelta
+            from django.utils import timezone
+
+            try:
+                # Build a full UTC day range for the LOCAL date
+                naive_start = datetime.strptime(date, "%Y-%m-%d")
+                naive_end = naive_start + timedelta(days=1)
+
+                # Make timezone-aware
+                start = timezone.make_aware(naive_start)
+                end = timezone.make_aware(naive_end)
+
+                qs = qs.filter(
+                    serviceid=service,
+                    appointmenttime__gte=start,
+                    appointmenttime__lt=end,
+                ).exclude(status__in=["CANCELLED", "COMPLETED"])
+            except ValueError:
+                pass  # bad date format — return unfiltered qs
+
+        return qs
+
+    def check_duplicate_booking(self, customer, service, appointment_time):
+        """Check if a booking already exists for this customer, service, and time"""
+        # Check for existing bookings (excluding cancelled/completed)
+        existing_booking = Booking.objects.filter(
+            customerid=customer,
+            serviceid=service,
+            appointmenttime=appointment_time,
+        ).exclude(
+            status__in=["CANCELLED", "COMPLETED"]
+        ).exists()
+        
+        if existing_booking:
+            raise ValidationError({
+                "non_field_errors": ["You already have a booking at this time for this service."]
+            })
+        
+        # Check if the time slot is taken by ANY customer (for the same service)
+        slot_taken = Booking.objects.filter(
+            serviceid=service,
+            appointmenttime=appointment_time,
+        ).exclude(
+            status__in=["CANCELLED", "COMPLETED"]
+        ).exists()
+        
+        if slot_taken:
+            raise ValidationError({
+                "appointmenttime": ["This time slot is already booked. Please select another time."]
+            })
+        
+        return True
+
+    def create(self, request, *args, **kwargs):
+        """Override create to add duplicate checking before saving"""
+        user = request.user
+        data = request.data.copy()
+        
+        # Determine customer
+        if user.groups.filter(
+            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
+            customer_id = data.get("customerid")
+            if not customer_id:
+                return Response(
+                    {"customerid": ["Customer is required for staff bookings."]},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            try:
+                customer = Customer.objects.get(customerid=customer_id)
+            except Customer.DoesNotExist:
+                return Response(
+                    {"customerid": ["Customer not found."]},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            customer = Customer.objects.filter(user_id=user.id).first()
+            if not customer:
+                return Response(
+                    {"error": ["Customer profile not found. Please complete your profile first."]},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            data["customerid"] = customer.customerid
+        
+        # Extract booking details
+        service_id = data.get("serviceid")
+        appointment_time = data.get("appointmenttime")
+        
+        if not service_id or not appointment_time:
+            return Response(
+                {"error": ["Service and appointment time are required."]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check for duplicate booking
+        try:
+            self.check_duplicate_booking(customer, service_id, appointment_time)
+        except ValidationError as e:
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Proceed with normal creation
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     def perform_create(self, serializer):
-        user = self.request.user
-
-        # Employees can create booking for any customer
-        if user.groups.filter(
-            name__in=["Staff", "Supervisor", "Admin", "SuperAdmin"]
-        ).exists():
-            serializer.save()
-            return
-
-        # Customer creates booking only for themselves
-        customer = Customer.objects.filter(user_id=user.id).first()
-        if not customer:
-            raise PermissionDenied("You do not have permission to perform this action.")
-
-        serializer.save(customerid=customer)
+        """Save the booking"""
+        serializer.save()
     
 # -----------------------------------------------------------------------------
 # Invoice view -- Allows for CRUD
@@ -526,7 +668,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
 
         # POST / PATCH / PUT → Employees only
         if self.request.method in ["POST", "PATCH", "PUT"]:
-            return [IsStaff()]
+            return [IsOwnerOrAdminOrStaffReadOnly()]
 
         # GET → any authenticated user
         return [IsAuthenticated()]
@@ -599,6 +741,15 @@ class ScheduleViewSet(viewsets.ModelViewSet):
             return self.queryset.filter(employeeid__user_id=user.id)
 
         return Schedule.objects.none()
+    
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+
+        if not serializer.is_valid():
+            print("Schedule create errors:", serializer.errors)
+            return Response(serializer.errors, status=400)
+
+        return super().create(request, *args, **kwargs)
 
 ## -----------------------------------------------------------------------------
 # Site view -- Allows for CRUD
@@ -887,15 +1038,15 @@ class ServiceLocationViewSet(viewsets.ModelViewSet):
     # Permissions
     # ---------------------------------
     def get_permissions(self):
-        # DELETE → SuperAdmin only
+        # Allow all POST actions (including link-service) for authenticated users
+        if self.request.method == "POST":
+            return [IsAuthenticated()]
+        
+        # DELETE → Custom permission check in destroy method
         if self.request.method == "DELETE":
-            return [IsSuperAdminOnly()]
-
-        # POST / PATCH / PUT → Owner or employees
-        if self.request.method in ["POST", "PATCH", "PUT"]:
-            return [IsOwnerOrAdminOrStaffReadOnly()]
-
-        # GET → authenticated users (visibility handled in queryset)
+            return [IsAuthenticated()]
+        
+        # GET → authenticated users
         return [IsAuthenticated()]
 
     # ---------------------------------
@@ -936,3 +1087,278 @@ class ServiceLocationViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Customer profile not found. Please complete your profile.")
 
         serializer.save(customerid=customer)
+
+    # ---------------------------------
+    # Custom Destroy - Allow owners to delete
+    # ---------------------------------
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user = request.user
+        
+        # SuperAdmin can delete anything
+        if user.groups.filter(name="SuperAdmin").exists():
+            return super().destroy(request, *args, **kwargs)
+        
+        # Staff/Admin/Supervisor can delete anything
+        if user.groups.filter(name__in=["Staff", "Admin", "Supervisor"]).exists():
+            return super().destroy(request, *args, **kwargs)
+        
+        # Check if user is the owner of this location
+        if instance.customerid and instance.customerid.user == user:
+            return super().destroy(request, *args, **kwargs)
+        
+        # No permission
+        raise PermissionDenied("You do not have permission to delete this location.")
+
+    # ---------------------------------
+    # Get services for a location 
+    # ---------------------------------
+    @action(detail=True, methods=["get"], url_path="services")
+    def get_location_services(self, request, pk=None):
+        """Get all services specifically linked to this location"""
+        location = self.get_object()
+        
+        # Get services linked to this location through LocationService
+        from .models import LocationService
+        
+        location_services = LocationService.objects.filter(
+            servicelocationid=location
+        ).select_related(
+            'customerserviceid__serviceid',
+            'customerserviceid__customerid'
+        ).order_by('-created_at')
+        
+        # Format the response with service details
+        services_data = []
+        for ls in location_services:
+            cs = ls.customerserviceid
+            service_data = {
+                'id': cs.customerserviceid,
+                'service_id': cs.serviceid.serviceid if cs.serviceid else None,
+                'title': cs.serviceid.title if cs.serviceid else None,
+                'description': cs.serviceid.description if cs.serviceid else None,
+                'base_price': str(cs.serviceid.baseprice) if cs.serviceid and cs.serviceid.baseprice else None,
+                'req_date': cs.reqdate,
+                'completed': cs.completed,
+                'created_at': cs.createdat,
+                'red_year': cs.redyear,
+                'linked_at': ls.created_at,
+            }
+            services_data.append(service_data)
+        
+        return Response(services_data, status=status.HTTP_200_OK)
+    
+    # ---------------------------------
+    # Link service to location
+    # ---------------------------------
+    @action(detail=True, methods=["post"], url_path="link-service")
+    def link_service_to_location(self, request, pk=None):
+        """Link an existing customer service to this location"""
+        print("=" * 50)
+        print("LINK SERVICE TO LOCATION CALLED")
+        
+        location = self.get_object()
+        customer_service_id = request.data.get('customerserviceid')
+        
+        print(f"Location ID: {location.servicelocationid}")
+        print(f"Location Customer ID: {location.customerid_id}")
+        print(f"Customer Service ID from request: {customer_service_id}")
+        print(f"Request User: {request.user.email}")
+        
+        if not customer_service_id:
+            return Response(
+                {"error": "customerserviceid is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from .models import Customerservice, LocationService
+        
+        # Get the customer service - don't check customer ownership here
+        try:
+            customer_service = Customerservice.objects.get(
+                customerserviceid=customer_service_id
+            )
+            print(f"Found customer service: {customer_service.customerserviceid}")
+            print(f"Customer service belongs to customer: {customer_service.customerid_id}")
+        except Customerservice.DoesNotExist:
+            print(f"Customer service {customer_service_id} not found")
+            return Response(
+                {"error": "Customer service not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if already linked
+        existing_link = LocationService.objects.filter(
+            servicelocationid=location,
+            customerserviceid=customer_service
+        ).first()
+        
+        if existing_link:
+            print(f"Service already linked with ID: {existing_link.locationserviceid}")
+            return Response(
+                {"message": "Service already linked to this location", "id": existing_link.locationserviceid},
+                status=status.HTTP_200_OK
+            )
+        
+        # Create the link
+        location_service = LocationService.objects.create(
+            servicelocationid=location,
+            customerserviceid=customer_service
+        )
+        print(f"Created link with ID: {location_service.locationserviceid}")
+        print("=" * 50)
+        
+        return Response(
+            {"message": "Service linked successfully", "id": location_service.locationserviceid},
+            status=status.HTTP_201_CREATED
+        )
+# ------------------------------
+# Location Service Viewset 
+# ------------------------------
+class LocationServiceViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing which services are linked to which locations
+    """
+    serializer_class = LocationServiceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        from .models import LocationService, Customer
+        
+        # Get the customer for this user
+        customer = Customer.objects.filter(user=user).first()
+        
+        if not customer:
+            return LocationService.objects.none()
+        
+        # Return only location services linked to locations owned by this customer
+        return LocationService.objects.filter(
+            servicelocationid__customerid=customer
+        ).select_related(
+            'servicelocationid',
+            'customerserviceid__serviceid'
+        ).order_by('-created_at')
+
+    def get_permissions(self):
+        if self.request.method == "DELETE":
+            return [IsSuperAdminOnly()]
+        if self.request.method in ["POST", "PATCH", "PUT"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        from .models import Customer, Customerservice
+        
+        customer = Customer.objects.filter(user=user).first()
+        servicelocationid = serializer.validated_data.get('servicelocationid')
+        customerserviceid = serializer.validated_data.get('customerserviceid')
+        
+        # Verify that the service location belongs to this customer
+        if servicelocationid.customerid != customer:
+            raise PermissionDenied("You do not own this service location")
+        
+        # Verify that the customer service belongs to this customer
+        if customerserviceid.customerid != customer:
+            raise PermissionDenied("You do not own this customer service")
+        
+        # Check if already exists
+        from .models import LocationService
+        if LocationService.objects.filter(
+            servicelocationid=servicelocationid,
+            customerserviceid=customerserviceid
+        ).exists():
+            raise PermissionDenied("This service is already linked to this location")
+        
+        serializer.save()
+
+# ------------------------------
+#Budget & Expense 
+# ------------------------------
+class BudgetViewSet(viewsets.ModelViewSet):
+    serializer_class = BudgetSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        customer = Customer.objects.filter(user=user).first()
+        if customer:
+            return Budget.objects.filter(customerid=customer)
+        return Budget.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        customer = Customer.objects.filter(user=user).first()
+        if customer:
+            serializer.save(customerid=customer)
+        else:
+            raise PermissionDenied("No customer profile found.")
+
+    # Custom action to update budget amount
+    @action(detail=False, methods=['patch'])
+    def update_budget(self, request):
+        user = request.user
+        customer = Customer.objects.filter(user=user).first()
+        if not customer:
+            return Response({"detail": "Customer not found"}, status=404)
+
+        budget, created = Budget.objects.get_or_create(customerid=customer)
+        amount = request.data.get('amount')
+        mode = request.data.get('mode', 'set')
+
+        if mode == 'add':
+            budget.amount += Decimal(amount)
+        else:
+            budget.amount = Decimal(amount)
+
+        budget.save()
+        serializer = BudgetSerializer(budget)
+        return Response(serializer.data)
+
+
+class ExpenseViewSet(viewsets.ModelViewSet):
+    serializer_class = ExpenseSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        customer = Customer.objects.filter(user=user).first()
+        if customer:
+            return Expense.objects.filter(customerid=customer).order_by('-date')
+        return Expense.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        customer = Customer.objects.filter(user=user).first()
+        if customer:
+            serializer.save(customerid=customer)
+        else:
+            raise PermissionDenied("No customer profile found.")
+
+
+class EmployeeAvailabilityViewSet(viewsets.ModelViewSet):
+    serializer_class = EmployeeAvailabilitySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        # CREATE / UPDATE / DELETE → Supervisor and above
+        if self.request.method in ["POST", "PUT", "PATCH", "DELETE"]:
+            return [IsSupervisorOrAdmin()]
+        # READ → authenticated users (filtered in queryset)
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if not user.is_authenticated:
+            return EmployeeAvailability.objects.none()
+
+        # Supervisors/Admins/SuperAdmins → see all availability
+        if user.groups.filter(
+            name__in=["Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
+            return EmployeeAvailability.objects.select_related("user")
+
+        # Staff → see only their own availability
+        return EmployeeAvailability.objects.filter(user=user)

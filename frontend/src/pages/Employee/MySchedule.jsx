@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Paper, Typography, Divider, Button } from "@mui/material";
+import { Box, Typography, Paper, Divider, Button } from "@mui/material";
 import MonthCalendar from "../../components/MonthCalendar";
 import AxiosInstance from "../../components/AxiosInstance";
 
@@ -43,21 +43,18 @@ function formatTime(value) {
 export default function MySchedule() {
   const [schedules, setSchedules] = useState([]);
   const [selectedDateKey, setSelectedDateKey] = useState(toKey(new Date()));
-  const [weekAnchor, setWeekAnchor] = useState(() => mondayOf(new Date()));
+  const [weekAnchor, setWeekAnchor] = useState(() =>
+    mondayOf(new Date())
+  );
   const [loading, setLoading] = useState(true);
 
-  const employeeId = localStorage.getItem("employee_id");
-
+  /* -------------------- Load MY schedules -------------------- */
   useEffect(() => {
     const loadSchedules = async () => {
       try {
+        // ✅ Backend already filters by authenticated user
         const res = await AxiosInstance.get("core/schedules/");
-        let rows = res.data?.results || res.data || [];
-
-        if (employeeId) {
-          rows = rows.filter((s) => String(s.employee?.employeeid) === String(employeeId));
-        }
-
+        const rows = res.data?.results || res.data || [];
         setSchedules(rows);
       } catch (error) {
         console.error("MySchedule load error:", error);
@@ -67,7 +64,9 @@ export default function MySchedule() {
     };
 
     loadSchedules();
-  }, [employeeId]);
+  }, []);
+
+  /* -------------------- Calendar Events -------------------- */
 
   const eventsByDate = useMemo(() => {
     const out = {};
@@ -84,15 +83,22 @@ export default function MySchedule() {
   }, [schedules]);
 
   const selectedEvents = useMemo(() => {
-    return schedules.filter((s) => toKey(s.starttime) === selectedDateKey);
+    return schedules.filter(
+      (s) => toKey(s.starttime) === selectedDateKey
+    );
   }, [schedules, selectedDateKey]);
 
   const selectedHours = useMemo(() => {
-    return selectedEvents.reduce((sum, s) => sum + hoursBetween(s.starttime, s.endtime), 0);
+    return selectedEvents.reduce(
+      (sum, s) => sum + hoursBetween(s.starttime, s.endtime),
+      0
+    );
   }, [selectedEvents]);
 
   const weekDays = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => addDays(weekAnchor, i));
+    return Array.from({ length: 7 }, (_, i) =>
+      addDays(weekAnchor, i)
+    );
   }, [weekAnchor]);
 
   const weeklyHours = useMemo(() => {
@@ -109,6 +115,8 @@ export default function MySchedule() {
     }, 0);
   }, [schedules, weekAnchor]);
 
+  /* -------------------- Render -------------------- */
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" sx={{ fontWeight: 800, color: GREEN, mb: 2 }}>
@@ -118,7 +126,13 @@ export default function MySchedule() {
       {loading ? (
         <Typography>Loading schedule...</Typography>
       ) : (
-        <Box sx={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 2 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "1.4fr 1fr",
+            gap: 2,
+          }}
+        >
           <MonthCalendar
             title="My Calendar"
             eventsByDate={eventsByDate}
@@ -164,10 +178,10 @@ export default function MySchedule() {
             </Typography>
 
             <Box sx={{ display: "flex", gap: 1, my: 1 }}>
-              <Button variant="outlined" onClick={() => setWeekAnchor((d) => addDays(d, -7))}>
+              <Button variant="outlined" onClick={() => setWeekAnchor(d => addDays(d, -7))}>
                 Prev Week
               </Button>
-              <Button variant="outlined" onClick={() => setWeekAnchor((d) => addDays(d, 7))}>
+              <Button variant="outlined" onClick={() => setWeekAnchor(d => addDays(d, 7))}>
                 Next Week
               </Button>
             </Box>
@@ -179,8 +193,13 @@ export default function MySchedule() {
             <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 0.5 }}>
               {weekDays.map((d) => {
                 const k = toKey(d);
-                const entries = schedules.filter((s) => toKey(s.starttime) === k);
-                const hours = entries.reduce((sum, s) => sum + hoursBetween(s.starttime, s.endtime), 0);
+                const entries = schedules.filter(
+                  (s) => toKey(s.starttime) === k
+                );
+                const hours = entries.reduce(
+                  (sum, s) => sum + hoursBetween(s.starttime, s.endtime),
+                  0
+                );
 
                 return (
                   <Box
@@ -197,7 +216,9 @@ export default function MySchedule() {
                       {d.toLocaleDateString(undefined, { weekday: "short" })} • {k}
                     </span>
                     <span style={{ fontWeight: 700 }}>
-                      {entries.length > 0 ? `${entries.length} shift(s) • ${hours.toFixed(2)}h` : "Off"}
+                      {entries.length > 0
+                        ? `${entries.length} shift(s) • ${hours.toFixed(2)}h`
+                        : "Off"}
                     </span>
                   </Box>
                 );

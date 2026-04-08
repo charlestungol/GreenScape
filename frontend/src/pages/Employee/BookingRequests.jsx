@@ -3,8 +3,6 @@ import {
   Box,
   Typography,
   Paper,
-  Tabs,
-  Tab,
   Table,
   TableHead,
   TableRow,
@@ -13,77 +11,29 @@ import {
   Button,
   Chip,
   CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import AxiosInstance from "../../components/AxiosInstance";
 
+const GREEN = "#1c3d37";
+
 export default function BookingRequests() {
-  const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(true);
   const [bookingRequests, setBookingRequests] = useState([]);
-  const [quoteRequests, setQuoteRequests] = useState([]);
   const [actionLoadingId, setActionLoadingId] = useState(null);
-
-
-  // IDs
-  const getBookingId = (item) => item.bookingid ?? item.id;
-  const getQuoteId   = (item) => item.requestquoteid ?? item.quoteid ?? item.quotesid ?? item.id;
-
-  // Bookings accessors (nested customer/service)
-  const getBookingClientName = (item) => {
-    const first = item.customer?.firstname || "";
-    const last  = item.customer?.lastname || "";
-    const full  = `${first} ${last}`.trim();
-    return full || "N/A";
-  };
-  const getBookingClientEmail = (item) => item.customer?.email || "N/A";
-  const getBookingServiceName = (item) => item.service?.title || "N/A";
-  const getBookingDate = (item) => {
-    if (!item.appointmenttime) return "N/A";
-    const d = new Date(item.appointmenttime);
-    return isNaN(d) ? "N/A" : d.toLocaleDateString();
-  };
-  const getBookingTime = (item) => {
-    if (!item.appointmenttime) return "N/A";
-    const d = new Date(item.appointmenttime);
-    return isNaN(d) ? "N/A" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
-
-  // RequestQuote accessors (flat fields)
-  const getQuoteClientName  = (item) => item.fullname || "N/A";
-  const getQuoteClientEmail = (item) => item.email || "N/A";
-  const getQuoteServiceName = (item) => item.producttype || "N/A";
-  // If your API adds numeric amount later, adapt this getter:
-  const getQuoteAmount = (item) => item.amount ?? item.totalamount ?? null;
-
-
+  const [selectedActions, setSelectedActions] = useState({});
 
   const fetchRequests = async () => {
     try {
       setLoading(true);
-
-      const [bookingsRes, quotesRes] = await Promise.all([
-        AxiosInstance.get("core/bookings/"),
-        AxiosInstance.get("core/request-quotes/"),
-      ]);
-
-      const bookings = Array.isArray(bookingsRes.data)
-        ? bookingsRes.data
-        : (bookingsRes.data?.results ?? []);
-
-      const quotes = Array.isArray(quotesRes.data)
-        ? quotesRes.data
-        : (quotesRes.data?.results ?? []); 
-
-      console.log("Bookings raw:", bookingsRes.data);
-      console.log("Quotes raw:", quotesRes.data);
-      console.log("Bookings array used:", bookings);
-      console.log("Quotes array used:", quotes);
-
-      setBookingRequests(bookings);
-      setQuoteRequests(quotes);
+      const res = await AxiosInstance.get("/core/bookings/");
+      setBookingRequests(Array.isArray(res.data) ? res.data : []);
     } catch (error) {
-      console.error("Failed to fetch bookings/quotes:", error);
-      alert("Failed to load booking and quote data.");
+      console.error("Failed to fetch booking requests:", error);
+      setBookingRequests([]);
     } finally {
       setLoading(false);
     }
@@ -93,37 +43,41 @@ export default function BookingRequests() {
     fetchRequests();
   }, []);
 
-  const handleApproveBooking = async (id) => {
-    try {
-      setActionLoadingId(`booking-${id}`);
-
-      await AxiosInstance.patch(`core/bookings/${id}/`, {
-        status: "approved",
-      });
-
-      await fetchRequests();
-      alert("Booking approved successfully.");
-    } catch (error) {
-      console.error("Error approving booking:", error);
-      alert("Failed to approve booking.");
-    } finally {
-      setActionLoadingId(null);
-    }
+  const handleActionChange = (bookingId, value) => {
+    setSelectedActions((prev) => ({
+      ...prev,
+      [bookingId]: value,
+    }));
   };
 
-  const handleApproveQuote = async (id) => {
+  const handleSubmitAction = async (bookingId) => {
+    const selectedAction = selectedActions[bookingId];
+
+    if (!selectedAction) {
+      alert("Please select an action first.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to ${selectedAction.toLowerCase()} this booking request?`
+    );
+
+    if (!confirmed) return;
+
     try {
-      setActionLoadingId(`quote-${id}`);
+      setActionLoadingId(bookingId);
 
-      await AxiosInstance.patch(`core/request-quotes/${id}/`, {
-        status: "approved",
-      });
+      if (selectedAction === "Approved") {
+        await AxiosInstance.post(`/core/bookings/${bookingId}/approve/`);
+      } else if (selectedAction === "Disapproved") {
+        await AxiosInstance.post(`/core/bookings/${bookingId}/disapprove/`);
+      }
 
+      alert(`Booking request ${selectedAction.toLowerCase()} successfully.`);
       await fetchRequests();
-      alert("Quote approved successfully.");
     } catch (error) {
-      console.error("Error approving quote:", error);
-      alert("Failed to approve quote.");
+      console.error("Booking action error:", error);
+      alert(`Failed to ${selectedAction.toLowerCase()} booking request.`);
     } finally {
       setActionLoadingId(null);
     }
@@ -136,16 +90,12 @@ export default function BookingRequests() {
       return <Chip label="Approved" color="success" size="small" />;
     }
 
+    if (normalized === "disapproved") {
+      return <Chip label="Disapproved" color="error" size="small" />;
+    }
+
     if (normalized === "pending") {
       return <Chip label="Pending" color="warning" size="small" />;
-    }
-
-    if (normalized === "rejected") {
-      return <Chip label="Rejected" color="error" size="small" />;
-    }
-
-    if (normalized === "confirmed") {
-      return <Chip label="Confirmed" color="info" size="small" />;
     }
 
     return <Chip label={status || "Unknown"} size="small" />;
@@ -157,46 +107,20 @@ export default function BookingRequests() {
         variant="h4"
         sx={{
           fontWeight: 800,
-          color: "#1c3d37",
+          color: GREEN,
           mb: 2,
-          fontFamily:
-            '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         }}
       >
-        Booking & Quote Requests
+        Booking Requests
       </Typography>
 
       <Paper elevation={1} sx={{ borderRadius: 3, overflow: "hidden" }}>
-        <Tabs
-          value={tab}
-          onChange={(_, newValue) => setTab(newValue)}
-          sx={{
-            px: 2,
-            pt: 1,
-            "& .MuiTab-root": {
-              fontFamily:
-                '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-              fontWeight: 600,
-              color: "#1c3d37",
-            },
-            "& .Mui-selected": {
-              color: "#1c3d37 !important",
-            },
-            "& .MuiTabs-indicator": {
-              backgroundColor: "#1c3d37",
-            },
-          }}
-        >
-          <Tab label="BOOKING REQUESTS" />
-          <Tab label="QUOTE REQUESTS" />
-        </Tabs>
-
         <Box sx={{ p: 2 }}>
           {loading ? (
             <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-              <CircularProgress sx={{ color: "#1c3d37" }} />
+              <CircularProgress sx={{ color: GREEN }} />
             </Box>
-          ) : tab === 0 ? (
+          ) : (
             <Table>
               <TableHead>
                 <TableRow>
@@ -206,86 +130,68 @@ export default function BookingRequests() {
                   <TableCell><b>Date</b></TableCell>
                   <TableCell><b>Time</b></TableCell>
                   <TableCell><b>Status</b></TableCell>
-                  <TableCell align="center"><b>Action</b></TableCell>
+                  <TableCell><b>Action</b></TableCell>
+                  <TableCell align="center"><b>Submit</b></TableCell>
                 </TableRow>
               </TableHead>
+
               <TableBody>
                 {bookingRequests.length > 0 ? (
-                  bookingRequests.map((item) => {
-                    const bookingId = getBookingId(item);
-                    const status    = (item.status || "").toLowerCase();
-                    return (
-                      <TableRow key={bookingId}>
-                        <TableCell>{getBookingClientName(item)}</TableCell>
-                        <TableCell>{getBookingClientEmail(item)}</TableCell>
-                        <TableCell>{getBookingServiceName(item)}</TableCell>
-                        <TableCell>{getBookingDate(item)}</TableCell>
-                        <TableCell>{getBookingTime(item)}</TableCell>
-                        <TableCell>{renderStatusChip(status)}</TableCell>
-                        <TableCell align="center">
-                          <Button
-                            variant="contained"
-                            size="small"
-                            disabled={status === "approved" || actionLoadingId === `booking-${bookingId}`}
-                            onClick={() => handleApproveBooking(bookingId)}
-                            sx={{ backgroundColor: "#1c3d37", "&:hover": { backgroundColor: "#16302b" }, textTransform: "none", fontWeight: 600 }}
-                          >
-                            {actionLoadingId === `booking-${bookingId}` ? "Approving..." : "Approve"}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center">No booking requests found.</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          ) : (
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell><b>Client</b></TableCell>
-                  <TableCell><b>Email</b></TableCell>
-                  <TableCell><b>Service</b></TableCell>
-                  <TableCell><b>Requested Quote</b></TableCell>
-                  <TableCell><b>Status</b></TableCell>
-                  <TableCell align="center"><b>Action</b></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {quoteRequests.length > 0 ? (
-                  quoteRequests.map((item) => {
-                    const quoteId    = getQuoteId(item);
-                    const status     = (item.status || "").toLowerCase();
-                    const quoteAmount = getQuoteAmount(item); // likely null right now
+                  bookingRequests.map((item) => (
+                    <TableRow key={item.bookingid}>
+                      <TableCell>{item.client_name || "N/A"}</TableCell>
+                      <TableCell>{item.client_email || "N/A"}</TableCell>
+                      <TableCell>{item.service_name || "N/A"}</TableCell>
+                      <TableCell>{item.booking_date || "N/A"}</TableCell>
+                      <TableCell>{item.booking_time || "N/A"}</TableCell>
+                      <TableCell>{renderStatusChip(item.status)}</TableCell>
 
-                    return (
-                      <TableRow key={quoteId}>
-                        <TableCell>{getQuoteClientName(item)}</TableCell>
-                        <TableCell>{getQuoteClientEmail(item)}</TableCell>
-                        <TableCell>{getQuoteServiceName(item)}</TableCell>
-                        <TableCell>{quoteAmount !== null ? `$${quoteAmount}` : "N/A"}</TableCell>
-                        <TableCell>{renderStatusChip(status)}</TableCell>
-                        <TableCell align="center">
-                          <Button
-                            variant="contained"
-                            size="small"
-                            disabled={status === "approved" || actionLoadingId === `quote-${quoteId}`}
-                            onClick={() => handleApproveQuote(quoteId)}
-                            sx={{ backgroundColor: "#1c3d37", "&:hover": { backgroundColor: "#16302b" }, textTransform: "none", fontWeight: 600 }}
+                      <TableCell sx={{ minWidth: 180 }}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Select Action</InputLabel>
+                          <Select
+                            value={selectedActions[item.bookingid] || ""}
+                            label="Select Action"
+                            onChange={(e) =>
+                              handleActionChange(item.bookingid, e.target.value)
+                            }
+                            disabled={
+                              item.status?.toLowerCase() === "approved" ||
+                              item.status?.toLowerCase() === "disapproved"
+                            }
                           >
-                            {actionLoadingId === `quote-${quoteId}` ? "Approving..." : "Approve"}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
+                            <MenuItem value="Approved">Approve</MenuItem>
+                            <MenuItem value="Disapproved">Disapprove</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </TableCell>
+
+                      <TableCell align="center">
+                        <Button
+                          variant="contained"
+                          onClick={() => handleSubmitAction(item.bookingid)}
+                          disabled={
+                            actionLoadingId === item.bookingid ||
+                            item.status?.toLowerCase() === "approved" ||
+                            item.status?.toLowerCase() === "disapproved"
+                          }
+                          sx={{
+                            backgroundColor: GREEN,
+                            "&:hover": { backgroundColor: "#16302b" },
+                            textTransform: "none",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {actionLoadingId === item.bookingid ? "Saving..." : "Confirm"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">No quote requests found.</TableCell>
+                    <TableCell colSpan={8} align="center">
+                      No booking requests found.
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>
