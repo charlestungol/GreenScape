@@ -367,3 +367,17 @@ class Expense(models.Model):
 
     def __str__(self):
         return f"{self.name} - ${self.amount}"
+
+class EmployeeAvailability(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        limit_choices_to={"role": "employee"},
+        related_name="availability"
+    )
+    starttime = models.DateTimeField()
+    endtime = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["starttime"]

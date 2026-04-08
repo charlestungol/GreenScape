@@ -32,7 +32,8 @@ from .models import (
     ServiceLocation,
     Budget,
     Expense,
-    LocationService
+    LocationService,
+    EmployeeAvailability
 );
 
 
@@ -587,3 +588,58 @@ class ExpenseSerializer(serializers.ModelSerializer):
         model = Expense
         fields = ['id', 'name', 'amount', 'category', 'date']
 
+# Employee Availability Serializer
+from rest_framework import serializers
+from django.db.models import Q
+from .models import EmployeeAvailability
+
+class EmployeeAvailabilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeeAvailability
+        fields = [
+            "id",
+            "user",
+            "starttime",
+            "endtime",
+            "created_at",
+        ]
+        read_only_fields = ["created_at"]
+
+    def validate(self, data):
+        """
+        1. Ensure starttime < endtime
+        2. Prevent overlapping availability for the same user
+        """
+
+        start = data.get("starttime")
+        end = data.get("endtime")
+        user = data.get("user")
+
+        if not start or not end or not user:
+            return data
+
+        #Rule 1: time order
+        if start >= end:
+            raise serializers.ValidationError({
+                "endtime": "End time must be after start time."
+            })
+
+        #Rule 2: overlap check
+        qs = EmployeeAvailability.objects.filter(
+            user=user
+        ).filter(
+            Q(starttime__lt=end) & Q(endtime__gt=start)
+        )
+
+        #Allow updating the same record
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+
+        if qs.exists():
+            raise serializers.ValidationError({
+                "non_field_errors": [
+                    "This employee already has availability that overlaps with this time range."
+                ]
+            })
+
+        return data

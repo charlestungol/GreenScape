@@ -2,13 +2,11 @@
 # Standard Library
 # ---------------------------------------------------
 import os
-import uuid
 from decimal import Decimal
 
 # ---------------------------------------------------
 # Django
 # ---------------------------------------------------
-from django.contrib.auth.models import Group
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 
@@ -43,11 +41,11 @@ from .models import (
     Customer,
     Customerservice,
     Employee,
+    EmployeeAvailability,
     Invoice,
     Quotes,
     Schedule,
     Service,
-    ServiceImage,
     Servicetype,
     Site,
     Zone,
@@ -66,11 +64,11 @@ from .serializers import (
     BookingSerializer,
     CustomerSerializer,
     CustomerServiceSerializer,
+    EmployeeAvailabilitySerializer,
     EmployeeSerializer,
     InvoiceSerializer,
     QuoteSerializer,
     ScheduleSerializer,
-    ServiceImageSerializer,
     ServiceSerializer,
     ServiceTypeSerializer,
     SiteSerializer,
@@ -743,6 +741,15 @@ class ScheduleViewSet(viewsets.ModelViewSet):
             return self.queryset.filter(employeeid__user_id=user.id)
 
         return Schedule.objects.none()
+    
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+
+        if not serializer.is_valid():
+            print("Schedule create errors:", serializer.errors)
+            return Response(serializer.errors, status=400)
+
+        return super().create(request, *args, **kwargs)
 
 ## -----------------------------------------------------------------------------
 # Site view -- Allows for CRUD
@@ -1328,3 +1335,30 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             serializer.save(customerid=customer)
         else:
             raise PermissionDenied("No customer profile found.")
+
+
+class EmployeeAvailabilityViewSet(viewsets.ModelViewSet):
+    serializer_class = EmployeeAvailabilitySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        # CREATE / UPDATE / DELETE → Supervisor and above
+        if self.request.method in ["POST", "PUT", "PATCH", "DELETE"]:
+            return [IsSupervisorOrAdmin()]
+        # READ → authenticated users (filtered in queryset)
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if not user.is_authenticated:
+            return EmployeeAvailability.objects.none()
+
+        # Supervisors/Admins/SuperAdmins → see all availability
+        if user.groups.filter(
+            name__in=["Supervisor", "Admin", "SuperAdmin"]
+        ).exists():
+            return EmployeeAvailability.objects.select_related("user")
+
+        # Staff → see only their own availability
+        return EmployeeAvailability.objects.filter(user=user)
