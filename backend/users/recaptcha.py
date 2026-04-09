@@ -1,4 +1,7 @@
 import os, requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 _GOOGLE_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify"
 
@@ -16,9 +19,9 @@ def verify_recaptcha(token: str, remote_ip: str | None = None) -> tuple[bool, di
 
         data = resp.json()
 
-        print("RECAPTCHA SECRET PRESENT:", bool(_SECRET))
-        print("RECAPTCHA TOKEN:", token)
-        print("RECAPTCHA GOOGLE RESPONSE:", data)
+        logger.error("RECAPTCHA SECRET PRESENT: %s", bool(_SECRET))
+        logger.error("RECAPTCHA TOKEN PRESENT: %s", bool(token))
+        logger.error("RECAPTCHA GOOGLE RESPONSE: %s", data)
 
         return bool(data.get("success")), data
     except requests.RequestException as e:
