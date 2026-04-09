@@ -16,6 +16,10 @@ def verify_recaptcha(token: str, remote_ip: str | None = None) -> tuple[bool, di
 
         data = resp.json()
 
+        print("RECAPTCHA SECRET PRESENT:", bool(_SECRET))
+        print("RECAPTCHA TOKEN:", token)
+        print("RECAPTCHA GOOGLE RESPONSE:", data)
+
         return bool(data.get("success")), data
     except requests.RequestException as e:
         return False, {"error" : "verify-failed", "detail": str(e)}
