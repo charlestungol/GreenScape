@@ -226,8 +226,7 @@ REST_FRAMEWORK = {
     ),
 
     "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-        "rest_framework.permissions.DjangoModelPermissions",
+        "rest_framework.permissions.AllowAny",
     ),
 
     "DEFAULT_THROTTLE_CLASSES": [
@@ -241,7 +240,7 @@ REST_FRAMEWORK = {
         "user": "60/minute",
         "login": "30/minute",
         "register": "5/hour",
-        "account_change": "30/minute",
+        "account_change": "30/minute"
     },
 
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
