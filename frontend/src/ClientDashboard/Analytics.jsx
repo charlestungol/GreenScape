@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react"; 
 import "../components/clientCss/Dashboard.css";
+import AxiosInstance from "../components/AxiosInstance";
 import {
   BarChart, Bar,
   LineChart, Line,
@@ -7,13 +8,11 @@ import {
   Legend, CartesianGrid
 } from "recharts";
 
-
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
       <div className="custom-tooltip">
         <p className="tooltip-label">{label}</p>
-        {/* RENDERS THE COLOR OF THE DOT, LABEL AND DOLLAR VALUE FOR EACH */}
         {payload.map((entry, index) => (
           <p key={index} className="tooltip-value" style={{ color: entry.color }}>
             <span className="tooltip-color-dot" style={{ background: entry.color }} />
@@ -33,107 +32,118 @@ function Analytics() {
   const [chartType, setChartType] = useState('bar');
   const modalContentRef = useRef(null);
 
-  // GET'S THE USER EXPENSE FROM THE LOCAL STORAGE
-  const getExpenses = () => {
+  const monthOrder = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  const fetchData = async () => {
     try {
-      const saved = localStorage.getItem("userExpenses");
-      return saved ? JSON.parse(saved) : [];
+      const [budgetRes, expensesRes] = await Promise.all([
+        AxiosInstance.get('core/budgets/'),
+        AxiosInstance.get('core/expenses/')
+      ]);
+
+      // Handle both array and paginated responses for budget
+      const budgetArray = Array.isArray(budgetRes.data)
+        ? budgetRes.data
+        : budgetRes.data.results || [];
+
+      const budget = budgetArray.length > 0
+        ? Number(budgetArray[0].amount)
+        : 0;
+
+      // Handle both array and paginated responses for expenses
+      const expensesData = Array.isArray(expensesRes.data)
+        ? expensesRes.data
+        : expensesRes.data.results || [];
+
+      // Keep localStorage in sync
+      localStorage.setItem("userBudget", budget);
+      localStorage.setItem("userExpenses", JSON.stringify(expensesData));
+
+      // Build monthly data
+      const monthly = {};
+      expensesData.forEach(({ amount, date }) => {
+        const month = new Date(date).toLocaleString("default", { month: "short" });
+        monthly[month] = (monthly[month] || 0) + Number(amount);
+      });
+
+      const chartData = Object.keys(monthly)
+        .map((month) => ({
+          name: month,
+          budget,
+          expenses: monthly[month],
+        }))
+        .sort((a, b) => monthOrder.indexOf(a.name) - monthOrder.indexOf(b.name));
+
+      setData(chartData);
+      setExpenses(expensesData);
+
     } catch {
-      return [];
+      // Fallback to localStorage
+      const budget = Number(localStorage.getItem("userBudget")) || 0;
+      const expensesData = JSON.parse(localStorage.getItem("userExpenses")) || [];
+
+      const monthly = {};
+      expensesData.forEach(({ amount, date }) => {
+        const month = new Date(date).toLocaleString("default", { month: "short" });
+        monthly[month] = (monthly[month] || 0) + Number(amount);
+      });
+
+      const chartData = Object.keys(monthly)
+        .map((month) => ({ name: month, budget, expenses: monthly[month] }))
+        .sort((a, b) => monthOrder.indexOf(a.name) - monthOrder.indexOf(b.name));
+
+      setData(chartData);
+      setExpenses(expensesData);
     }
   };
 
-  // READS THE USER'S BUDGET AND RAW EXPENSES
-  const buildMonthlyData = () => {
-    const budget = Number(localStorage.getItem("userBudget")) || 0;
-    const expensesData = getExpenses();
-
-    const monthly = {};
-
-    expensesData.forEach(({ amount, date }) => {
-      const month = new Date(date).toLocaleString("default", {
-        month: "short",
-      });
-
-      monthly[month] = (monthly[month] || 0) + amount;
-    });
-
-    const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    return Object.keys(monthly)
-      .map((month) => ({
-        name: month,
-        budget,
-        expenses: monthly[month],
-      }))
-      .sort((a, b) => monthOrder.indexOf(a.name) - monthOrder.indexOf(b.name));
-  };
-
-  // FORMATTER HELPERS
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+      month: 'short', day: 'numeric', year: 'numeric'
     });
   };
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
+      hour: '2-digit', minute: '2-digit'
     });
   };
 
-  // ADDS UP ALL THE BUDGET ACROSS ALL MONTHS
   const totalBudget = data.reduce((sum, month) => sum + month.budget, 0);
-  // ADDS ALL EXPENSES ACROSS ALL MONTHS
   const totalExpensesAmount = data.reduce((sum, month) => sum + month.expenses, 0);
-  //COPIES THE EXPENSES ARRAY, REVERSES IT WHERE IT SHOWS THE NEWEST FIRST AND THEN TAKES THE TOP 10
-  const recentExpenses = expenses.slice().reverse().slice(0, 10);
+  const recentExpenses = [...expenses]
+    .sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at))
+    .slice(0, 10);
 
-  //HANDLES THE OVERLAY WHEN THE USER CLICKS OUTSIDE THE MODAL, IT CLOSES
   const handleOverlayClick = (e) => {
     if (modalContentRef.current && !modalContentRef.current.contains(e.target)) {
       setShowReport(false);
     }
   };
 
-  //FOR CLOSING THE MODAL USING THE ESC BUTTON AND PREVENTS THE SCROLLING OF THE MAIN PAGE IF THE MODAL IS OPEN
   useEffect(() => {
     const handleEscKey = (e) => {
-      if (e.key === 'Escape' && showReport) {
-        setShowReport(false);
-      }
+      if (e.key === 'Escape' && showReport) setShowReport(false);
     };
-
     if (showReport) {
       document.addEventListener('keydown', handleEscKey);
       document.body.style.overflow = 'hidden';
     }
-
     return () => {
       document.removeEventListener('keydown', handleEscKey);
       document.body.style.overflow = 'unset';
     };
   }, [showReport]);
 
-  //FOR DATA LOADING AND LIVE UPDATES TO KEEP THE CHART IN SYNC IN REAL TIME 
   useEffect(() => {
-    const update = () => {
-      setData(buildMonthlyData());
-      setExpenses(getExpenses());
-    };
-
-    update();
-
-    window.addEventListener("budgetUpdated", update);
-    window.addEventListener("expensesUpdated", update);
-
+    fetchData();
+    window.addEventListener("budgetUpdated", fetchData);
+    window.addEventListener("expensesUpdated", fetchData);
     return () => {
-      window.removeEventListener("budgetUpdated", update);
-      window.removeEventListener("expensesUpdated", update);
+      window.removeEventListener("budgetUpdated", fetchData);
+      window.removeEventListener("expensesUpdated", fetchData);
     };
   }, []);
 
@@ -141,12 +151,11 @@ function Analytics() {
     <div className="analyticsWrapper">
       <div className="analytics-header">   
         <div className="chart-toggle-group">
-          {/* BUTTONS FOR THE CHART TYPE (BAR OR LINE) */}
           <button 
             className={`chart-toggle-btn ${chartType === 'bar' ? 'active' : ''}`}
             onClick={() => setChartType('bar')}
           >
-             Bar
+            Bar
           </button>
           <button 
             className={`chart-toggle-btn ${chartType === 'line' ? 'active' : ''}`}
@@ -157,105 +166,35 @@ function Analytics() {
         </div>
       </div>
 
-      <div
-        className="chartsRow clickableChart"
-        onClick={() => setShowReport(true)}
-      >
+      <div className="chartsRow clickableChart" onClick={() => setShowReport(true)}>
         <ResponsiveContainer width="100%" height={300}>
           {chartType === 'bar' ? (
-            // BAR CHART
           <BarChart data={data} barCategoryGap="30%">
             <CartesianGrid strokeDasharray="3 3" stroke="#e0e8e5" vertical={false} />
-            <XAxis 
-              dataKey="name" 
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 11, fill: '#8a9e98' }}
-            />
-            <YAxis 
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 11, fill: '#8a9e98' }}
-              width={30}
-            />
-            <Tooltip 
-              content={<CustomTooltip />} 
-              cursor={false}  
-            />
-            <Legend 
-              wrapperStyle={{ fontSize: '11px', color: '#62ad97', marginTop: '5px' }}
-              iconType="circle"
-              iconSize={8}
-            />
-            <Bar 
-              dataKey="budget" 
-              fill="#6a9c6a" 
-              barSize={22}
-              radius={[6, 6, 0, 0]}
-              name="Budget"
-            />
-            <Bar 
-              dataKey="expenses" 
-              fill="#1c3d37" 
-              barSize={22}
-              radius={[6, 6, 0, 0]}
-              name="Expenses"
-            />
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#8a9e98' }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#8a9e98' }} width={30} />
+            <Tooltip content={<CustomTooltip />} cursor={false} />
+            <Legend wrapperStyle={{ fontSize: '11px', color: '#62ad97', marginTop: '5px' }} iconType="circle" iconSize={8} />
+            <Bar dataKey="budget" fill="#6a9c6a" barSize={22} radius={[6, 6, 0, 0]} name="Budget" />
+            <Bar dataKey="expenses" fill="#1c3d37" barSize={22} radius={[6, 6, 0, 0]} name="Expenses" />
           </BarChart>
           ) : (
-            // LINE CHART
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis 
-                dataKey="name" 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 11, fill: '#8a9e98' }}
-              />
-              <YAxis 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 11, fill: '#8a9e98' }}
-                width={30}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ fontSize: '11px', color: '#5a7c6c', marginTop: '5px' }}
-                iconType="circle"
-                iconSize={8}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="budget" 
-                stroke="#6a9c6a" 
-                strokeWidth={2.5}
-                dot={{ r: 3, fill: '#a8c9b0', strokeWidth: 0 }}
-                activeDot={{ r: 5, fill: '#a8c9b0', stroke: 'white', strokeWidth: 2 }}
-                name="Budget"
-              />
-              <Line 
-                type="monotone" 
-                dataKey="expenses" 
-                stroke="#1c3d37" 
-                strokeWidth={3}
-                dot={{ r: 3, fill: '#06632b', strokeWidth: 0 }}
-                activeDot={{ r: 5, fill: '#06632b', stroke: 'white', strokeWidth: 2 }}
-                name="Expenses"
-              />
-            </LineChart>
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#8a9e98' }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#8a9e98' }} width={30} />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ fontSize: '11px', color: '#5a7c6c', marginTop: '5px' }} iconType="circle" iconSize={8} />
+            <Line type="monotone" dataKey="budget" stroke="#6a9c6a" strokeWidth={2.5} dot={{ r: 3, fill: '#a8c9b0', strokeWidth: 0 }} activeDot={{ r: 5, fill: '#a8c9b0', stroke: 'white', strokeWidth: 2 }} name="Budget" />
+            <Line type="monotone" dataKey="expenses" stroke="#1c3d37" strokeWidth={3} dot={{ r: 3, fill: '#06632b', strokeWidth: 0 }} activeDot={{ r: 5, fill: '#06632b', stroke: 'white', strokeWidth: 2 }} name="Expenses" />
+          </LineChart>
           )}
         </ResponsiveContainer>
       </div>
+
       {showReport && (
-        <div 
-          className="overlay" 
-          onClick={handleOverlayClick}  
-        >
-          <div 
-            ref={modalContentRef} 
-            className="analyticsOverlayContent"
-          >
-            
+        <div className="overlay" onClick={handleOverlayClick}>
+          <div ref={modalContentRef} className="analyticsOverlayContent">
             <div className="analyticsHeader">
               <h2>Analytics & Transactions</h2>
             </div>
@@ -285,9 +224,9 @@ function Analytics() {
                 <p className="summaryValue transactionValue">{expenses.length}</p>
               </div>
             </div>
+
             <div>
               <h3 className="sectionHeaderAnalytics">Recent Transactions</h3>
-              
               {expenses.length === 0 ? (
                 <div className="emptyState">
                   <span className="emptyState-icon"></span>
@@ -298,23 +237,21 @@ function Analytics() {
                   {recentExpenses.map((expense) => (
                     <div key={expense.id} className="transactionItem">
                       <div className="transactionDetails">
-                        <div className="transactionName">
-                          {expense.name}
-                        </div>
+                        <div className="transactionName">{expense.name}</div>
                         <div className="transactionMeta">
                           <span className="transactionDate">{formatDate(expense.date)}</span>
                           <span className="transactionTime">{formatTime(expense.date)}</span>
                         </div>
                       </div>
-                      <div className="transactionAmount">{expense.amount.toLocaleString()}</div>
+                      <div className="transactionAmount">{Number(expense.amount).toLocaleString()}</div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
+
             <div className="monthlyBreakdown">
               <h3 className="sectionHeader">Monthly Spending</h3>
-              
               {data.length === 0 ? (
                 <div className="emptyState">
                   <p className="emptyState-text">No monthly data available</p>
@@ -324,7 +261,6 @@ function Analytics() {
                   {data.map((month) => {
                     const percentage = ((month.expenses / month.budget) * 100) || 0;
                     const isOverBudget = percentage > 100;
-                    
                     return (
                       <div key={month.name} className="monthlyItem">
                         <div className="monthlyHeader">
@@ -348,11 +284,9 @@ function Analytics() {
                 </div>
               )}
             </div>
-            <button 
-              className="analyticsCloseBtn"
-              onClick={() => setShowReport(false)}
-            >
-             Close
+
+            <button className="analyticsCloseBtn" onClick={() => setShowReport(false)}>
+              Close
             </button>
           </div>
         </div>

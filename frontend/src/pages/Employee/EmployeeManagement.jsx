@@ -1,199 +1,326 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
-  Button,
   Paper,
+  Button,
   Table,
   TableHead,
   TableRow,
   TableCell,
   TableBody,
-  TextField,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
   MenuItem,
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
 import AxiosInstance from "../../components/AxiosInstance";
 import AddEmployeeModal from "../../components/AddEmployeeModal";
 
-const roles = ["Admin", "Supervisor", "Staff"];
+const GREEN = "#1c3d37";
+
+const emptyForm = {
+  email: "",
+  password: "",
+  employee_number: "",
+  group: "Staff",
+};
 
 export default function EmployeeManagement() {
+  const [employees, setEmployees] = useState([]);
+  const [openAdd, setOpenAdd] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [loading, setLoading] = useState(false);
+  const [groupSelections, setGroupSelections] = useState({});
+
   const navigate = useNavigate();
 
-  const [employees, setEmployees] = useState([]);
-  const [savingId, setSavingId] = useState(null);
-
-  const [openAddDialog, setOpenAddDialog] = useState(false);
-  // const [newEmployee, setNewEmployee] = useState({
-  //   firstname: "",
-  //   lastname: "",
-  //   phonenumber: "",
-  //   role: "",
-  // });
-
-  function mapEmployee(raw) {
-    return {
-      employeeid: raw.employeeid,
-      user_id: raw.user_id,           
-      firstname: raw.firstname ?? "",
-      lastname: raw.lastname ?? "",
-      name: `${raw.firstname ?? ""} ${raw.lastname ?? ""}`.trim(),
-      email: raw.email ?? "",
-      employee_number: raw.employee_number ?? "",
-      phonenumber: raw.phonenumber ?? "",
-      role: raw.role ?? "Staff",
-    };
-  }
-  const loadEmployees = async () => { 
+  const fetchEmployees = async () => {
     try {
-      // Fetch both endpoints in parallel
-      const [empRes, usersRes] = await Promise.all([
-        AxiosInstance.get("core/employees/"),
-        AxiosInstance.get("users/"),
-      ]);
-      
-      const rawEmployees =
-        empRes.data?.results ?? empRes.data ?? [];
+      const res = await AxiosInstance.get("/employee-accounts/");
 
-      const users = usersRes.data?.results ?? usersRes.data ?? [];
+      const employeesData = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data?.results)
+        ? res.data.results
+        : [];
 
-      // Build a lookup table: user_id → role
-      const roleByUserId = users.reduce((acc, user) => {
-        acc[user.id] = user.role;
-        return acc;
-      }, {});
-
-      // Merge role into employee objects
-      const merged = rawEmployees.map((emp) => ({
-        ...mapEmployee(emp),
-        role: roleByUserId[emp.user_id] ?? "Staff", //safe fallback
-      }));
-
-      setEmployees(merged);
-    } catch (err) {
-      console.error("Error loading employees:", err.response?.status);
-      alert("Failed to load employees.");
+      setEmployees(employeesData);
+    } catch (error) {
+      console.error("Failed to fetch employees:", error);
+      setEmployees([]);
     }
   };
 
   useEffect(() => {
-    loadEmployees();
+    fetchEmployees();
   }, []);
 
-  const updateEmployeeField = (id, field, value) => {
-    setEmployees((prev) =>
-      prev.map((emp) =>
-        emp.employeeid === id ? { ...emp, [field]: value } : emp
-      )
-    );
+  useEffect(() => {
+    const map = {};
+    employees.forEach(emp => {
+      map[emp.id] = emp.group || "Staff";
+    });
+    setGroupSelections(map);
+  }, [employees]);
+
+  const handleOpenAdd = () => setOpenAdd(true);
+
+  const handleCloseAdd = () => {
+    setOpenAdd(false);
+    setForm(emptyForm);
   };
 
-  const saveEmployee = async (employee) => {
-    try {
-      setSavingId(employee.employeeid);
+  const handleChange = (e) => {
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
 
-      await AxiosInstance.patch(
-        `/users/${employee.user_id}/group/`,
-        { group: employee.role }          // ✅ FIX
+  const handleAddEmployee = async () => {
+    if (!form.email || !form.password || !form.employee_number || !form.group) {
+      alert("Please fill in all fields.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await AxiosInstance.post("/register/employee/", {
+        email: form.email,
+        password: form.password,
+        employee_number: form.employee_number,
+        group: form.group,
+      });
+
+      alert("Employee added successfully.");
+      fetchEmployees();
+      handleCloseAdd();
+    } catch (error) {
+      console.error("Add employee error:", {
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+
+      alert(
+        JSON.stringify(error.response?.data, null, 2) ||
+        "Failed to add employee."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeactivateEmployee = async (userId, email) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to deactivate ${email}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await AxiosInstance.post(`/employee-accounts/${userId}/deactivate/`);
+      alert("Employee account deactivated.");
+      fetchEmployees();
+    } catch (error) {
+      console.error("Deactivate error:", error);
+      alert("Failed to deactivate employee.");
+    }
+  };
+
+  const handleActivateEmployee = async (userId, email) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to activate ${email}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await AxiosInstance.post(`/employee-accounts/${userId}/activate/`);
+      alert("Employee account activated.");
+      fetchEmployees();
+    } catch (error) {
+      console.error("Activate error:", error);
+      alert(
+        error.response?.data?.detail || "Failed to activate employee."
+      );
+    }
+  };
+
+  // Helper
+  const getCurrentGroup = (userId) => {
+    const employee = employees.find(e => e.id === userId);
+    return employee?.group || "";
+  };
+  const handleUpdateGroup = async (userId) => {
+    const newGroup = groupSelections[userId];
+    const currentGroup = getCurrentGroup(userId);
+
+    //No selection guard
+    if (!newGroup) {
+      alert("Please select a group first.");
+      return;
+    }
+
+    //Same group guard
+    if (newGroup === currentGroup) {
+      alert(`This user is already in the ${currentGroup} group.`);
+      return;
+    }
+
+    //Secondary confirmation
+    const confirmed = window.confirm(
+      `Are you sure you want to change this employee's group?\n\n` +
+      `From: ${currentGroup || "None"}\n` +
+      `To:   ${newGroup}\n\n` +
+      `This will immediately affect their permissions.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await AxiosInstance.post(
+        `/employee-accounts/${userId}/set-group/`,
+        { group: newGroup }
       );
 
-      alert("Role updated successfully.");
-    } catch (err) {
-      console.error("Error updating role:", err);
-      alert("Failed to update role.");
-    } finally {
-      setSavingId(null);
+      alert("Group updated successfully.");
+      fetchEmployees(); // re-sync with backend
+
+    } catch (error) {
+      console.error("Group update error:", error);
+      alert(
+        error.response?.data?.detail || "Failed to update group."
+      );
     }
   };
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-        Employee Management
-      </Typography>
-
-      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-        <Button
-          variant="contained"
-          onClick={() => setOpenAddDialog(true)}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 3,
+        }}
+      >
+        <Typography
+          variant="h4"
+          sx={{ fontWeight: 800, color: GREEN }}
         >
-          Add Employee
-        </Button>
+          Employee Management
+        </Typography>
 
-        <Button
-          variant="outlined"
-          onClick={() => navigate("/employee/timesheets")}
+        <Box sx={{ display: "flex", gap: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => navigate("/employee/timesheets")}
+            sx={{
+              borderColor: GREEN,
+              color: GREEN,
+              "&:hover": { borderColor: "#16302b", backgroundColor: "#f0f5f4" },
+              textTransform: "none",
+              fontWeight: 600,
+            }}
         >
           View Timesheets
         </Button>
+      
+        <Button
+          variant="contained"
+          onClick={handleOpenAdd}
+          sx={{
+            backgroundColor: GREEN,
+            "&:hover": { backgroundColor: "#16302b" },
+            textTransform: "none",
+            fontWeight: 600,
+          }}
+        >
+          Add Employee
+        </Button>
       </Box>
+    </Box>
 
-      <Paper>
+      <Paper elevation={1} sx={{ borderRadius: 3, overflow: "hidden" }}>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell><b>ID</b></TableCell>
-              <TableCell><b>First Name</b></TableCell>
-              <TableCell><b>Last Name</b></TableCell>
               <TableCell><b>Email</b></TableCell>
-              <TableCell><b>Phone</b></TableCell>
+              <TableCell><b>Employee Number</b></TableCell>
               <TableCell><b>Role</b></TableCell>
-              <TableCell><b>Action</b></TableCell>
+              <TableCell align="center"><b>Actions</b></TableCell>
+              <TableCell align="center"><b>Status</b></TableCell>
             </TableRow>
           </TableHead>
-
           <TableBody>
-            {employees.map((emp) => (
-              <TableRow key={emp.employeeid}>
-                <TableCell>{emp.employeeid}</TableCell>
-
-                <TableCell>{emp.firstname}</TableCell>
-                <TableCell>{emp.lastname}</TableCell>
-                <TableCell>{emp.email}</TableCell>
-                <TableCell>{emp.phonenumber}</TableCell>
-                {/* ROLE DROPDOWN */}
-                <TableCell>
-                  <TextField
-                    select
-                    size="small"
-                    value={emp.role}
-                    onChange={(e) =>
-                      updateEmployeeField(
-                        emp.employeeid,
-                        "role",
-                        e.target.value
-                      )
-                    }
-                  >
-                    {roles.map((r) => (
-                      <MenuItem key={r} value={r}>
-                        {r}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                </TableCell>
-
-                <TableCell>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    disabled={savingId === emp.employeeid}
-                    onClick={() => saveEmployee(emp)}
-                  >
-                    {savingId === emp.employeeid ? "Saving..." : "Save"}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-
-            {employees.length === 0 && (
+            {employees.length > 0 ? (
+              employees.map((employee) => (
+                <TableRow key={employee.id}>
+                  <TableCell>{employee.id}</TableCell>
+                  <TableCell>{employee.email}</TableCell>
+                  <TableCell>{employee.employee_number || "N/A"}</TableCell>
+                  <TableCell>
+                    <TextField
+                      select
+                      size="small"
+                      value={groupSelections[employee.id] || "Staff"}
+                      onChange={(e) =>
+                        setGroupSelections(prev => ({
+                          ...prev,
+                          [employee.id]: e.target.value,
+                        }))
+                      }
+                    >
+                      <MenuItem value="Staff">Staff</MenuItem>
+                      <MenuItem value="Supervisor">Supervisor</MenuItem>
+                      <MenuItem value="Admin">Admin</MenuItem>
+                    </TextField>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={groupSelections[employee.id] === employee.group}
+                      onClick={() => handleUpdateGroup(employee.id)}
+                    >
+                      Save
+                    </Button>
+                  </TableCell>
+                  <TableCell align="center">
+                    {employee.is_active ? (
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        onClick={() =>
+                          handleDeactivateEmployee(employee.id, employee.email)
+                        }
+                        sx={{ textTransform: "none", fontWeight: 600 }}
+                      >
+                        Deactivate
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        color="success"
+                        onClick={() =>
+                          handleActivateEmployee(employee.id, employee.email)
+                        }
+                        sx={{ textTransform: "none", fontWeight: 600 }}
+                      >
+                        Activate
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
               <TableRow>
-                <TableCell colSpan={7} align="center">
+                <TableCell colSpan={5} align="center">
                   No employees found.
                 </TableCell>
               </TableRow>
@@ -202,12 +329,72 @@ export default function EmployeeManagement() {
         </Table>
       </Paper>
 
-      {/* ADD EMPLOYEE DIALOG */}
-      <AddEmployeeModal
-        open={openAddDialog}
-        onClose={() => setOpenAddDialog(false)}
-        onCreated={() => loadEmployees()}
-      />
+      <Dialog open={openAdd} onClose={handleCloseAdd} fullWidth maxWidth="sm">
+        <DialogTitle>Add Employee</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Email"
+            name="email"
+            title="Must be a valid email address (e.g., john.doe@example.com)"
+            value={form.email}
+            onChange={handleChange}
+          />
+
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Password"
+            name="password"
+            type="password"
+            title="Must be a valid password (e.g., P@ssw0rd1234)"
+            value={form.password}
+            onChange={handleChange}
+          />
+
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Employee Number"
+            name="employee_number"
+            title="Must be a valid employee number (e.g., 0001)"
+            value={form.employee_number}
+            onChange={handleChange}
+          />
+
+          <TextField
+            select
+            fullWidth
+            margin="normal"
+            label="Group"
+            name="group"
+            value={form.group}
+            onChange={handleChange}
+          >
+            <MenuItem value="Admin">Admin</MenuItem>
+            <MenuItem value="Supervisor">Supervisor</MenuItem>
+            <MenuItem value="Staff">Staff</MenuItem>
+          </TextField>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={handleCloseAdd}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleAddEmployee}
+            disabled={loading}
+            sx={{
+              backgroundColor: GREEN,
+              "&:hover": { backgroundColor: "#16302b" },
+              textTransform: "none",
+              fontWeight: 600,
+            }}
+          >
+            {loading ? "Saving..." : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

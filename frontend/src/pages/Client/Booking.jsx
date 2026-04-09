@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import "../../components/clientCss/Booking.css";
@@ -6,6 +6,7 @@ import AxiosInstance from "../../components/AxiosInstance";
 import { useNavigate } from "react-router-dom";
 
 const Booking = () => {
+  const profileReady = localStorage.getItem("profile_ready") === "true";
   const navigate = useNavigate();
   const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
@@ -17,6 +18,11 @@ const Booking = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [popupMessage, setPopupMessage] = useState({ type: "", text: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [blockedSlots, setBlockedSlots] = useState([]);
+
+  const submitLock = useRef(false);
+  const availabilityInterval = useRef(null);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -36,30 +42,76 @@ const Booking = () => {
     "3:00 PM",
     "4:00 PM",
   ];
+
+  // ─── helpers ────────────────────────────────────────────────────────────────
+
+  const showMessage = (type, text, duration = 3000) => {
+    setPopupMessage({ type, text });
+    setShowPopup(true);
+    setTimeout(() => setShowPopup(false), duration);
+  };
+
+  const resetSubmitState = () => {
+    setLoading(false);
+    setIsSubmitting(false);
+    submitLock.current = false;
+  };
+
+  const formatPhoneNumber = (value) => {
+    const phoneNumber = value.replace(/\D/g, "");
+    if (phoneNumber.length <= 3) return phoneNumber;
+    if (phoneNumber.length <= 6)
+      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
+    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
+  };
+
+  const cleanPhoneNumber = (phone) => phone.replace(/\D/g, "");
+
+  const convertTo24Hour = (timeStr) => {
+    const [time, modifier] = timeStr.split(" ");
+    let [hours, minutes] = time.split(":");
+    if (modifier === "PM" && hours !== "12") hours = parseInt(hours, 10) + 12;
+    if (modifier === "AM" && hours === "12") hours = "00";
+    return `${String(hours).padStart(2, "0")}:${minutes}:00`;
+  };
+
+  const formatDateParam = (d) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const timeStringFromUTC = (utcString) => {
+    const dt = new Date(utcString);
+    const h = dt.getHours();
+    const m = dt.getMinutes();
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+  };
+
+  const getServiceTitle = (serviceId) => {
+    if (!Array.isArray(services)) return "Selected";
+    const service = services.find((s) => s?.serviceid === parseInt(serviceId));
+    return service?.title || "Selected";
+  };
+
+  // ─── data loading ────────────────────────────────────────────────────────────
+  
   useEffect(() => {
-    const token = localStorage.getItem("access");
-    const userId = localStorage.getItem("user_id");
-
-    if (!token || !userId) {
-      navigate("/client-login");
-      return;
+    if (!profileReady) {
+      navigate("/complete-profile", { replace: true });
     }
-
-    setIsAuthenticated(true);
-    loadUserData();
-    loadServices();
-  }, [navigate]);
+  }, [profileReady, navigate]);
 
   const loadUserData = async () => {
     try {
       const response = await AxiosInstance.get("core/customers/me/");
-      console.log("Customer data:", response.data);
       setCustomers(response.data);
       setFormData((prev) => ({
         ...prev,
-        fullName: `${response.data.firstname || ""} ${
-          response.data.lastname || ""
-        }`.trim(),
+        fullName: `${response.data.firstname || ""} ${response.data.lastname || ""}`.trim(),
         email: response.data.email || "",
         phone: response.data.phonenumber || "",
         address: response.data.addressid?.street || "",
@@ -68,326 +120,317 @@ const Booking = () => {
       console.error("Error loading customer:", error);
     }
   };
+
   const loadServices = async () => {
     setLoadingServices(true);
+
     try {
       const response = await AxiosInstance.get("core/services/");
-      console.log("Services loaded:", response.data);
 
-      if (Array.isArray(response.data)) {
-        setServices(response.data);
-      } else if (response.data && response.data.results) {
-        setServices(response.data.results);
-      } else {
-        setServices([]);
-      }
+      const servicesData =
+        Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response?.data?.results)
+          ? response.data.results
+          : [];
+
+      setServices(servicesData);
     } catch (error) {
-      console.error("Error loading services:", error);
-      setPopupMessage({ 
-        type: "error", 
-        text: "Failed to load services. Please refresh the page." 
+      const status = error?.response?.status;
+
+      if (status === 401) {
+        showMessage("error", "Your session has expired. Please log in again.");
+      } else if (status === 403) {
+        showMessage("error", "You do not have permission to view services.");
+      } else {
+        showMessage(
+          "error",
+          "Failed to load services. Please try again."
+        );
+      }
+
+      console.error("Error loading services:", {
+        status,
+        data: error?.response?.data,
       });
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000);
     } finally {
       setLoadingServices(false);
     }
   };
-  useEffect(() => {
-    if (date && formData.service && isAuthenticated) {
-      checkAvailability();
-    }
-  }, [date, formData.service, isAuthenticated]);
 
-  const checkAvailability = async () => {
-    setCheckingAvailability(true);
+  // ─── availability (uses /core/bookings/) ─────────────────────────────────────
+
+  /**
+   * Fetch booked time slots for a given date + service from the bookings endpoint.
+   * Returns an array of time-label strings, e.g. ["9:00 AM", "2:00 PM"]
+   */
+  const getBookedSlots = async (selectedDate, selectedService) => {
+    if (!selectedDate || !selectedService) return [];
     try {
-      const formattedDate = date.toISOString().split("T")[0];
-
-      const response = await AxiosInstance.get("core/schedules/", {
+      const response = await AxiosInstance.get("core/bookings/", {
         params: {
-          date: formattedDate,
-          service: formData.service,
+          date: formatDateParam(selectedDate),
+          service: selectedService,
         },
       });
 
-      console.log("Schedules for date:", response.data);
-      let schedules = [];
-      if (Array.isArray(response.data)) {
-        schedules = response.data;
-      } else if (response.data && response.data.results) {
-        schedules = response.data.results;
-      }
+      const bookings = Array.isArray(response.data)
+        ? response.data
+        : response.data?.results ?? [];
 
-      const bookedSlots = schedules
-        .map((schedule) => {
-          if (schedule.starttime) {
-            const startTime = new Date(schedule.starttime);
-            const hours = startTime.getHours();
-            const minutes = startTime.getMinutes();
-            const ampm = hours >= 12 ? "PM" : "AM";
-            const hour12 = hours % 12 || 12;
-            return `${hour12}:${minutes.toString().padStart(2, "0")} ${ampm}`;
-          }
-          return null;
-        })
-        .filter((slot) => slot !== null);
+      return bookings
+        .map((b) => (b.appointmenttime ? timeStringFromUTC(b.appointmenttime) : null))
+        .filter(Boolean);
+    } catch (error) {
+      console.error("Error fetching booked slots:", error);
+      return [];
+    }
+  };
 
-      const available = timeSlots.filter(
-        (slot) => !bookedSlots.includes(slot)
-      );
-      
+  const checkAvailability = async (selectedDate = date, selectedService = formData.service) => {
+    if (!selectedDate || !selectedService || !isAuthenticated) return;
+
+    setCheckingAvailability(true);
+    try {
+      const booked = await getBookedSlots(selectedDate, selectedService);
+      setBlockedSlots(booked);
+
+      const available = timeSlots.filter((slot) => !booked.includes(slot));
       setAvailableTimeSlots(available);
+
+      // Clear selected time if it just became unavailable
       if (formData.time && !available.includes(formData.time)) {
         setFormData((prev) => ({ ...prev, time: "" }));
+        showMessage("warning", "Your selected time is no longer available. Please choose another.");
       }
-    } catch (error) {
-      console.error("Error checking availability:", error);
-      setAvailableTimeSlots(timeSlots);
+
+      return available;
     } finally {
       setCheckingAvailability(false);
     }
   };
 
-  const handleDateChange = (newDate) => {
-    setDate(newDate);
+  /** One final check right before submitting */
+  const finalAvailabilityCheck = async (selectedTime, selectedDate, selectedService) => {
+    const booked = await getBookedSlots(selectedDate, selectedService);
+    return !booked.includes(selectedTime);
   };
 
-  const formatPhoneNumber = (value) => {
-    const phoneNumber = value.replace(/\D/g, "");
-    if (phoneNumber.length <= 3) {
-      return phoneNumber;
-    } else if (phoneNumber.length <= 6) {
-      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
-    } else {
-      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
+  // ─── effects ─────────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const token = localStorage.getItem("access");
+    const userId = localStorage.getItem("user_id");
+    const profileReady = localStorage.getItem("profile_ready") === "true";
+
+    if (!token || !userId) {
+      navigate("/client-login");
+      return;
     }
+
+    if (profileReady) {
+      setIsAuthenticated(true);
+      loadUserData();
+      loadServices();
+    }
+
+    return () => {
+      if (availabilityInterval.current) clearInterval(availabilityInterval.current);
+    };
+  }, [navigate]);
+
+  // Re-check whenever date or service changes
+  useEffect(() => {
+    if (date && formData.service && isAuthenticated) {
+      checkAvailability(date, formData.service);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, formData.service, isAuthenticated]);
+
+  // Poll every 30 s while user has a time selected
+  useEffect(() => {
+    if (formData.time && formData.service && date && isAuthenticated) {
+      if (availabilityInterval.current) clearInterval(availabilityInterval.current);
+      availabilityInterval.current = setInterval(() => {
+        checkAvailability(date, formData.service);
+      }, 30000);
+    } else {
+      if (availabilityInterval.current) clearInterval(availabilityInterval.current);
+    }
+    return () => {
+      if (availabilityInterval.current) clearInterval(availabilityInterval.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.time, formData.service, date, isAuthenticated]);
+
+  // ─── handlers ────────────────────────────────────────────────────────────────
+
+  const handleDateChange = (newDate) => {
+    setDate(newDate);
+    setFormData((prev) => ({ ...prev, time: "" }));
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
-    if (name === "phone") {
-      const formattedPhone = formatPhoneNumber(value);
-      setFormData({
-        ...formData,
-        [name]: formattedPhone,
-      });
-    } else {
-      setFormData({
-        ...formData,
-        [name]: value,
-      });
-    }
-  };
-
-  const convertTo24Hour = (timeStr) => {
-    const [time, modifier] = timeStr.split(" ");
-    let [hours, minutes] = time.split(":");
-    if (modifier === "PM" && hours !== "12") {
-      hours = parseInt(hours, 10) + 12;
-    }
-    if (modifier === "AM" && hours === "12") {
-      hours = "00";
-    }
-    return `${hours.toString().padStart(2, "0")}:${minutes}:00`;
-  };
-  const cleanPhoneNumber = (phone) => {
-    return phone.replace(/\D/g, "");
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "phone" ? formatPhoneNumber(value) : value,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (submitLock.current || isSubmitting) return;
+
     if (!isAuthenticated) {
       navigate("/client-login");
       return;
     }
 
     setLoading(true);
+    setIsSubmitting(true);
+    submitLock.current = true;
+
+    // ── validation ──────────────────────────────────────────────────────────
     if (!formData.service || !formData.time || !date) {
-      setPopupMessage({ 
-        type: "error", 
-        text: "Please select a service, date, and time." 
-      });
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000);
-      setLoading(false);
+      showMessage("error", "Please select a service, date, and time.");
+      resetSubmitState();
       return;
     }
+
     if (!formData.email) {
-      setPopupMessage({ 
-        type: "error", 
-        text: "Please enter your email address." 
-      });
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000);
-      setLoading(false);
+      showMessage("error", "Please enter your email address.");
+      resetSubmitState();
       return;
     }
-    if (!formData.phone) {
-      setPopupMessage({ 
-        type: "error", 
-        text: "Please enter your phone number." 
-      });
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000);
-      setLoading(false);
-      return;
-    }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      setPopupMessage({ 
-        type: "error", 
-        text: "Please enter a valid email address." 
-      });
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000);
-      setLoading(false);
+      showMessage("error", "Please enter a valid email address.");
+      resetSubmitState();
       return;
     }
+
     const cleanPhone = cleanPhoneNumber(formData.phone);
     if (cleanPhone.length < 10) {
-      setPopupMessage({ 
-        type: "error", 
-        text: "Please enter a valid phone number with at least 10 digits." 
-      });
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000);
-      setLoading(false);
+      showMessage("error", "Please enter a valid phone number with at least 10 digits.");
+      resetSubmitState();
       return;
     }
-
     if (cleanPhone.length > 11) {
-      setPopupMessage({ 
-        type: "error", 
-        text: "Please enter a valid phone number (max 11 digits)." 
-      });
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000);
-      setLoading(false);
+      showMessage("error", "Please enter a valid phone number (max 11 digits).");
+      resetSubmitState();
       return;
     }
 
-    // Validate that we have customer data
     if (!customers?.customerid) {
-      setPopupMessage({ 
-        type: "error", 
-        text: "Customer profile not found. Please complete your profile first." 
-      });
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000);
-      setLoading(false);
+      showMessage("error", "Customer profile not found. Please complete your profile first.");
+      resetSubmitState();
       return;
     }
 
+    // ── final availability check ─────────────────────────────────────────────
     try {
-      // Format date as YYYY-MM-DD
-      const formattedDate = date.toISOString().split("T")[0];
+      const isStillAvailable = await finalAvailabilityCheck(
+        formData.time,
+        date,
+        formData.service
+      );
+
+      if (!isStillAvailable) {
+        showMessage(
+          "error",
+          "Sorry, this time slot was just booked by someone else. Please select another time.",
+          4000
+        );
+        await checkAvailability(date, formData.service);
+        setFormData((prev) => ({ ...prev, time: "" }));
+        resetSubmitState();
+        return;
+      }
+
+      // ── build payload ──────────────────────────────────────────────────────
+      const formattedDate = formatDateParam(date);
       const formattedTime = convertTo24Hour(formData.time);
+      const localDate = new Date(`${formattedDate}T${formattedTime}`);
+      const utcDateTime = localDate.toISOString();
 
-      // Combine into single datetime string
-      const appointmentDateTime = `${formattedDate}T${formattedTime}:00Z`;
-
-      // Prepare booking data with cleaned phone number
       const bookingData = {
         customerid: customers.customerid,
         serviceid: parseInt(formData.service),
-        appointmenttime: appointmentDateTime,
+        appointmenttime: utcDateTime,
         status: "pending",
         email: formData.email.trim(),
-        phonenum: cleanPhone, 
+        phonenum: cleanPhone,
       };
 
-      console.log("Sending booking data:", bookingData);
+      await AxiosInstance.post("core/bookings/", bookingData);
 
-      const response = await AxiosInstance.post("core/bookings/", bookingData);
+      showMessage("success", "Booking created successfully! We will confirm your appointment soon.");
 
-      console.log("Booking created:", response.data);
-      
-      // Show success popup
-      setPopupMessage({
-        type: "success",
-        text: "Booking created successfully! We will confirm your appointment soon."
-      });
-      setShowPopup(true);
-      
-      // Auto-hide popup after 3 seconds
-      setTimeout(() => {
-        setShowPopup(false);
-      }, 3000);
+      setTimeout(() => checkAvailability(date, formData.service), 3000);
 
-      // Clear form (keep user data if logged in)
-      setFormData({
-        fullName: customers ? formData.fullName : "",
-        address: customers ? formData.address : "",
-        phone: customers ? formData.phone : "",
-        email: customers ? formData.email : "",
-        service: "",
-        time: "",
-      });
-
-      // Reset date to today
+      // Reset service/time selection, keep personal info
+      setFormData((prev) => ({ ...prev, service: "", time: "" }));
       setDate(new Date());
-      setAvailableTimeSlots([]);
     } catch (error) {
-      console.error("Error creating booking:", error);
+      console.error("Booking error:", error);
+
+      let errorMsg = "Failed to create booking. Please try again.";
 
       if (error.response) {
-        console.error("Status:", error.response.status);
-        console.error("Data:", error.response.data);
+        const { status: httpStatus, data: errorData } = error.response;
 
-        let errorMsg = "";
-
-        if (error.response.status === 400) {
-          // Validation error
-          if (typeof error.response.data === "object") {
-            const errors = Object.entries(error.response.data)
+        if (httpStatus === 400) {
+          if (errorData?.appointmenttime) {
+            errorMsg = Array.isArray(errorData.appointmenttime)
+              ? errorData.appointmenttime[0]
+              : errorData.appointmenttime;
+            await checkAvailability(date, formData.service);
+            setFormData((prev) => ({ ...prev, time: "" }));
+          } else if (errorData?.non_field_errors) {
+            errorMsg = Array.isArray(errorData.non_field_errors)
+              ? errorData.non_field_errors[0]
+              : errorData.non_field_errors;
+            await checkAvailability(date, formData.service);
+            setFormData((prev) => ({ ...prev, time: "" }));
+          } else if (typeof errorData === "object") {
+            errorMsg = Object.entries(errorData)
               .map(([key, val]) => {
-                if (key === "appointmenttime") {
-                  return "Invalid date/time format";
-                }
-                if (key === "email") {
-                  return "Email: " + (Array.isArray(val) ? val.join(", ") : val);
-                }
-                if (key === "phonenum") {
-                  return "Phone: " + (Array.isArray(val) ? val.join(", ") : val);
-                }
-                return `${key}: ${Array.isArray(val) ? val.join(', ') : val}`;
+                const msg = Array.isArray(val) ? val.join(", ") : val;
+                if (key === "appointmenttime") return "Time slot is already booked";
+                return `${key}: ${msg}`;
               })
               .join(" | ");
-            errorMsg = errors;
-          } else {
-            errorMsg = error.response.data;
+          } else if (typeof errorData === "string") {
+            errorMsg = errorData;
           }
-        } else if (error.response.status === 403) {
+        } else if (httpStatus === 403) {
           errorMsg = "You do not have permission to create bookings. Please log in again.";
+        } else if (httpStatus === 409) {
+          errorMsg = "This time slot is no longer available. Please select another time.";
+          await checkAvailability(date, formData.service);
+          setFormData((prev) => ({ ...prev, time: "" }));
         } else {
-          errorMsg = `Server error (${error.response.status})`;
+          errorMsg = `Server error (${httpStatus}): ${errorData?.detail || "Please try again"}`;
         }
-
-        setPopupMessage({ type: "error", text: errorMsg });
       } else if (error.request) {
-        setPopupMessage({ type: "error", text: "No response from server. Please check your connection." });
-      } else {
-        setPopupMessage({ type: "error", text: "Failed to create booking. Please try again." });
+        errorMsg = "No response from server. Please check your connection.";
       }
-      
-      setShowPopup(true);
-      setTimeout(() => setShowPopup(false), 3000);
+
+      showMessage("error", errorMsg, 4000);
     } finally {
       setLoading(false);
+      setIsSubmitting(false);
+      setTimeout(() => {
+        submitLock.current = false;
+      }, 1000);
     }
   };
 
-  const getServiceTitle = (serviceId) => {
-    if (!Array.isArray(services)) return "Selected";
-    const service = services.find(
-      (s) => s && s.serviceid === parseInt(serviceId)
-    );
-    return service?.title || "Selected";
-  };
+  // ─── render ───────────────────────────────────────────────────────────────
 
-  // If not authenticated, show loading or nothing (will redirect)
   if (!isAuthenticated) {
     return <div>Redirecting to login...</div>;
   }
@@ -422,6 +465,7 @@ const Booking = () => {
                   value={formData.phone}
                   onChange={handleInputChange}
                   placeholder="(123) 456-7890"
+                  required
                 />
               </div>
 
@@ -451,18 +495,12 @@ const Booking = () => {
                   disabled={loading || loadingServices}
                 >
                   <option value="">
-                    {loadingServices
-                      ? "Loading services..."
-                      : "Select a service"}
+                    {loadingServices ? "Loading services..." : "Select a service"}
                   </option>
                   {Array.isArray(services) &&
                     services.map((service) => (
-                      <option
-                        key={service?.serviceid}
-                        value={service?.serviceid}
-                      >
-                        {service?.title || "Unknown"} - $
-                        {service?.baseprice || "0"}
+                      <option key={service?.serviceid} value={service?.serviceid}>
+                        {service?.title || "Unknown"} - ${service?.baseprice || "0"}
                       </option>
                     ))}
                 </select>
@@ -471,9 +509,7 @@ const Booking = () => {
               <div className="form-group">
                 <label htmlFor="time">
                   Preferred Time
-                  {checkingAvailability && (
-                    <span className="loading-spinner">⏳</span>
-                  )}
+                  {checkingAvailability && <span className="loading-spinner-small"> ⟳</span>}
                 </label>
                 <select
                   id="time"
@@ -481,7 +517,7 @@ const Booking = () => {
                   value={formData.time}
                   onChange={handleInputChange}
                   required
-                  disabled={checkingAvailability}
+                  disabled={checkingAvailability || loading}
                 >
                   <option value="">
                     {checkingAvailability
@@ -490,20 +526,29 @@ const Booking = () => {
                       ? "No slots available"
                       : "Select a time"}
                   </option>
-                  {availableTimeSlots.map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))}
+                  {timeSlots.map((time) => {
+                    const isBlocked = blockedSlots.includes(time);
+                    return (
+                      <option
+                        key={time}
+                        value={time}
+                        disabled={isBlocked}
+                        style={{
+                          backgroundColor: isBlocked ? "#f0f0f0" : "white",
+                          color: isBlocked ? "#999" : "black",
+                        }}
+                      >
+                        {time} {isBlocked ? " Booked" : " Available"}
+                      </option>
+                    );
+                  })}
                 </select>
-                {availableTimeSlots.length === 0 &&
-                  formData.service &&
-                  !checkingAvailability && (
-                    <small className="warning-text">
-                      No available slots for this date. Please select another
-                      date.
-                    </small>
-                  )}
+
+                {availableTimeSlots.length === 0 && formData.service && !checkingAvailability && (
+                  <small className="warning-text">
+                    No available slots for this date. Please select another date.
+                  </small>
+                )}
               </div>
             </div>
 
@@ -511,9 +556,7 @@ const Booking = () => {
               <h4>Booking Summary</h4>
               {formData.service && formData.time && date ? (
                 <div className="summary-details">
-                  <p>
-                    <strong>Service:</strong> {getServiceTitle(formData.service)}
-                  </p>
+                  <p><strong>Service:</strong> {getServiceTitle(formData.service)}</p>
                   <p>
                     <strong>Date:</strong>{" "}
                     {date.toLocaleDateString("en-US", {
@@ -523,20 +566,12 @@ const Booking = () => {
                       day: "numeric",
                     })}
                   </p>
-                  <p>
-                    <strong>Time:</strong> {formData.time}
-                  </p>
-                  <p>
-                    <strong>Email:</strong> {formData.email || "Not provided"}
-                  </p>
-                  <p>
-                    <strong>Phone:</strong> {formData.phone || "Not provided"}
-                  </p>
+                  <p><strong>Time:</strong> {formData.time}</p>
+                  <p><strong>Email:</strong> {formData.email || "Not provided"}</p>
+                  <p><strong>Phone:</strong> {formData.phone || "Not provided"}</p>
                 </div>
               ) : (
-                <p className="no-selection">
-                  Please select a service, date, and time
-                </p>
+                <p className="no-selection">Please select a service, date, and time</p>
               )}
             </div>
 
@@ -545,14 +580,16 @@ const Booking = () => {
               className="btn-book-appointment"
               disabled={
                 loading ||
+                isSubmitting ||
                 !formData.service ||
                 !formData.time ||
                 !date ||
                 !formData.email ||
-                !formData.phone
+                !formData.phone ||
+                checkingAvailability
               }
             >
-              {loading ? "CREATING BOOKING..." : "BOOK APPOINTMENT"}
+              {loading || isSubmitting ? "PROCESSING..." : "BOOK APPOINTMENT"}
             </button>
           </form>
         </div>
@@ -562,23 +599,22 @@ const Booking = () => {
           <div className="availability-badge">SELECT DATE</div>
           <div className="calendar-wrapper">
             <h3 className="calendar-month">
-              {date.toLocaleString("default", { month: "long" })}{" "}
-              {date.getFullYear()}
+              {date.toLocaleString("default", { month: "long" })} {date.getFullYear()}
             </h3>
             <Calendar
               onChange={handleDateChange}
               value={date}
               minDate={new Date()}
               className="custom-calendar"
-              tileDisabled={({ date }) => {
-                return date < new Date().setHours(0, 0, 0, 0);
-              }}
+              tileDisabled={({ date: tileDate }) =>
+                tileDate < new Date().setHours(0, 0, 0, 0)
+              }
             />
           </div>
         </div>
       </div>
 
-      {/* Popup Modal */}
+      {/* Popup */}
       {showPopup && (
         <div className="popup-overlay">
           <div className={`popup-content ${popupMessage.type}`}>

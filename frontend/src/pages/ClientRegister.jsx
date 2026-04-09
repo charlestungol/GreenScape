@@ -2,8 +2,9 @@ import '../App.css'
 import BackgroundVideo from '../assets/videos/vid_1.mp4'; 
 import Logo from '../assets/img/Logo.png'; 
 
-import { useState } from 'react';
+import { useState, useRef } from 'react'
 import AxiosInstance from '../components/AxiosInstance';
+import ReCAPTCHA from "react-google-recaptcha";
 import { useNavigate } from "react-router-dom";
 
 
@@ -13,6 +14,8 @@ const ClientRegister = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [recaptchaToken, setRecaptchaToken] = useState(null);
+  const recaptchaRef = useRef(null);
 
   const navigate = useNavigate();
 
@@ -30,11 +33,18 @@ const ClientRegister = () => {
     setError('Passwords do not match.');
     return;
   }
+  
+  if (!recaptchaToken) {
+    setError('Please verify that you are not a robot.');
+    return;
+  }
+
 
   try {
     const response = await AxiosInstance.post('register/client/', {
       email,
       password,
+      recaptchaToken
     });
 
     console.log(response.data);
@@ -43,6 +53,7 @@ const ClientRegister = () => {
     setEmail('');
     setPassword('');
     setConfirmPassword('');
+    recaptchaRef.current.reset();
 
     setTimeout(() => {
       navigate("/client-login");
@@ -97,7 +108,12 @@ const ClientRegister = () => {
       maxLength={50}
     />
   </div>
-
+  <ReCAPTCHA
+    ref={recaptchaRef}
+    sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+    onChange={(token) => setRecaptchaToken(token)}
+    onExpired={() => setRecaptchaToken(null)}
+  />
   <button onClick={handleRegister}>Create Client Account</button>
 
   {error && <p className="errorMsg">{error}</p>}

@@ -15,6 +15,7 @@ from .views import (
     CookieTokenRefreshView,
     RecaptchaGateAPIView,
     UserManagementViewSet,
+    EmployeeAccountViewSet
 )
 
 router = DefaultRouter()
@@ -23,6 +24,7 @@ router.register('register/employee', EmployeeRegisterViewSet, basename='employee
 router.register('login/client', ClientLoginViewSet, basename='client-login')
 router.register('login/employee', EmployeeLoginViewSet, basename='employee-login')
 router.register(r'users', UserManagementViewSet, basename='users')
+router.register(r'employee-accounts',EmployeeAccountViewSet,basename='employee-accounts')
 
 urlpatterns = [
     path('change-password/', ChangePasswordViewSet.as_view({'post': 'create'}), name='change-password'),

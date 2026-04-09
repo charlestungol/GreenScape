@@ -1,10 +1,11 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from .views import (
-    AddressViewSet, BookingViewSet, CustomerViewSet, EmployeeViewSet,
+    AddressViewSet, BookingViewSet, CustomerViewSet, EmployeeAvailabilityViewSet, EmployeeViewSet,
     ServiceTypeViewSet, ServiceViewSet, CustomerServiceViewSet,
     SiteViewSet, ZoneViewSet, InvoiceViewSet,
-    QuoteViewSet, ScheduleViewSet,RequestQuoteViewSet, ServiceLocationViewSet
+    QuoteViewSet, ScheduleViewSet,RequestQuoteViewSet, ServiceLocationViewSet,
+    BudgetViewSet,ExpenseViewSet,LocationServiceViewSet
 )
 
 router = DefaultRouter()
@@ -22,6 +23,11 @@ router.register(r"quotes", QuoteViewSet, basename="quote")
 router.register(r"schedules", ScheduleViewSet, basename="schedule")
 router.register(r'request-quotes', RequestQuoteViewSet, basename='requestquote')
 router.register(r'service-locations', ServiceLocationViewSet, basename='servicelocation')
+router.register(r'budgets', BudgetViewSet, basename='budget')
+router.register(r'expenses', ExpenseViewSet, basename='expense')
+router.register(r'location-services', LocationServiceViewSet, basename='locationservice')
+# core/urls.py
+router.register(r"employee-availability",EmployeeAvailabilityViewSet,basename="employee-availability")
 
 urlpatterns = [
     path("", include(router.urls)),

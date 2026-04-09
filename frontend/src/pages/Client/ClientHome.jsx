@@ -2,8 +2,8 @@ import "../../components/clientCss/Dashboard.css";
 import Budget from "../../ClientDashboard/Budget.jsx";
 import Expenses from "../../ClientDashboard/Expenses.jsx";
 import ServiceLocations from "../../ClientDashboard/ServiceLocations.jsx";
-import Quote from "../../ClientDashboard/Quote.jsx";
-import RunningServices from "../../ClientDashboard/RunningServices.jsx";
+import Bookings from "../../ClientDashboard/Bookings.jsx";
+import Appointment from "../../ClientDashboard/Appointment.jsx";
 import Time from '../../ClientDashboard/Timeboard.jsx';
 import Remain from '../../ClientDashboard/RemainingBudget.jsx';
 import Analytics from "../../ClientDashboard/Analytics.jsx";
@@ -24,13 +24,13 @@ const Home = () => {
                 <Time/>
                 <Maps/>
               </div>
-              <Quote/>
+              <Bookings/>
             </div>
             <div className="rightColumn">
               <Analytics/>
               <div className="topServicesRow">
                 <ServiceLocations/>
-                <RunningServices/>
+                <Appointment/>
               </div>
             </div>
           </div>

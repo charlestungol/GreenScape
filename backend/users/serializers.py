@@ -6,6 +6,10 @@ from django.core import exceptions
 from django.contrib.auth.models import Group
 from django.db import transaction
 
+# ---------------------------------------------------
+# Model Imports
+# ---------------------------------------------------
+from .models import CustomUser
 
 # ---------------------------------------------------
 # Django Allauth
@@ -36,7 +40,11 @@ from core.management.validators import (
 # Get the User model
 User = get_user_model()
 
-ALLOWED_GROUPS = ["Admin", "Supervisor", "Staff"]
+ALLOWED_GROUPS = [
+    ("Admin", "Admin"),
+    ("Supervisor", "Supervisor"),
+    ("Staff", "Staff"),
+]
 
 # Function to normalize email by stripping whitespace and converting to lowercase
 def normalize_email(value: str) -> str:
@@ -180,51 +188,59 @@ class EmployeeLoginSerializer(serializers.Serializer):
         data["user"] = user
         return data
 
-# Create a user, and add an employee to db
+# Serializer for employee registration, includes fields for email, password, employee number, and group.
 class EmployeeRegisterSerializer(serializers.ModelSerializer):
-    # Allow group to be specified at registration, but only allow certain groups for security. This is write-only and not part of the model.
     group = serializers.ChoiceField(
         write_only=True,
         required=True,
         choices=ALLOWED_GROUPS
     )
-    # Allow password to be optional for employee registration, as they may be created by an admin and set their password later. This is write-only and not part of the model.
+
     password = serializers.CharField(
         write_only=True,
-        required=False
-    )
-    # Allow employee number to be specified at registration, but it is required for employees.
-    employee_number = serializers.CharField(
-        write_only=True,
         required=True,
+        min_length=8
     )
 
+    employee_number = serializers.CharField(
+        write_only=True,
+        required=True
+    )
 
     class Meta:
         model = User
-        fields = ["email", "password", "group", "employee_number"]
+        fields = ["email", "password", "employee_number", "group"]
 
-    # Override the create method to handle user creation and group assignment within an atomic transaction. This ensures that either all operations succeed or none do, maintaining database integrity.
+    #EMAIL UNIQUENESS
+    def validate_email(self, value):
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError(
+                "This email address is already in use."
+            )
+        return value
+
+    #EMPLOYEE NUMBER UNIQUENESS
+    def validate_employee_number(self, value):
+        if User.objects.filter(employee_number=value).exists():
+            raise serializers.ValidationError(
+                "This employee number is already in use."
+            )
+        return value
+
     def create(self, validated_data):
         group_name = validated_data.pop("group")
+        password = validated_data.pop("password")
         employee_number = validated_data.pop("employee_number")
-        password = validated_data.pop("password", None)
 
-        # Create identity
         user = User.objects.create_user(
             email=validated_data["email"],
+            password=password,
             role="employee",
             employee_number=employee_number,
-            password=password,
-            is_active=False,   # wait for verification / admin approval
+            is_active=False,  # invite-style flow
         )
 
-        # Assign permissions via groups
-        if group_name:
-            group = Group.objects.get(name=group_name)
-        else:
-            group = Group.objects.get(name="Staff")  # safe default
-
+        group = Group.objects.get(name=group_name)
         user.groups.add(group)
 
         return user
@@ -320,4 +336,24 @@ class UserSerializer(serializers.ModelSerializer):
     def get_role(self, obj):
         group = obj.groups.first()
         return group.name if group else None
+
+# For employee management views, we need to include employee_number and role/group information.
+class EmployeeAccountSerializer(serializers.ModelSerializer):
+    group = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            "id",
+            "email",
+            "employee_number",
+            "role",
+            "group",
+            "is_active",
+        ]
+
+    def get_group(self, obj):
+        group = obj.groups.first()
+        return group.name if group else None
+
 

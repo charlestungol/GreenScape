@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "../components/clientCss/Dashboard.css";
 import AddLocationAltIcon from "@mui/icons-material/AddLocationAlt";
 import CloseIcon from "@mui/icons-material/Close";
@@ -74,7 +74,7 @@ const parseAddress = (fullAddress) => {
       city = parts.pop() || "";
     }
     street = parts.join(', ');
-    } else {
+  } else {
     const provinces = ["alberta", "british columbia", "ontario", "quebec", "manitoba", 
                        "saskatchewan", "nova scotia", "new brunswick", "newfoundland", 
                        "prince edward island", "northwest territories", "yukon", "nunavut"];
@@ -107,6 +107,122 @@ const parseAddress = (fullAddress) => {
   return result;
 };
 
+/* ================= SERVICE SELECTION MODAL ================= */
+function ServiceSelectionModal({ isOpen, onClose, onConfirm, locationId }) {
+  const [availableServices, setAvailableServices] = useState([]);
+  const [selectedServices, setSelectedServices] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchAvailableServices();
+    }
+  }, [isOpen]);
+
+  const fetchAvailableServices = async () => {
+    setLoading(true);
+    try {
+      const response = await AxiosInstance.get('core/services/');
+      const services = Array.isArray(response.data) ? response.data : response.data.results || [];
+      setAvailableServices(services);
+    } catch (err) {
+      console.error("Error fetching services:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleService = (serviceId) => {
+    setSelectedServices(prev => 
+      prev.includes(serviceId) 
+        ? prev.filter(id => id !== serviceId)
+        : [...prev, serviceId]
+    );
+  };
+
+  const handleConfirm = async () => {
+    if (selectedServices.length > 0) {
+      setSaving(true);
+      try {
+        await onConfirm(locationId, selectedServices);
+        onClose();
+      } catch (err) {
+        console.error("Error confirming services:", err);
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      onClose();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="overlay">
+      <div className="service-selection-modal">
+        <div className="modal-header">
+          <h3>Select Services for This Location</h3>
+          <button onClick={onClose} className="close-button" disabled={saving}>
+            <CloseIcon />
+          </button>
+        </div>
+        
+        <div className="modal-content">
+          {loading ? (
+            <div className="loading-container">
+              <div className="spinner"></div>
+              <p>Loading services...</p>
+            </div>
+          ) : availableServices.length === 0 ? (
+            <p className="no-services">No services available</p>
+          ) : (
+            <div className="services-list">
+              {availableServices.map(service => (
+                <div 
+                  key={service.serviceid} 
+                  className={`service-item ${selectedServices.includes(service.serviceid) ? 'selected' : ''}`}
+                  onClick={() => !saving && toggleService(service.serviceid)}
+                >
+                  <div className="service-checkbox">
+                    {selectedServices.includes(service.serviceid) && <span>✓</span>}
+                  </div>
+                  <div className="service-info">
+                    <div className="service-title">{service.title}</div>
+                    <div className="service-description">{service.description}</div>
+                    <div className="service-price">${service.baseprice}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        <div className="modal-footer">
+          <button 
+            className="confirm-button" 
+            onClick={handleConfirm}
+            disabled={selectedServices.length === 0 || saving}
+          >
+            {saving ? (
+              <>
+                <span className="spinner-small"></span>
+                Adding...
+              </>
+            ) : (
+              `Add Selected Services (${selectedServices.length})`
+            )}
+          </button>
+          <button className="skip-button" onClick={onClose} disabled={saving}>
+            Skip for now
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ================= MAIN COMPONENT ================= */
 function Maps() {
   const [showMap, setShowMap] = useState(false);
@@ -116,6 +232,8 @@ function Maps() {
   const [isConfirming, setIsConfirming] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [savedLocationId, setSavedLocationId] = useState(null);
 
   const defaultCenter = [51.0447, -114.0719]; // Calgary
 
@@ -146,77 +264,163 @@ function Maps() {
     }
   };
 
-  /* ================= HANDLE LOCATION CONFIRMATION ================= */
-const handleConfirmLocation = async () => {
-  if (!selectedPosition || !selectedAddress) return;
-  
-  setIsConfirming(true);
-  setError("");
+  /* ================= SAVE LOCATION SERVICES ================= */
+  const saveLocationServices = async (locationId, serviceIds) => {
+  console.log("Saving services for location ID:", locationId);
+  console.log("Service IDs:", serviceIds);
   
   try {
-    // Parse the address into components
-    const { street, city, province, postalcode } = parseAddress(selectedAddress);
+    // Get today's date
+    const today = new Date();
+    const reqDate = today.toISOString().split('T')[0];
+    const redYear = today.getFullYear().toString();
     
-    // Get user info from localStorage
-    const firstName = localStorage.getItem('first_name') || '';
-    const lastName = localStorage.getItem('last_name') || '';
-    const userName = `${firstName} ${lastName}`.trim() || 'Customer';
+    // Create customer service entries for each selected service
+    const promises = serviceIds.map(async (serviceId) => {
+      const serviceData = {
+        serviceid: serviceId,
+        reqdate: reqDate,
+        redyear: redYear,
+        completed: false
+      };
+      console.log("Creating customer service with data:", serviceData);
+      
+      const customerServiceResponse = await AxiosInstance.post('core/customer-services/', serviceData);
+      console.log("Customer service response:", customerServiceResponse.data);
+      
+      // IMPORTANT: Check the correct field name for the ID
+      // The response might have 'customerserviceid' or 'id' or 'customerServiceId'
+      let customerServiceId = customerServiceResponse.data.customerserviceid;
+      if (!customerServiceId) {
+        customerServiceId = customerServiceResponse.data.id;
+      }
+      if (!customerServiceId) {
+        customerServiceId = customerServiceResponse.data.CustomerServiceId;
+      }
+      
+      console.log("Extracted customer service ID:", customerServiceId);
+      
+      if (!customerServiceId) {
+        throw new Error("Could not get customer service ID from response");
+      }
+      
+      // Then link it to the location
+      const linkData = {
+        customerserviceid: customerServiceId
+      };
+      console.log("Linking service to location with data:", linkData);
+      
+      const linkResponse = await AxiosInstance.post(`core/service-locations/${locationId}/link-service/`, linkData);
+      console.log("Link response:", linkResponse.data);
+      
+      return linkResponse;
+    });
     
-    // Prepare the location data
-    const locationData = {
-      name: userName,
-      street: street,
-      city: city,
-      province: province,
-      postalcode: postalcode
-    };
-
-    console.log("Saving location:", locationData);
+    const results = await Promise.all(promises);
+    console.log("All services saved and linked successfully:", results);
     
-    // Send to your ServiceLocation API
-    const response = await AxiosInstance.post('core/service-locations/', locationData);
+    // Dispatch event to refresh services
+    window.dispatchEvent(new CustomEvent('servicesUpdated'));
     
-    console.log("Location saved successfully:", response.data);
-    
-    // DISPATCH CUSTOM EVENT to notify ServiceLocations component
-    window.dispatchEvent(new CustomEvent('locationAdded'));
-    
-    // Show success message
-    setShowSuccess(true);
-    
-    // Close after 2 seconds
-    setTimeout(() => {
-      setShowMap(false);
-      setSelectedPosition(null);
-      setSelectedAddress("");
-      setSearchQuery("");
-      setShowSuccess(false);
-      setIsConfirming(false);
-    }, 2000);
+    alert(`Successfully added ${serviceIds.length} service(s) to this location!`);
     
   } catch (err) {
-    console.error("Error saving location:", err);
+    console.error("=== ERROR SAVING SERVICES ===");
+    console.error("Error:", err);
+    console.error("Error response:", err.response?.data);
     
-    if (err.response) {
-      if (err.response.status === 401) {
-        setError("Please log in to save locations");
-      } else if (err.response.status === 400) {
-        const errors = err.response.data;
-        let errorMsg = "Validation error:\n";
-        Object.entries(errors).forEach(([key, val]) => {
-          errorMsg += `- ${key}: ${Array.isArray(val) ? val.join(', ') : val}\n`;
-        });
-        setError(errorMsg);
-      } else {
-        setError("Failed to save location. Please try again.");
-      }
+    let errorMessage = "Failed to save services: ";
+    
+    if (err.response?.data?.error) {
+      errorMessage += err.response.data.error;
+    } else if (err.response?.data?.detail) {
+      errorMessage += err.response.data.detail;
+    } else if (err.message) {
+      errorMessage += err.message;
     } else {
-      setError("Network error. Please check your connection.");
+      errorMessage += "Please try again.";
     }
     
-    setIsConfirming(false);
+    alert(errorMessage);
+    throw err;
   }
 };
+  /* ================= HANDLE LOCATION CONFIRMATION ================= */
+  const handleConfirmLocation = async () => {
+    if (!selectedPosition || !selectedAddress) return;
+    
+    setIsConfirming(true);
+    setError("");
+    
+    try {
+      const { street, city, province, postalcode } = parseAddress(selectedAddress);
+      
+      const locationData = {
+        street: street,
+        city: city,
+        province: province,
+        postalcode: postalcode
+      };
+
+      console.log("Saving location:", locationData);
+      
+      const response = await AxiosInstance.post('core/service-locations/', locationData);
+      const savedLocation = response.data;
+      const newLocationId = savedLocation.servicelocationid;
+      
+      console.log("Location saved with ID:", newLocationId);
+      console.log("Location customer:", savedLocation.customerid);
+      
+      setSavedLocationId(newLocationId);
+      
+      // Dispatch event to notify ServiceLocations component
+      window.dispatchEvent(new CustomEvent('locationAdded'));
+      
+      setShowSuccess(true);
+      
+      // Close map and show service selection modal
+      setTimeout(() => {
+        setShowMap(false);
+        setSelectedPosition(null);
+        setSelectedAddress("");
+        setSearchQuery("");
+        setShowSuccess(false);
+        setIsConfirming(false);
+        
+        // Open service selection modal
+        setShowServiceModal(true);
+      }, 1500);
+      
+    } catch (err) {
+      console.error("Error saving location:", err);
+      
+      if (err.response) {
+        if (err.response.status === 401) {
+          setError("Please log in to save locations");
+        } else if (err.response.status === 400) {
+          const errors = err.response.data;
+          let errorMsg = "Validation error:\n";
+          Object.entries(errors).forEach(([key, val]) => {
+            errorMsg += `- ${key}: ${Array.isArray(val) ? val.join(', ') : val}\n`;
+          });
+          setError(errorMsg);
+        } else {
+          setError("Failed to save location. Please try again.");
+        }
+      } else {
+        setError("Network error. Please check your connection.");
+      }
+      
+      setIsConfirming(false);
+    }
+  };
+
+  /* ================= HANDLE SERVICE CONFIRMATION ================= */
+  const handleServiceConfirm = async (locationId, selectedServices) => {
+    await saveLocationServices(locationId, selectedServices);
+    setShowServiceModal(false);
+    setSavedLocationId(null);
+  };
 
   /* ================= CLOSE MAP ================= */
   const handleCloseMap = () => {
@@ -310,14 +514,14 @@ const handleConfirmLocation = async () => {
             {/* ERROR MESSAGE */}
             {error && (
               <div className="error-message">
-                s {error}
+                ⚠️ {error}
               </div>
             )}
 
             {/* SUCCESS MESSAGE */}
             {showSuccess && (
               <div className="success-message">
-                <span>Location saved successfully!</span>
+                <span>✓ Location saved successfully!</span>
               </div>
             )}
 
@@ -364,6 +568,14 @@ const handleConfirmLocation = async () => {
           </div>
         </div>
       )}
+
+      {/* Service Selection Modal */}
+      <ServiceSelectionModal
+        isOpen={showServiceModal}
+        onClose={() => setShowServiceModal(false)}
+        onConfirm={handleServiceConfirm}
+        locationId={savedLocationId}
+      />
     </>
   );
 }

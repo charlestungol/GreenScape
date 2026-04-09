@@ -138,10 +138,10 @@ class Customerservice(models.Model):
     customerserviceid = models.AutoField(db_column='CustomerServiceId', primary_key=True)  # Field name made lowercase.
     customerid = models.ForeignKey(Customer, models.DO_NOTHING, db_column='CustomerId')  # Field name made lowercase.
     serviceid = models.ForeignKey('Service', models.DO_NOTHING, db_column='ServiceId')  # Field name made lowercase.
-    createdat = models.DateTimeField(db_column='createdAt')  # Field name made lowercase.
+    createdat = models.DateTimeField(db_column='createdAt',auto_now_add=True)  # Field name made lowercase.
     reqdate = models.DateField(db_column='reqDate')  # Field name made lowercase.
     redyear = models.CharField(db_column='redYear', max_length=4, db_collation='SQL_Latin1_General_CP1_CI_AS')  # Field name made lowercase.
-    completed = models.BooleanField()
+    completed = models.BooleanField(default=False)
 
     class Meta:
         managed = True
@@ -186,6 +186,7 @@ class Booking(models.Model):
         managed = True
         ordering = ['appointmenttime']
         db_table = 'Booking'
+        unique_together = ['serviceid', 'appointmenttime']
 
 # ---------------------------------------
 # Invoice model
@@ -210,7 +211,6 @@ class Quotes(models.Model):
     quotesid = models.AutoField(db_column='QuotesId', primary_key=True)  # Field name made lowercase.
     customerid = models.ForeignKey(Customer, models.DO_NOTHING, db_column='CustomerId')  # Field name made lowercase.
     serviceid = models.ForeignKey('Service', models.DO_NOTHING, db_column='ServiceId')  # Field name made lowercase.
-    additionalserviceid = models.IntegerField(db_column='AdditionalServiceId')  # Field name made lowercase.
     zoneid = models.ForeignKey('Zone', models.DO_NOTHING, db_column='ZoneId')  # Field name made lowercase.
     taxamount = models.DecimalField(db_column='TaxAmount', max_digits=10, decimal_places=2)  # Field name made lowercase.
     totalamount = models.DecimalField(db_column='TotalAmount', max_digits=10, decimal_places=2)  # Field name made lowercase.
@@ -274,6 +274,23 @@ class ServiceLocation(models.Model):
 
 
 # ---------------------------------------
+# LocationService model
+# ---------------------------------------
+class LocationService(models.Model):
+    locationserviceid = models.AutoField(primary_key=True)
+    servicelocationid = models.ForeignKey('ServiceLocation', on_delete=models.CASCADE,  db_column='ServiceLocationId',related_name='location_services')
+    customerserviceid = models.ForeignKey('Customerservice', on_delete=models.CASCADE, db_column='CustomerServiceId',related_name='location_services')
+    created_at = models.DateTimeField(auto_now_add=True, db_column='CreatedAt')
+
+    class Meta:
+        managed = True
+        db_table = 'LocationService'
+        unique_together = ['servicelocationid', 'customerserviceid']  # Prevent duplicate links
+
+    def __str__(self):
+        return f"LocationService {self.locationserviceid}"
+
+# ---------------------------------------
 # schedule model
 # ---------------------------------------
 class Schedule(models.Model):
@@ -323,3 +340,44 @@ class Zone(models.Model):
         ordering = ['zoneid']
         db_table = 'Zone'
 
+# ---------------------------------------
+# Budget & Expense
+# ---------------------------------------
+class Budget(models.Model):
+    customerid = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at'] 
+
+    def __str__(self):
+        return f"{self.customerid} - ${self.amount}"
+
+
+class Expense(models.Model):
+    customerid = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    category = models.CharField(max_length=255)
+    date = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-date']
+
+    def __str__(self):
+        return f"{self.name} - ${self.amount}"
+
+class EmployeeAvailability(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        limit_choices_to={"role": "employee"},
+        related_name="availability"
+    )
+    starttime = models.DateTimeField()
+    endtime = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["starttime"]
