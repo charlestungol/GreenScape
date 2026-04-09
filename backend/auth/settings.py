@@ -25,36 +25,32 @@ load_dotenv(BASE_DIR / ".env")
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret! Need to put in .env file for production
 SECRET_KEY = os.getenv("SECRET_KEY", "")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Production-safe DEBUG
+DEBUG = os.getenv("DEBUG", "False").strip().lower() in ("1", "true", "yes", "on")
 
 
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
+    ".azurewebsites.net",
 ]
 
 
 # Email / account settings (django-allauth)
 SITE_ID = 1
 
-# Use email as the only credential for login
 ACCOUNT_AUTHENTICATION_METHOD = "email"
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_USER_MODEL_USERNAME_FIELD = None 
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 
-# Email verification flow
-ACCOUNT_EMAIL_VERIFICATION = "mandatory"   
-ACCOUNT_CONFIRM_EMAIL_ON_GET = True         # Verify immediately when visiting the confirmation link
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
 ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = "/email-verified/"
 ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = "http://localhost:5173"
 
-# Optional: either remove or list plain field names (no asterisks). Often you can omit this and control via serializers/forms.
-# ACCOUNT_SIGNUP_FIELDS = ["first_name", "last_name"]
 
 if DEBUG:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
@@ -63,12 +59,14 @@ else:
         "EMAIL_BACKEND",
         "django.core.mail.backends.smtp.EmailBackend"
     )
+
 EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "25"))
 
-# Booleans: accept 'true'/'false' (case-insensitive)
+
 def env_bool(name: str, default: bool = False) -> bool:
     return os.getenv(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
+
 
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", False)
 EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
@@ -79,14 +77,11 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "webmaster@localhost")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
 
-# Optional
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10") or "0") or None
 EMAIL_SSL_CERTFILE = os.getenv("EMAIL_SSL_CERTFILE") or None
 EMAIL_SSL_KEYFILE = os.getenv("EMAIL_SSL_KEYFILE") or None
 
 
-
-# Configure Simple JWT settings
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
@@ -96,42 +91,35 @@ SIMPLE_JWT = {
     "ALGORITHM": "HS256",
 }
 
-# Cookies settings for JWT
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "x-ignore-refresh",
 ]
 
-# If using cookies, ensure the frontend is included in CSRF_TRUSTED_ORIGINS
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://*.azurewebsites.net",
 ]
 
-# --- Session cookies ---
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
-SESSION_COOKIE_SECURE = False  # True in production (HTTPS)
+SESSION_COOKIE_SECURE = not DEBUG
 
-# --- CSRF cookies ---
 CSRF_COOKIE_NAME = "csrftoken"
-CSRF_COOKIE_HTTPONLY = False   # Must be readable by JS for X-CSRFToken header
+CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SECURE = False    # True in production
+CSRF_COOKIE_SECURE = not DEBUG
 
-# --- JWT cookies ---
 JWT_AUTH_COOKIE_SAMESITE = "Lax"
-JWT_AUTH_COOKIE_SECURE = False  # True in production
+JWT_AUTH_COOKIE_SECURE = not DEBUG
 
-# --- Google OAuth ---
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 
-# --- Google Captcha ---
 RECAPTCHA_PRIVATE_KEY = os.getenv("RECAPTCHA_PRIVATE_KEY")
 
-# Application definition
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -191,21 +179,22 @@ LOGGING = {
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'allauth.account.middleware.AccountMiddleware'
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
-    "http://127.0.0.1:5173",
+    'http://127.0.0.1:5173',
 ]
 
-AUTH_USER_MODEL ='users.CustomUser'
+AUTH_USER_MODEL = 'users.CustomUser'
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
@@ -234,66 +223,57 @@ WSGI_APPLICATION = 'auth.wsgi.application'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        ),
-    
+    ),
+
     "DEFAULT_PERMISSION_CLASSES": (
-            "rest_framework.permissions.IsAuthenticated",
-            "rest_framework.permissions.DjangoModelPermissions",
-        ),
+        "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.DjangoModelPermissions",
+    ),
 
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
-        "rest_framework.throttling.ScopedRateThrottle", 
+        "rest_framework.throttling.ScopedRateThrottle",
     ],
 
     "DEFAULT_THROTTLE_RATES": {
-        # Login endpoint is accessible to unauthenticated users → protect it heavily
-        "anon": "30/minute",       # UMA: 5 unauthenticated requests per minute per IP
-        "user": "60/minute",      # Authenticated user actions
-        "login": "30/minute",       # Login endpoint (if separate throttle needed)
-        "register": "5/hour",    # Registration endpoint (if separate throttle needed)
-        "account_change" : "30/minute" #Changing email.
+        "anon": "30/minute",
+        "user": "60/minute",
+        "login": "30/minute",
+        "register": "5/hour",
+        "account_change": "30/minute",
     },
 
-    "DEFAULT_PAGINATION_CLASS":
-        "rest_framework.pagination.PageNumberPagination",
-        "PAGE_SIZE": 10,
-
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
 }
 
 REST_AUTH = {
-    # Token based
-    "USE_JWT": True,            
+    "USE_JWT": True,
     "TOKEN_MODEL": None,
     "TOKEN_SERIALIZER": None,
-    # Cookie based
     "JWT_AUTH_COOKIE": "access",
     "JWT_AUTH_REFRESH_COOKIE": "refresh",
     "JWT_AUTH_HTTPONLY": True,
     "JWT_AUTH_COOKIE_SECURE": not DEBUG,
-
 }
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
     'default': {
         'ENGINE': 'mssql',
-        'NAME': 'GreenScape',
-        'HOST' : 'localhost',
-        'OPTIONS' : {
-            'driver' : 'ODBC Driver 17 for SQL Server',
-            'trusted_connection' : 'yes',
+        'NAME': os.getenv('DB_NAME', 'GreenScape'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', ''),
+        'USER': os.getenv('DB_USER', ''),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'OPTIONS': {
+            'driver': os.getenv('DB_DRIVER', 'ODBC Driver 17 for SQL Server'),
             'TrustServerCertificate': 'yes',
         },
     }
 }
 
-
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -311,9 +291,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
@@ -323,12 +300,10 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+# Static files
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-STATIC_URL = 'static/'
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
