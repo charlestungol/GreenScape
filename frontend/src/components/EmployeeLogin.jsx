@@ -23,12 +23,19 @@ const EmployeeLogin = () => {
     }
 
     try {
-      //Login (single flow for all internal users)
-      const response = await AxiosInstance.post("login/employee/", {
+      const payload = {
         email,
         password,
-        employee_number: employeeNumber || null,
-      });
+      };
+
+      if (employeeNumber.trim() !== "") {
+        payload.employee_number = employeeNumber;
+      }
+
+      const response = await AxiosInstance.post(
+        "login/employee/",
+        payload
+      );
 
       const { access, user } = response.data;
       const group = user?.group;
