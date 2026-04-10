@@ -602,6 +602,36 @@ class BookingViewSet(viewsets.ModelViewSet):
         """Save the booking"""
         serializer.save()
     
+    
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        booking = self.get_object()
+
+        if booking.status.lower() != "pending":
+            return Response(
+                {"error": "Only pending bookings can be approved."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        booking.status = "approved"
+        booking.save()
+        return Response({"status": "approved"}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"])
+    def disapprove(self, request, pk=None):
+        booking = self.get_object()
+
+        if booking.status.lower() != "pending":
+            return Response(
+                {"error": "Only pending bookings can be disapproved."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        booking.status = "disapproved"
+        booking.save()
+        return Response({"status": "disapproved"}, status=status.HTTP_200_OK)
+
+    
 # -----------------------------------------------------------------------------
 # Invoice view -- Allows for CRUD
 # -----------------------------------------------------------------------------
