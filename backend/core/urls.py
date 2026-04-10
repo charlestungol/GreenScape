@@ -1,7 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from backend.core.chatbot import views
+from .chatbot import views
 from .views import (
     AddressViewSet, BookingViewSet, CustomerViewSet, EmployeeAvailabilityViewSet, EmployeeViewSet,
     ServiceTypeViewSet, ServiceViewSet, CustomerServiceViewSet,
