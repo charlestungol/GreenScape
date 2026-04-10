@@ -52,8 +52,8 @@ export default function MySchedule() {
   useEffect(() => {
     const loadSchedules = async () => {
       try {
-        // ✅ Backend already filters by authenticated user
-        const res = await AxiosInstance.get("core/schedules/");
+        //Backend already filters by authenticated user
+        const res = await AxiosInstance.get("core/employee-availability/");
         const rows = res.data?.results || res.data || [];
         setSchedules(rows);
       } catch (error) {
