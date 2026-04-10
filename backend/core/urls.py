@@ -33,5 +33,5 @@ router.register(r"employee-availability",EmployeeAvailabilityViewSet,basename="e
 
 urlpatterns = [
     path("", include(router.urls)),
-    path("chatbot/", views.chat),
+    path("chat/", views.chat),
 ]
