@@ -239,8 +239,12 @@ class EmployeeRegisterSerializer(serializers.ModelSerializer):
             employee_number=employee_number,
             is_active=False,  # invite-style flow
         )
-
-        group = Group.objects.get(name=group_name)
+        try:
+            group = Group.objects.get(name=group_name)
+        except Group.DoesNotExist:
+            raise serializers.ValidationError(
+                f"Invalid group: {group_name}"
+            )
         user.groups.add(group)
 
         return user
