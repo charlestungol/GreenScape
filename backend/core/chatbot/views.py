@@ -1,7 +1,6 @@
 import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .ai_service import get_ai_response
 
 
 @csrf_exempt
@@ -10,6 +9,8 @@ def chat(request):
         return JsonResponse({"error": "Only POST requests are allowed."}, status=405)
 
     try:
+        from .ai_service import get_ai_response
+
         data = json.loads(request.body)
         user_message = data.get("message", "").strip()
 

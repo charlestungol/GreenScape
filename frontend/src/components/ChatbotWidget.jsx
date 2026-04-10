@@ -1,7 +1,7 @@
 import { useState } from "react";
 import "./clientCss/ChatbotWidget.css";
 
-const API_URL = "http://127.0.0.1:8000/core/chat/";
+const API_URL = "https://greenscape-webapp-efbeayamacendzfg.canadacentral-01.azurewebsites.net/core/chatbot/";
 
 function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
