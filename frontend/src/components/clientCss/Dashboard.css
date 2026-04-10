@@ -1,15 +1,24 @@
-body:has(.dashboardContainer),
-html:has(.dashboardContainer) {
-  overflow-y: auto;
-  -ms-overflow-style: none;
-  scrollbar-width: none; 
+html,
+body {
+  height: 100%;
+  overflow: hidden; /* no page scroll */
 }
 
 .dashboardContainer {
-  overflow-y: auto !important;
+  height: 100vh;
+  overflow-y: auto;     /* ✅ scroll ONLY here */
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+.dashboardContainer::-webkit-scrollbar {
+  display: none;
+}
+.dashboardContainer {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .firstLayerBoard {
@@ -20,7 +29,6 @@ html:has(.dashboardContainer) {
   margin: 0 auto;
   gap: 20px;
 }
-
 
 .leftColumn,
 .rightColumn {
