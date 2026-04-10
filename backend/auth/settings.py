@@ -269,8 +269,9 @@ DATABASES = {
         "USER": os.getenv("DB_USER"),
         "PASSWORD": os.getenv("DB_PASSWORD"),
         "OPTIONS": {
-            "driver": os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server"),
+            "driver": "ODBC Driver 18 for SQL Server",
             "TrustServerCertificate": "yes",
+            "connection_timeout": 10,
         },
     }
 }

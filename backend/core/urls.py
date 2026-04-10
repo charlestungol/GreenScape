@@ -1,5 +1,6 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from django.http import JsonResponse
 
 from .chatbot import views
 from .views import (
@@ -31,7 +32,11 @@ router.register(r'location-services', LocationServiceViewSet, basename='location
 # core/urls.py
 router.register(r"employee-availability",EmployeeAvailabilityViewSet,basename="employee-availability")
 
+def test_chat(request):
+    return JsonResponse({"status": "chat route works"})
+
 urlpatterns = [
     path("", include(router.urls)),
-    path("chat/", views.chat),
+    path("chatbot/", views.chat),
+    path("chatbot-test/", test_chat),
 ]
