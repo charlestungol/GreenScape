@@ -9,7 +9,6 @@ import { useState, useEffect, useRef } from "react";
 
 const ClientLogin = () => {
   const navigate = useNavigate();
-  const googleInitialized = { current: false };
   const [failedAttempts, setFailedAttempts] = useState(0);
   const needsCaptcha = failedAttempts >= 2;
   const [loading, setLoading] = useState(false);
@@ -87,21 +86,24 @@ const handleLogin = async () => {
 };
 
 // Initialize Google Sign-In button after component mounts
-useEffect(() => {
-  if (!window.google) return;
-  if (window.__googleInit) return;
-  window.__googleInit = true;
+  const googleInitialized = useRef(false);
 
-  google.accounts.id.initialize({
-    client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-    callback: handleGoogleCredential,
-  });
+  useEffect(() => {
+    if (!window.google) return;
+    if (googleInitialized.current) return;
 
-  google.accounts.id.renderButton(
-    document.getElementById("google-signin"),
-    { theme: "outline", size: "large", width: 300 }
-  );
-}, []);
+    googleInitialized.current = true;
+
+    google.accounts.id.initialize({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential,
+    });
+
+    google.accounts.id.renderButton(
+      document.getElementById("google-signin"),
+      { theme: "outline", size: "large", width: 300 }
+    );
+  }, []);
 
 const handleGoogleCredential = async (response) => {
   try {
