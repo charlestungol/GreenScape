@@ -6,11 +6,12 @@ body {
 
 .dashboardContainer {
   height: 100vh;
-  overflow-y: auto;     /* ✅ scroll ONLY here */
+  overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start; 
+  padding-left: 20px;     
 }
 
 .dashboardContainer::-webkit-scrollbar {
@@ -26,7 +27,7 @@ body {
   grid-template-columns: 1fr 1fr;
   max-width: 1200px;
   width: 100%;
-  margin: 0 auto;
+  margin: 0;  
   gap: 20px;
 }
 
