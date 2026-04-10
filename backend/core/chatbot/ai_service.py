@@ -10,6 +10,13 @@ ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
 DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT")
 API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
 
+if not API_KEY:
+    raise ValueError("Missing AZURE_OPENAI_API_KEY")
+if not ENDPOINT:
+    raise ValueError("Missing AZURE_OPENAI_ENDPOINT")
+if not DEPLOYMENT_NAME:
+    raise ValueError("Missing AZURE_OPENAI_DEPLOYMENT")
+
 client = AzureOpenAI(
     api_version=API_VERSION,
     azure_endpoint=ENDPOINT,
@@ -25,13 +32,11 @@ def get_ai_response(user_message: str) -> str:
         model=DEPLOYMENT_NAME,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "system",
-                "content": f"Full company information:\n\n{COMPANY_CONTEXT}",
-            },
+            {"role": "system", "content": f"Full company information:\n\n{COMPANY_CONTEXT}"},
             {"role": "user", "content": user_message.strip()},
         ],
-        max_tokens=7000,
+        max_tokens=700,
     )
 
-    return response.choices[0].message.content.strip()
+    content = response.choices[0].message.content
+    return content.strip() if content else "No response returned."
