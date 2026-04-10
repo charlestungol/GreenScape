@@ -10,10 +10,6 @@ ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
 DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT")
 API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
 
-print("ENDPOINT:", ENDPOINT)
-print("DEPLOYMENT:", DEPLOYMENT_NAME)
-print("API_VERSION:", API_VERSION)
-
 client = AzureOpenAI(
     api_version=API_VERSION,
     azure_endpoint=ENDPOINT,
@@ -26,6 +22,7 @@ def get_ai_response(user_message: str) -> str:
         return "Please enter a message."
 
     response = client.chat.completions.create(
+        model=DEPLOYMENT_NAME,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {
