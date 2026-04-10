@@ -1,7 +1,7 @@
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-COMPANY_INFO_PATH = BASE_DIR / "company_info.txt"
+COMPANY_INFO_PATH = BASE_DIR.parent / "chatbot_data" / "company_info.txt"
 
 SYSTEM_PROMPT = """
 You are the official assistant for GreenScape.
