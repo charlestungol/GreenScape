@@ -1,5 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
+from backend.core.chatbot import views
 from .views import (
     AddressViewSet, BookingViewSet, CustomerViewSet, EmployeeAvailabilityViewSet, EmployeeViewSet,
     ServiceTypeViewSet, ServiceViewSet, CustomerServiceViewSet,
@@ -31,4 +33,5 @@ router.register(r"employee-availability",EmployeeAvailabilityViewSet,basename="e
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("chatbot/", views.chatbot_view),
 ]
