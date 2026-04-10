@@ -1,5 +1,6 @@
 # --- Helper ---
 import datetime
+import logging
 
 # --- Django core ---
 from django.conf import settings
@@ -10,6 +11,8 @@ from django.db import transaction
 from django.shortcuts import redirect
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie, csrf_exempt
+
+logger = logging.getLogger(__name__)
 
 # --- Models ---
 from .models import CustomUser
@@ -320,15 +323,18 @@ class EmployeeRegisterViewSet(viewsets.ModelViewSet):
         if serializer.is_valid(raise_exception=True):
             # Wrap code with transaction.atomic to make it a signle database transaction.
             with transaction.atomic():
-                # Save user
                 user = serializer.save()
-                # Send verification through email.
+
+            try:
                 EmailAddress.objects.add_email(
-                request,
-                user,
-                user.email,
-                confirm=True
+                    request,
+                    user,
+                    user.email,
+                    confirm=True
                 )
+            except Exception as e:
+                # Log it, but NEVER crash registration
+                logger.error(f"Employee email failed: {e}")
             return Response(EmployeeRegisterSerializer(user).data, status=201)
         return Response({"detail": f"Registration failed. Please check your input. {self.get_serializer(user).data}"}, status=400)
 
