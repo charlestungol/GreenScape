@@ -34,10 +34,7 @@ def get_ai_response(user_message: str) -> str:
             },
             {"role": "user", "content": user_message.strip()},
         ],
-        max_tokens=500,
-        temperature=0.3,
-        top_p=1.0,
-        model=DEPLOYMENT_NAME,
+        max_tokens=7000,
     )
 
     return response.choices[0].message.content.strip()
