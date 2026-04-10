@@ -595,9 +595,12 @@ class GoogleSignInView(APIView):
 
             return set_refresh_cookie(resp, str(refresh))
 
-        except Exception:
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=400)
+        except Exception as e:
+            logger.exception("Google sign-in failed")
             return Response(
-                {"detail": "Internal server error during Google sign‑in"},
+                {"detail": "Google sign-in failed"},
                 status=500,
             )
 
