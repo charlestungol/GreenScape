@@ -35,7 +35,7 @@ def get_ai_response(user_message: str) -> str:
             {"role": "system", "content": f"Full company information:\n\n{COMPANY_CONTEXT}"},
             {"role": "user", "content": user_message.strip()},
         ],
-        max_completion_tokens=700,
+        max_completion_tokens=7000,
     )
 
     content = response.choices[0].message.content
