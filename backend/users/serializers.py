@@ -143,48 +143,58 @@ class EmployeeLoginSerializer(serializers.Serializer):
         employee_number = (data.get("employee_number") or "").strip()
         password = data["password"]
 
-        #Authenticate by email + password
         user = authenticate(
             request=self.context.get("request"),
             email=email,
             password=password,
         )
 
+        if not User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError(
+                "No account exists with this email address."
+            )
+
         if not user:
-            raise serializers.ValidationError("Invalid credentials")
+            raise serializers.ValidationError(
+                "Incorrect password."
+            )
 
         if not user.is_active:
-            raise serializers.ValidationError("Account not active")
+            raise serializers.ValidationError(
+                "Your account is not active yet."
+            )
 
-        #SUPERUSER BYPASS (VERY IMPORTANT)
+        #ABSOLUTE SUPERUSER BYPASS
         if user.is_superuser:
             data["user"] = user
             return data
 
-        #Email verification for all non-superusers
+        #Email verification for ALL non-superusers
         if not EmailAddress.objects.filter(
             user=user,
             email__iexact=user.email,
-            verified=True
+            verified=True,
         ).exists():
             raise serializers.ValidationError(
                 "Email not verified. Please check your inbox."
             )
 
-        #Role logic based on GROUPS
         groups = set(user.groups.values_list("name", flat=True))
 
-        # Only real employees must provide employee_number
-        if groups & {"Staff", "Supervisor", "Admin"}:
+        #Employees that require employee_number
+        employee_required_groups = {"Staff", "Supervisor", "Admin"}
+
+        if groups & employee_required_groups:
             if not employee_number:
                 raise serializers.ValidationError({
                     "employee_number": "Employee number is required."
                 })
 
             if user.employee_number != employee_number:
-                raise serializers.ValidationError("Invalid credentials")
+                raise serializers.ValidationError(
+                    "Invalid credentials."
+                )
 
-        #Admin / SuperAdmin skip employee_number checks
         data["user"] = user
         return data
 
