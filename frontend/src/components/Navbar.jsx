@@ -164,7 +164,7 @@ export default function Navbar({ content }) {
       const role = localStorage.getItem("role"); // customer | employee | superadmin
       const group = localStorage.getItem("group");
       //CUSTOMER
-      if (role === "customer" && !group) {
+      if (role === "client" && !group) {
         
   if (!profileReady) {
         //customer EXISTS logically but profile is incomplete
