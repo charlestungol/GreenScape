@@ -68,9 +68,9 @@ export default function BookingRequests() {
       setActionLoadingId(bookingId);
 
       if (selectedAction === "Approved") {
-        await AxiosInstance.post(`/core/bookings/${bookingId}/approve/`);
+        await AxiosInstance.patch(`/core/bookings/${bookingId}/approve/`);
       } else if (selectedAction === "Disapproved") {
-        await AxiosInstance.post(`/core/bookings/${bookingId}/disapprove/`);
+        await AxiosInstance.patch(`/core/bookings/${bookingId}/disapprove/`);
       }
 
       alert(`Booking request ${selectedAction.toLowerCase()} successfully.`);
