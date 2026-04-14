@@ -10,6 +10,11 @@ function Budget() {
   const [mode, setMode] = useState("set");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    document.body.classList.add("dashboard-open");
+    return () => document.body.classList.remove("dashboard-open");
+  }, []);
+  
   // Fetch budget from backend on mount
   const fetchBudget = async () => {
       try {

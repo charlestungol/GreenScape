@@ -11,6 +11,11 @@ function Bookings() {
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    document.body.classList.add("dashboard-open");
+    return () => document.body.classList.remove("dashboard-open");
+  }, []);
+  
   // Helper function to check if booking is confirmed
   const isConfirmed = (status) => {
     return status?.toLowerCase() === "confirmed";

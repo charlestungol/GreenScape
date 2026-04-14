@@ -1,5 +1,5 @@
-body:has(.dashboardContainer),
-html:has(.dashboardContainer) {
+body.dashboardContainer,
+html.dashboardContainer {
   overflow-y: auto;
   -ms-overflow-style: none;
   scrollbar-width: none; 
