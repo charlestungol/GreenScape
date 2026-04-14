@@ -128,6 +128,9 @@ const handleGoogleCredential = async (response) => {
       setError("Google login succeeded but no access token received.");
       return;
     }
+    
+
+    localStorage.removeItem("group");
     // Persist auth state
     localStorage.setItem("access", access);
     localStorage.setItem("user_id", user.id);
@@ -136,6 +139,7 @@ const handleGoogleCredential = async (response) => {
       "profile_ready",
       profile_ready ? "true" : "false"
     );
+
 
     // Route user based on profile completion
     if (user.role === "client" && !profile_ready) {
