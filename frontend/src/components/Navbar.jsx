@@ -159,33 +159,36 @@ export default function Navbar({ content }) {
   
   const fetchUserData = async () => {
     setIsLoading(true);
-
+    const profileReady = localStorage.getItem("profile_ready") === "true";
     try {
       const role = localStorage.getItem("role"); // customer | employee | superadmin
       const group = localStorage.getItem("group");
+      
+      if (!role) return;
+
       //CUSTOMER
-      if (role === "client" && !group) {
+      if (role === "client") {
         
-  if (!profileReady) {
-        //customer EXISTS logically but profile is incomplete
-        setUserData({
-            firstName: "User",
-            role: "client",
-          });
-          setIsLoading(false);
+        if (!profileReady) {
+              //customer EXISTS logically but profile is incomplete
+              setUserData({
+                  firstName: "User",
+                  role: "client",
+                });
+                setIsLoading(false);
+                return;
+              }
+
+              const res = await AxiosInstance.get("core/customers/me/");
+              setUserData({
+                firstName: res.data.firstname || "User",
+                role: "client",
+              });
           return;
         }
 
-        const res = await AxiosInstance.get("core/customers/me/");
-        setUserData({
-          firstName: res.data.firstname || "User",
-          role: "client",
-        });
-        return;
-      }
-
       //EMPLOYEE
-      if (role === "employee" && group.toLowerCase() !== "superadmin") {
+      if (role === "employee" && group?.toLowerCase() !== "superadmin") {
         const res = await AxiosInstance.get("core/employees/me/");
         setUserData({
           firstName:
@@ -198,7 +201,7 @@ export default function Navbar({ content }) {
       }
 
       //SUPERADMIN (NO PROFILE)
-      if (group.toLowerCase() === "superadmin") {
+      if (group?.toLowerCase() === "superadmin") {
         setUserData({
           firstName: localStorage.getItem("first_name") || "Super Admin",
           role: "employee", // UI role
@@ -221,10 +224,6 @@ export default function Navbar({ content }) {
   useEffect(() => {
     fetchUserData();
   }, []);
-
-  useEffect(() => {
-    fetchUserData();
-  }, [location.pathname]);
 
   const menuItems = menuConfig[userData.role] || menuConfig.client;
 
