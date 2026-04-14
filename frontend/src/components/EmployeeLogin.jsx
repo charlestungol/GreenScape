@@ -39,7 +39,7 @@ const EmployeeLogin = () => {
 
       const { access, user } = response.data;
       const group = user?.group;
-
+      localStorage.clear();
       //Store auth/session info
       localStorage.setItem("access", access);
       localStorage.setItem("user_id", user.id);
