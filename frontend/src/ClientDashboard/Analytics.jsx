@@ -34,6 +34,11 @@ function Analytics() {
 
   const monthOrder = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
+  useEffect(() => {
+    document.body.classList.add("dashboard-open");
+    return () => document.body.classList.remove("dashboard-open");
+  }, []);
+  
   const fetchData = async () => {
     try {
       const [budgetRes, expensesRes] = await Promise.all([

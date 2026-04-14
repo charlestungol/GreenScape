@@ -21,7 +21,6 @@ const ClientLogin = () => {
 const handleLogin = async () => {
   setError('');
   setLoading(true);
-
   if (!email || !password) {
     setError("Please fill in all fields.");
     setLoading(false);
@@ -36,6 +35,7 @@ const handleLogin = async () => {
 
   try {
     localStorage.removeItem("access");
+    localStorage.clear();
     await AxiosInstance.get("/csrf/").catch(() => {});
 
     const response = await AxiosInstance.post("login/client/", {
@@ -107,6 +107,7 @@ const handleLogin = async () => {
 
 const handleGoogleCredential = async (response) => {
   try {
+    localStorage.clear();
     // The Google Identity Services library returns a credential string directly in the response
     const credential = response.credential;
 
@@ -129,8 +130,6 @@ const handleGoogleCredential = async (response) => {
       return;
     }
     
-
-    localStorage.removeItem("group");
     // Persist auth state
     localStorage.setItem("access", access);
     localStorage.setItem("user_id", user.id);
