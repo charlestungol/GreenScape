@@ -483,6 +483,7 @@ def EmailVerifiedRedirectView(request):
 # cookies to ensure the user is logged out on the client side as well. 
 # The view requires the user to be authenticated to access it.
 class LogoutView(APIView):
+    authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
     # The post method handles the logout process.

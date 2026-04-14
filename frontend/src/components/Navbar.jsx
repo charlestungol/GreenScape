@@ -163,7 +163,7 @@ export default function Navbar({ content }) {
     try {
       const role = localStorage.getItem("role"); // customer | employee | superadmin
       const group = localStorage.getItem("group");
-      
+
       if (!role) return;
 
       //CUSTOMER
@@ -264,11 +264,15 @@ export default function Navbar({ content }) {
       });
     }
 
+
     try {
       await AxiosInstance.post("logout/");
     } catch (error) {
-      console.log("Logout API error:", error);
+      if (error.response?.status !== 401) {
+        console.warn("Unexpected logout error:", error);
+      }
     }
+
 
     [
       "token",

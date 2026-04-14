@@ -30,7 +30,15 @@ export default function BookingRequests() {
     try {
       setLoading(true);
       const res = await AxiosInstance.get("/core/bookings/");
-      setBookingRequests(Array.isArray(res.data) ? res.data : []);
+
+      const data =
+        Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.results)
+          ? res.data.results
+          : [];
+
+      setBookingRequests(data);
     } catch (error) {
       console.error("Failed to fetch booking requests:", error);
       setBookingRequests([]);
