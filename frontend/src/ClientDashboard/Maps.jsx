@@ -3,6 +3,7 @@ import "../components/clientCss/Dashboard.css";
 import AddLocationAltIcon from "@mui/icons-material/AddLocationAlt";
 import CloseIcon from "@mui/icons-material/Close";
 import AxiosInstance from "../../src/components/AxiosInstance"; 
+import { USE_MOCK_DASHBOARD } from "../mock/dashboardMockData";
 
 import {
   MapContainer,
@@ -352,6 +353,21 @@ function Maps() {
 };
   /* ================= HANDLE LOCATION CONFIRMATION ================= */
   const handleConfirmLocation = async () => {
+    if (USE_MOCK_DASHBOARD) {
+      setShowSuccess(true);
+
+      setTimeout(() => {
+        setShowMap(false);
+        setSelectedPosition(null);
+        setSelectedAddress("");
+        setSearchQuery("");
+        setShowSuccess(false);
+        setIsConfirming(false);
+        window.dispatchEvent(new CustomEvent("locationAdded"));
+      }, 1200);
+
+      return;
+    }
     if (!selectedPosition || !selectedAddress) return;
     
     setIsConfirming(true);

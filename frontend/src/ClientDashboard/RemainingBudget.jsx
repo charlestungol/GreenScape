@@ -1,11 +1,28 @@
 import { useEffect, useState } from "react";
 import "../App.css";
 import AxiosInstance from "../components/AxiosInstance";
+import {
+  USE_MOCK_DASHBOARD,
+  mockBudget,
+  mockExpenses,
+} from "../mock/dashboardMockData";
 
 function RemainingBudget() {
   const [values, setValues] = useState({ budget: 0, expenses: 0 });
 
   const fetchValues = async () => {
+    if (USE_MOCK_DASHBOARD) {
+      const budget = Number(mockBudget.amount);
+      const totalExpenses = mockExpenses.reduce(
+        (sum, e) => sum + Number(e.amount || 0),
+        0
+      );
+
+      localStorage.setItem("userBudget", budget);
+      localStorage.setItem("userExpenses", JSON.stringify(mockExpenses));
+      setValues({ budget, expenses: totalExpenses });
+      return;
+    }
     try {
       const [budgetRes, expensesRes] = await Promise.all([
         AxiosInstance.get('core/budgets/'),
