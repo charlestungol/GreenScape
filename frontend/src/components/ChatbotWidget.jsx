@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./clientCss/ChatbotWidget.css";
 
-const API_URL = "https://greenscape-webapp-efbeayamacendzfg.canadacentral-01.azurewebsites.net/core/chatbot/";
+const API_URL =
+  "https://greenscape-webapp-efbeayamacendzfg.canadacentral-01.azurewebsites.net/core/chatbot/";
 
 function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,12 +12,38 @@ function ChatbotWidget() {
     {
       role: "assistant",
       content:
-        "Hi! I'm the Greenscape assistant. Ask me about irrigation, lighting, maintenance, pricing guidance, or other Greenscape services.",
+        "Hi! I’m the Greenscape assistant. Ask me about irrigation, lighting, maintenance, pricing, winterization, or other Greenscape services.",
     },
   ]);
 
+  const messagesEndRef = useRef(null);
+
   const toggleChat = () => {
     setIsOpen((prev) => !prev);
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, isOpen, isLoading]);
+
+  const buildHistoryPayload = () => {
+    return messages.slice(-8).map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+  };
+
+  const parseResponseSafely = async (response) => {
+    const contentType = response.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+      return response.json();
+    }
+
+    const text = await response.text();
+    return { error: text };
   };
 
   const sendMessage = async () => {
@@ -24,7 +51,9 @@ function ChatbotWidget() {
     if (!trimmed || isLoading) return;
 
     const userMessage = { role: "user", content: trimmed };
-    setMessages((prev) => [...prev, userMessage]);
+    const nextMessages = [...messages, userMessage];
+
+    setMessages(nextMessages);
     setInput("");
     setIsLoading(true);
 
@@ -34,30 +63,52 @@ function ChatbotWidget() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: trimmed }),
+        body: JSON.stringify({
+          message: trimmed,
+          history: nextMessages.slice(-10).map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
+        }),
       });
 
-      const data = await response.json();
+      const data = await parseResponseSafely(response);
 
       if (!response.ok) {
-        throw new Error(data.error || "Something went wrong.");
+        throw new Error(
+          data?.error ||
+            "Sorry, I couldn’t complete that request right now. Please try again in a moment."
+        );
       }
 
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: data.response || "I couldn't generate a response.",
+          content:
+            data?.response ||
+            "Sorry, I couldn’t generate a response right now.",
         },
       ]);
     } catch (error) {
+      const fallbackMessage =
+        typeof navigator !== "undefined" && navigator.onLine === false
+          ? "It looks like you’re offline right now. Please check your internet connection and try again."
+          : "Sorry, I’m having trouble connecting right now. Please try again in a moment.";
+
+      const safeMessage =
+        error?.message &&
+        !/404|500|502|503|504|traceback|html|doctype|azure_openai|api_key/i.test(
+          error.message
+        )
+          ? error.message
+          : fallbackMessage;
+
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content:
-            error.message ||
-            "Sorry, I couldn't connect to the server right now.",
+          content: safeMessage,
         },
       ]);
     } finally {
@@ -93,7 +144,9 @@ function ChatbotWidget() {
           <div className="chatbot-header">
             <div>
               <h3 className="chatbot-title">Greenscape Assistant</h3>
-              <p className="chatbot-subtitle">Ask about Greenscape services</p>
+              <p className="chatbot-subtitle">
+                Ask about Greenscape services
+              </p>
             </div>
 
             <button
@@ -119,10 +172,12 @@ function ChatbotWidget() {
             {isLoading && (
               <div className="chatbot-message assistant">
                 <div className="chatbot-bubble chatbot-thinking">
-                  Thinking...
+                  Thinking…
                 </div>
               </div>
             )}
+
+            <div ref={messagesEndRef} />
           </div>
 
           <form className="chatbot-input-row" onSubmit={handleSubmit}>
