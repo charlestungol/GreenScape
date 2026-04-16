@@ -15,7 +15,11 @@ function decodeJwt(token) {
   }
 }
 
-const RouteProtection = ({ children, allowedRole }) => {
+const RouteProtection = ({
+  children,
+  allowedRole,
+  allowedGroups = [],
+}) => {
   const location = useLocation();
 
   const access = localStorage.getItem("access");
@@ -23,7 +27,10 @@ const RouteProtection = ({ children, allowedRole }) => {
   const authToken = access || legacyToken;
 
   const storedRole = localStorage.getItem("role");
+  const storedGroup = localStorage.getItem("group");
+
   const roleLower = (storedRole || "").toLowerCase();
+  const groupLower = (storedGroup || "").toLowerCase();
 
   /* =====================================================
      AUTHENTICATION CHECK
@@ -42,6 +49,8 @@ const RouteProtection = ({ children, allowedRole }) => {
     if (payload?.exp && payload.exp <= now) {
       localStorage.removeItem("access");
       localStorage.removeItem("refresh");
+      localStorage.removeItem("role");
+      localStorage.removeItem("group");
       return <Navigate to="/" replace />;
     }
   }
@@ -50,25 +59,35 @@ const RouteProtection = ({ children, allowedRole }) => {
      ROLE-BASED ROUTING
      ===================================================== */
 
-  /**
-   * EMPLOYEE ROUTES*/
+  // EMPLOYEE ROUTES
   if (allowedRole === "employee") {
     if (roleLower === "client") {
-      console.log(
-        "RouteProtection: Blocking client access to employee route"
-      );
+      console.log("RouteProtection: Blocking client access to employee route");
       return <Navigate to="/" replace />;
     }
   }
 
-  /**
-   * CLIENT ROUTES */
+  // CLIENT ROUTES
   if (allowedRole === "client") {
     if (roleLower && roleLower !== "client") {
-      console.log(
-        "RouteProtection: Blocking employee access to client route"
-      );
+      console.log("RouteProtection: Blocking employee access to client route");
       return <Navigate to="/employeeHome" replace />;
+    }
+  }
+
+  /* =====================================================
+     GROUP-BASED ROUTING
+     ===================================================== */
+  if (allowedGroups.length > 0) {
+    const normalizedAllowedGroups = allowedGroups.map((group) =>
+      group.toLowerCase()
+    );
+
+    if (!normalizedAllowedGroups.includes(groupLower)) {
+      console.log(
+        `RouteProtection: Blocking group "${storedGroup}" from this route`
+      );
+      return <Navigate to="/employee/my-schedule" replace />;
     }
   }
 

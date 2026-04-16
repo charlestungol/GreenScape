@@ -43,201 +43,216 @@ import RouteProtection from "./components/RouteProtection";
 function App() {
   return (
     <>
-    <ScrollToTop />
-    <Routes>
-      {/* Public pages (no Navbar) */}
-      <Route path="/" element={<Landing />} />
-      <Route path="/client-login" element={<ClientLogin />} />
-      <Route path="/employee-login" element={<EmployeeLogin />} />
-      <Route path="/employee-register" element={<EmployeeRegister />} />
-      <Route path="/client-register" element={<ClientRegister />} />
+      <ScrollToTop />
+      <Routes>
+        {/* Public pages (no Navbar) */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/client-login" element={<ClientLogin />} />
+        <Route path="/employee-login" element={<EmployeeLogin />} />
+        <Route path="/employee-register" element={<EmployeeRegister />} />
+        <Route path="/client-register" element={<ClientRegister />} />
 
-      {/* Complete Profile Page */}
-      <Route
+        {/* Complete Profile Page */}
+        <Route
           path="/complete-profile"
           element={
             <RouteProtection allowedRole="client">
               <CompleteProfilePage />
             </RouteProtection>
           }
-      />
+        />
 
-      <Route
-        path="/employee/complete-profile"
-        element={<RouteProtection allowedRole="employee">
+        <Route
+          path="/employee/complete-profile"
+          element={
+            <RouteProtection allowedRole="employee">
               <CompleteProfile />
-            </RouteProtection>}
-      />
-
-      {/* Pages with Navbar */}
-      <Route element={<NavbarWrapper />}>
-        {/* Client */}
-        <Route
-          path="/home"
-          element={
-            <RouteProtection allowedRole="client">
-              <Home />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/client-profile"
-          element={
-            <RouteProtection allowedRole="client">
-              <ClientProfile />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/services"
-          element={
-            <RouteProtection allowedRole="client"> 
-              <Services />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/booking"
-          element={
-            <RouteProtection allowedRole="client">
-              <Booking />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/request-quote"
-          element={
-            <RouteProtection allowedRole="client">
-              <RequestQuote />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <RouteProtection allowedRole="client">
-              <Settings />
             </RouteProtection>
           }
         />
 
-        {/* Employee/Admin */}
-        <Route
-          path="/employeeHome"
-          element={
-            <RouteProtection allowedRole="employee">
-              <EmployeeHome />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/employee/dashboard"
-          element={
-            <RouteProtection allowedRole="employee">
-              <AdminDashboard />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/employee/my-schedule"
-          element={
-            <RouteProtection allowedRole="employee">
-              <MySchedule />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/employee/employee-management"
-          element={
-            <RouteProtection allowedRole="employee">
-              <EmployeeManagement />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/employee/timesheets"
-          element={
-            <RouteProtection allowedRole="employee">
-              <EmployeeTimesheets />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/employee/service-schedule"
-          element={
-            <RouteProtection allowedRole="employee">
-              <ServiceSchedule />
-            </RouteProtection>
-          }
+        {/* Pages with Navbar */}
+        <Route element={<NavbarWrapper />}>
+          {/* Client */}
+          <Route
+            path="/home"
+            element={
+              <RouteProtection allowedRole="client">
+                <Home />
+              </RouteProtection>
+            }
           />
-          <Route 
+          <Route
+            path="/client-profile"
+            element={
+              <RouteProtection allowedRole="client">
+                <ClientProfile />
+              </RouteProtection>
+            }
+          />
+          <Route
+            path="/services"
+            element={
+              <RouteProtection allowedRole="client">
+                <Services />
+              </RouteProtection>
+            }
+          />
+          <Route
+            path="/booking"
+            element={
+              <RouteProtection allowedRole="client">
+                <Booking />
+              </RouteProtection>
+            }
+          />
+          <Route
+            path="/request-quote"
+            element={
+              <RouteProtection allowedRole="client">
+                <RequestQuote />
+              </RouteProtection>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <RouteProtection allowedRole="client">
+                <Settings />
+              </RouteProtection>
+            }
+          />
+
+          {/* Employee/Admin */}
+          <Route
+            path="/employeeHome"
+            element={
+              <RouteProtection allowedRole="employee">
+                <EmployeeHome />
+              </RouteProtection>
+            }
+          />
+
+          {/* ADMIN + SUPERADMIN ONLY */}
+          <Route
+            path="/employee/dashboard"
+            element={
+              <RouteProtection
+                allowedRole="employee"
+                allowedGroups={["Admin", "SuperAdmin"]}
+              >
+                <AdminDashboard />
+              </RouteProtection>
+            }
+          />
+          <Route
+            path="/employee/employee-management"
+            element={
+              <RouteProtection
+                allowedRole="employee"
+                allowedGroups={["Admin", "SuperAdmin"]}
+              >
+                <EmployeeManagement />
+              </RouteProtection>
+            }
+          />
+          <Route
+            path="/employee/finances"
+            element={
+              <RouteProtection
+                allowedRole="employee"
+                allowedGroups={["Admin", "SuperAdmin"]}
+              >
+                <FinancesBoard />
+              </RouteProtection>
+            }
+          />
+
+          {/* ALL EMPLOYEES */}
+          <Route
+            path="/employee/my-schedule"
+            element={
+              <RouteProtection allowedRole="employee">
+                <MySchedule />
+              </RouteProtection>
+            }
+          />
+          <Route
+            path="/employee/timesheets"
+            element={
+              <RouteProtection allowedRole="employee">
+                <EmployeeTimesheets />
+              </RouteProtection>
+            }
+          />
+          <Route
+            path="/employee/service-schedule"
+            element={
+              <RouteProtection allowedRole="employee">
+                <ServiceSchedule />
+              </RouteProtection>
+            }
+          />
+          <Route
             path="/employee/booking-requests"
             element={
               <RouteProtection allowedRole="employee">
                 <BookingRequests />
               </RouteProtection>
-            }  
-            />
-        <Route
-          path="/employee/finances"
-          element={
-            <RouteProtection allowedRole="employee">
-              <FinancesBoard />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/employee/client-view"
-          element={
-            <RouteProtection allowedRole="employee">
-              <ClientView />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/employee/account"
-          element={
-            <RouteProtection allowedRole="employee">
-              <EmployeeAccount />
-            </RouteProtection>
-          }
-        />
+            }
+          />
+          <Route
+            path="/employee/client-view"
+            element={
+              <RouteProtection allowedRole="employee">
+                <ClientView />
+              </RouteProtection>
+            }
+          />
+          <Route
+            path="/employee/account"
+            element={
+              <RouteProtection allowedRole="employee">
+                <EmployeeAccount />
+              </RouteProtection>
+            }
+          />
 
-        {/* Service detail pages */}
-        <Route
-          path="/irrigation-installation"
-          element={
-            <RouteProtection>
-              <IrrigationInstallation />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/landscape-lighting"
-          element={
-            <RouteProtection>
-              <LandscapeLighting />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/stormwater-management"
-          element={
-            <RouteProtection>
-              <StormWaterManangement />
-            </RouteProtection>
-          }
-        />
-        <Route
-          path="/maintenance-service"
-          element={
-            <RouteProtection>
-              <MaintenanceManagement />
-            </RouteProtection>
-          }
-        />
-      </Route>
-    </Routes>
+          {/* Service detail pages */}
+          <Route
+            path="/irrigation-installation"
+            element={
+              <RouteProtection>
+                <IrrigationInstallation />
+              </RouteProtection>
+            }
+          />
+          <Route
+            path="/landscape-lighting"
+            element={
+              <RouteProtection>
+                <LandscapeLighting />
+              </RouteProtection>
+            }
+          />
+          <Route
+            path="/stormwater-management"
+            element={
+              <RouteProtection>
+                <StormWaterManangement />
+              </RouteProtection>
+            }
+          />
+          <Route
+            path="/maintenance-service"
+            element={
+              <RouteProtection>
+                <MaintenanceManagement />
+              </RouteProtection>
+            }
+          />
+        </Route>
+      </Routes>
     </>
   );
 }
