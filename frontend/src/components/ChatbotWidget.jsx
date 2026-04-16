@@ -4,6 +4,32 @@ import "./clientCss/ChatbotWidget.css";
 const API_URL =
   "https://greenscape-webapp-efbeayamacendzfg.canadacentral-01.azurewebsites.net/core/chatbot/";
 
+const QUICK_ACTIONS = [
+  "Winterization pricing",
+  "Irrigation installation",
+  "Landscape lighting",
+  "Backflow testing",
+];
+
+function TypingDots() {
+  return (
+    <div className="iri-typing" aria-label="Iri is typing">
+      <span />
+      <span />
+      <span />
+    </div>
+  );
+}
+
+function normalizeAssistantText(text) {
+  if (!text) return "";
+
+  return text
+    .replace(/^\s*-\s+/gm, "• ")
+    .replace(/^\s*\*\s+/gm, "• ")
+    .trim();
+}
+
 function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -12,28 +38,37 @@ function ChatbotWidget() {
     {
       role: "assistant",
       content:
-        "Hi! I’m the Greenscape assistant. Ask me about irrigation, lighting, maintenance, pricing, winterization, or other Greenscape services.",
+        "Hi, I’m Iri. I can help with irrigation, lighting, winterization, maintenance, and pricing. What would you like help with today?",
     },
   ]);
 
   const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const toggleChat = () => {
     setIsOpen((prev) => !prev);
   };
 
   useEffect(() => {
-    if (isOpen) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, isOpen, isLoading]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading, isOpen]);
 
-  const buildHistoryPayload = () => {
-    return messages.slice(-8).map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => textareaRef.current?.focus(), 150);
+    }
+  }, [isOpen]);
+
+  const autoResizeTextarea = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   };
+
+  useEffect(() => {
+    autoResizeTextarea();
+  }, [input]);
 
   const parseResponseSafely = async (response) => {
     const contentType = response.headers.get("content-type") || "";
@@ -46,8 +81,47 @@ function ChatbotWidget() {
     return { error: text };
   };
 
-  const sendMessage = async () => {
-    const trimmed = input.trim();
+  const buildHistoryPayload = (nextMessages) => {
+    return nextMessages.slice(-10).map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+  };
+
+  const appendAssistantMessage = (content) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: normalizeAssistantText(content),
+      },
+    ]);
+  };
+
+  const getFriendlyFallbackMessage = (errorMessage) => {
+    const raw = String(errorMessage || "");
+
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      return "It looks like you’re offline right now. Please check your internet connection and try again.";
+    }
+
+    if (/404/i.test(raw)) {
+      return "I’m having trouble reaching the chat service right now. Please try again in a moment.";
+    }
+
+    if (/timeout|network|failed to fetch|503|502|504/i.test(raw)) {
+      return "I’m having trouble connecting right now. Please try again in a moment.";
+    }
+
+    if (/api|key|traceback|exception|azure|html|doctype|server/i.test(raw)) {
+      return "Sorry, something went wrong on our side. Please try again in a moment.";
+    }
+
+    return raw || "Sorry, I couldn’t complete that request right now.";
+  };
+
+  const sendMessage = async (messageOverride = null) => {
+    const trimmed = (messageOverride ?? input).trim();
     if (!trimmed || isLoading) return;
 
     const userMessage = { role: "user", content: trimmed };
@@ -65,54 +139,24 @@ function ChatbotWidget() {
         },
         body: JSON.stringify({
           message: trimmed,
-          history: nextMessages.slice(-10).map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
+          history: buildHistoryPayload(nextMessages),
         }),
       });
 
       const data = await parseResponseSafely(response);
 
       if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            "Sorry, I couldn’t complete that request right now. Please try again in a moment."
-        );
+        throw new Error(data?.error || "Request failed");
       }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            data?.response ||
-            "Sorry, I couldn’t generate a response right now.",
-        },
-      ]);
+      appendAssistantMessage(
+        data?.response || "Sorry, I couldn’t generate a response right now."
+      );
     } catch (error) {
-      const fallbackMessage =
-        typeof navigator !== "undefined" && navigator.onLine === false
-          ? "It looks like you’re offline right now. Please check your internet connection and try again."
-          : "Sorry, I’m having trouble connecting right now. Please try again in a moment.";
-
-      const safeMessage =
-        error?.message &&
-        !/404|500|502|503|504|traceback|html|doctype|azure_openai|api_key/i.test(
-          error.message
-        )
-          ? error.message
-          : fallbackMessage;
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: safeMessage,
-        },
-      ]);
+      appendAssistantMessage(getFriendlyFallbackMessage(error?.message));
     } finally {
       setIsLoading(false);
+      setTimeout(() => textareaRef.current?.focus(), 50);
     }
   };
 
@@ -128,51 +172,89 @@ function ChatbotWidget() {
     }
   };
 
+  const handleQuickAction = async (label) => {
+    await sendMessage(label);
+  };
+
   return (
     <>
       <button
-        className="chatbot-fab"
+        className="iri-fab"
         onClick={toggleChat}
-        aria-label="Open Greenscape chatbot"
+        aria-label={isOpen ? "Close Iri chat" : "Open Iri chat"}
         type="button"
       >
-        💬
+        <span className="iri-fab-inner">I</span>
       </button>
 
       {isOpen && (
-        <div className="chatbot-panel">
-          <div className="chatbot-header">
-            <div>
-              <h3 className="chatbot-title">Greenscape Assistant</h3>
-              <p className="chatbot-subtitle">
-                Ask about Greenscape services
-              </p>
+        <section className="iri-panel" aria-label="Iri chat panel">
+          <header className="iri-header">
+            <div className="iri-header-left">
+              <div className="iri-avatar" aria-hidden="true">
+                I
+              </div>
+
+              <div>
+                <h3 className="iri-title">Iri</h3>
+                <p className="iri-subtitle">Greenscape Irrigation Assistant</p>
+              </div>
             </div>
 
             <button
-              className="chatbot-close"
+              className="iri-close"
               onClick={toggleChat}
               aria-label="Close chatbot"
               type="button"
             >
               ×
             </button>
-          </div>
+          </header>
 
-          <div className="chatbot-messages">
+          <div className="iri-messages">
+            <div className="iri-welcome-card">
+              <div className="iri-welcome-badge">Iri</div>
+              <div className="iri-welcome-text">
+                Ask about irrigation, winterization, lighting, maintenance, pricing, and service options.
+              </div>
+
+              <div className="iri-quick-actions">
+                {QUICK_ACTIONS.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    className="iri-chip"
+                    onClick={() => handleQuickAction(item)}
+                    disabled={isLoading}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {messages.map((message, index) => (
               <div
                 key={`${message.role}-${index}`}
-                className={`chatbot-message ${message.role}`}
+                className={`iri-message ${message.role}`}
               >
-                <div className="chatbot-bubble">{message.content}</div>
+                {message.role === "assistant" && (
+                  <div className="iri-message-avatar" aria-hidden="true">
+                    I
+                  </div>
+                )}
+
+                <div className="iri-bubble">{message.content}</div>
               </div>
             ))}
 
             {isLoading && (
-              <div className="chatbot-message assistant">
-                <div className="chatbot-bubble chatbot-thinking">
-                  Thinking…
+              <div className="iri-message assistant">
+                <div className="iri-message-avatar" aria-hidden="true">
+                  I
+                </div>
+                <div className="iri-bubble iri-bubble-thinking">
+                  <TypingDots />
                 </div>
               </div>
             )}
@@ -180,24 +262,27 @@ function ChatbotWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          <form className="chatbot-input-row" onSubmit={handleSubmit}>
+          <form className="iri-input-row" onSubmit={handleSubmit}>
             <textarea
-              className="chatbot-input"
+              ref={textareaRef}
+              className="iri-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type your question here..."
-              rows="2"
+              placeholder="Ask Iri about Greenscape services..."
+              rows="1"
             />
+
             <button
-              className="chatbot-send"
+              className="iri-send"
               type="submit"
               disabled={isLoading || !input.trim()}
+              aria-label="Send message"
             >
-              Send
+              →
             </button>
           </form>
-        </div>
+        </section>
       )}
     </>
   );
