@@ -22,6 +22,26 @@ function PageState({ icon, title, message, primary, secondary }) {
   );
 }
 
+function DashboardState({ icon, title, message, primary, secondary }) {
+  return (
+    <div className="dashboard-error-page">
+      <div className="dashboard-error-card">
+        <div className="dashboard-error-icon-wrap">
+          <div className="dashboard-error-icon">{icon}</div>
+        </div>
+
+        <h1 className="dashboard-error-title">{title}</h1>
+        <p className="dashboard-error-message">{message}</p>
+
+        <div className="dashboard-error-actions">
+          {primary}
+          {secondary}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PrimaryButton({ children, to, onClick }) {
   if (to) {
     return (
@@ -121,6 +141,65 @@ export function ServerErrorPage() {
         </PrimaryButton>
       }
       secondary={<SecondaryButton to="/">Go Home</SecondaryButton>}
+    />
+  );
+}
+
+export function DashboardOfflinePage() {
+  return (
+    <DashboardState
+      icon="📡"
+      title="You’re Offline"
+      message="Some dashboard features may be unavailable until your connection comes back."
+      primary={
+        <PrimaryButton onClick={() => window.location.reload()}>
+          Retry
+        </PrimaryButton>
+      }
+      secondary={<SecondaryButton to="/home">Back to Dashboard</SecondaryButton>}
+    />
+  );
+}
+
+export function DashboardNotFoundPage() {
+  return (
+    <DashboardState
+      icon="🔍"
+      title="Dashboard Page Not Found"
+      message="This section doesn’t exist or may have been moved."
+      primary={<PrimaryButton to="/home">Back to Dashboard</PrimaryButton>}
+      secondary={
+        <SecondaryButton onClick={() => window.history.back()}>
+          Go Back
+        </SecondaryButton>
+      }
+    />
+  );
+}
+
+export function DashboardServerErrorPage() {
+  return (
+    <DashboardState
+      icon="⚠️"
+      title="Couldn’t Load This Page"
+      message="Something went wrong while loading this dashboard page. Please try again."
+      primary={
+        <PrimaryButton onClick={() => window.location.reload()}>
+          Refresh
+        </PrimaryButton>
+      }
+      secondary={<SecondaryButton to="/home">Back to Dashboard</SecondaryButton>}
+    />
+  );
+}
+
+export function DashboardUnauthorizedPage() {
+  return (
+    <DashboardState
+      icon="⛔"
+      title="Access Restricted"
+      message="You do not have permission to view this dashboard section."
+      primary={<PrimaryButton to="/home">Back to Dashboard</PrimaryButton>}
     />
   );
 }

@@ -9,6 +9,13 @@ import useNetworkStatus from "./hooks/useNetworkStatus";
 import {
   OfflinePage,
   NotFoundPage,
+  ServerErrorPage,
+  UnauthorizedPage,
+  SessionExpiredPage,
+  DashboardOfflinePage,
+  DashboardNotFoundPage,
+  DashboardServerErrorPage,
+  DashboardUnauthorizedPage,
 } from "./components/errors/ErrorStates";
 
 // Public pages
@@ -67,6 +74,13 @@ function App() {
           <Route path="/employee-register" element={<EmployeeRegister />} />
           <Route path="/client-register" element={<ClientRegister />} />
 
+          {/* Error state preview routes */}
+          <Route path="/test/offline" element={<OfflinePage />} />
+          <Route path="/test/404" element={<NotFoundPage />} />
+          <Route path="/test/500" element={<ServerErrorPage />} />
+          <Route path="/test/403" element={<UnauthorizedPage />} />
+          <Route path="/test/401" element={<SessionExpiredPage />} />
+
           {/* Complete Profile Page */}
           <Route
             path="/complete-profile"
@@ -88,6 +102,12 @@ function App() {
 
           {/* Pages with Navbar */}
           <Route element={<NavbarWrapper />}>
+            {/* Dashboard error preview routes */}
+            <Route path="/test/dashboard-offline" element={<DashboardOfflinePage />} />
+            <Route path="/test/dashboard-404" element={<DashboardNotFoundPage />} />
+            <Route path="/test/dashboard-500" element={<DashboardServerErrorPage />} />
+            <Route path="/test/dashboard-403" element={<DashboardUnauthorizedPage />} />
+
             {/* Client */}
             <Route
               path="/home"
