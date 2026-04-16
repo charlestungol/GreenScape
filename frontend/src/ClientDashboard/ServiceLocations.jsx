@@ -6,6 +6,11 @@ import CloseIcon from "@mui/icons-material/Close";
 import { CircularProgress } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import {
+  USE_MOCK_DASHBOARD,
+  mockLocations,
+  mockLocationServices,
+} from "../mock/dashboardMockData";
 
 function ServiceLocations() {
   const [showOverlay, setShowOverlay] = useState(false);
@@ -20,6 +25,12 @@ function ServiceLocations() {
   const modalContentRef = useRef(null);
 
   const fetchLocations = async () => {
+    if (USE_MOCK_DASHBOARD) {
+      setLocations(mockLocations);
+      setError("");
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const response = await AxiosInstance.get('core/service-locations/');
@@ -56,6 +67,19 @@ function ServiceLocations() {
   };
 
   const fetchServicesForLocation = async (locationId) => {
+    if (USE_MOCK_DASHBOARD) {
+      if (expandedLocation === locationId) {
+        setExpandedLocation(null);
+        return;
+      }
+
+      setLocationServices((prev) => ({
+        ...prev,
+        [locationId]: mockLocationServices[locationId] || [],
+      }));
+      setExpandedLocation(locationId);
+      return;
+    }
     // If already expanded, just collapse
     if (expandedLocation === locationId) {
       setExpandedLocation(null);

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import AxiosInstance from '../components/AxiosInstance';
 import { useNavigate } from 'react-router-dom';
+import { USE_MOCK_DASHBOARD, mockAppointments } from "../mock/dashboardMockData";
+
 
 const Appointments = () => {
   const navigate = useNavigate();
@@ -21,6 +23,12 @@ const Appointments = () => {
   }, [navigate]);
 
   const fetchConfirmedAppointments = async () => {
+    if (USE_MOCK_DASHBOARD) {
+      setAppointments(mockAppointments);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import "../components/clientCss/Dashboard.css";
 import AxiosInstance from "../components/AxiosInstance";
 import { useNavigate } from "react-router-dom";
+import { USE_MOCK_DASHBOARD, mockBookings } from "../mock/dashboardMockData";
 
 function Bookings() {
   const navigate = useNavigate();
@@ -22,6 +23,25 @@ function Bookings() {
   };
 
   const fetchBookings = useCallback(async () => {
+    if (USE_MOCK_DASHBOARD) {
+      const enrichedBookings = mockBookings.map((booking) => ({
+        ...booking,
+        serviceDetails: booking.service,
+        date: booking.appointmenttime ? new Date(booking.appointmenttime) : null,
+        status: booking.status?.toLowerCase(),
+      }));
+
+      enrichedBookings.sort((a, b) => {
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return b.date - a.date;
+      });
+
+      setBookings(enrichedBookings);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const bookingsResponse = await AxiosInstance.get("core/bookings/");

@@ -7,6 +7,12 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, 
   Legend, CartesianGrid
 } from "recharts";
+import {
+  USE_MOCK_DASHBOARD,
+  mockBudget,
+  mockExpenses,
+  mockAnalyticsData,
+} from "../mock/dashboardMockData";
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -40,6 +46,13 @@ function Analytics() {
   }, []);
   
   const fetchData = async () => {
+    if (USE_MOCK_DASHBOARD) {
+      localStorage.setItem("userBudget", mockBudget.amount);
+      localStorage.setItem("userExpenses", JSON.stringify(mockExpenses));
+      setData(mockAnalyticsData);
+      setExpenses(mockExpenses);
+      return;
+    }
     try {
       const [budgetRes, expensesRes] = await Promise.all([
         AxiosInstance.get('core/budgets/'),

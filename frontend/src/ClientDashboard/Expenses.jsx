@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import "../App.css";
 import AxiosInstance from "../components/AxiosInstance";
+import { USE_MOCK_DASHBOARD, mockExpenses } from "../mock/dashboardMockData";
 
 function Expenses() {
   const services = [
@@ -20,6 +21,11 @@ function Expenses() {
   // Fetch expenses from backend on mount
   const fetchExpenses = async () => {
   try {
+    if (USE_MOCK_DASHBOARD) {
+      setExpenses(mockExpenses);
+      localStorage.setItem("userExpenses", JSON.stringify(mockExpenses));
+      return;
+    }
     const response = await AxiosInstance.get('core/expenses/');
     // Handle both array and paginated responses
     const data = Array.isArray(response.data)

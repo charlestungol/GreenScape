@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import "../App.css";
 import "../components/clientCss/Dashboard.css";
 import AxiosInstance from "../components/AxiosInstance";
+import { USE_MOCK_DASHBOARD, mockBudget } from "../mock/dashboardMockData";
 
 function Budget() {
   const [budget, setBudget] = useState(0);
@@ -17,6 +18,11 @@ function Budget() {
   
   // Fetch budget from backend on mount
   const fetchBudget = async () => {
+      if (USE_MOCK_DASHBOARD) {
+        setBudget(Number(mockBudget.amount));
+        localStorage.setItem("userBudget", mockBudget.amount);
+        return;
+      }
       try {
         const response = await AxiosInstance.get('core/budgets/');
         // Handle both array and paginated responses
