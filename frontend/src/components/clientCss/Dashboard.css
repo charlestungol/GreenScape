@@ -7,6 +7,13 @@ body,
   overflow-x: hidden;
 }
 
+body.dashboardContainer,
+html.dashboardContainer {
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 * {
   box-sizing: border-box;
 }

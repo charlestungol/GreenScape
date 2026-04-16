@@ -30,7 +30,15 @@ export default function BookingRequests() {
     try {
       setLoading(true);
       const res = await AxiosInstance.get("/core/bookings/");
-      setBookingRequests(Array.isArray(res.data) ? res.data : []);
+
+      const data =
+        Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.results)
+          ? res.data.results
+          : [];
+
+      setBookingRequests(data);
     } catch (error) {
       console.error("Failed to fetch booking requests:", error);
       setBookingRequests([]);
@@ -68,9 +76,9 @@ export default function BookingRequests() {
       setActionLoadingId(bookingId);
 
       if (selectedAction === "Approved") {
-        await AxiosInstance.post(`/core/bookings/${bookingId}/approve/`);
+        await AxiosInstance.patch(`/core/bookings/${bookingId}/approve/`);
       } else if (selectedAction === "Disapproved") {
-        await AxiosInstance.post(`/core/bookings/${bookingId}/disapprove/`);
+        await AxiosInstance.patch(`/core/bookings/${bookingId}/disapprove/`);
       }
 
       alert(`Booking request ${selectedAction.toLowerCase()} successfully.`);

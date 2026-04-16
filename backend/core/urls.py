@@ -29,7 +29,6 @@ router.register(r'service-locations', ServiceLocationViewSet, basename='servicel
 router.register(r'budgets', BudgetViewSet, basename='budget')
 router.register(r'expenses', ExpenseViewSet, basename='expense')
 router.register(r'location-services', LocationServiceViewSet, basename='locationservice')
-# core/urls.py
 router.register(r"employee-availability",EmployeeAvailabilityViewSet,basename="employee-availability")
 
 def test_chat(request):

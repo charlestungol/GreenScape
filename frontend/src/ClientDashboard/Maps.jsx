@@ -225,6 +225,11 @@ function ServiceSelectionModal({ isOpen, onClose, onConfirm, locationId }) {
 
 /* ================= MAIN COMPONENT ================= */
 function Maps() {
+  useEffect(() => {
+    document.body.classList.add("dashboard-open");
+    return () => document.body.classList.remove("dashboard-open");
+  }, []);
+
   const [showMap, setShowMap] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [selectedAddress, setSelectedAddress] = useState("");

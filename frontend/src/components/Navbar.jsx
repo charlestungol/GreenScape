@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import AppBar from "@mui/material/AppBar";
@@ -94,57 +94,74 @@ const theme = createTheme({
   },
 });
 
-const menuConfig = {
-  client: [
-    { label: "DASHBOARD", path: "/home", icon: <DashboardIcon sx={{ color: "#1c3d37" }} /> },
-    { label: "SERVICES", path: "/services", icon: <WaterDropIcon sx={{ color: "#1c3d37" }} /> },
-    { label: "BOOKING", path: "/booking", icon: <CalendarMonthIcon sx={{ color: "#1c3d37" }} /> },
-    { label: "SETTINGS", path: "/settings", icon: <SettingsIcon sx={{ color: "#1c3d37" }} /> },
-  ],
-  employee: [
-    {
-      label: "DASHBOARD",
-      path: "/employee/dashboard",
-      icon: <DashboardIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "MY SCHEDULE",
-      path: "/employee/my-schedule",
-      icon: <CalendarMonthIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "EMPLOYEE MANAGEMENT",
-      path: "/employee/employee-management",
-      icon: <PeopleOutlineIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "BOOKING REQUESTS",
-      path: "/employee/booking-requests",
-      icon: <AssignmentTurnedInIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "SERVICE SCHEDULE",
-      path: "/employee/service-schedule",
-      icon: <WaterDropIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "FINANCES BOARD",
-      path: "/employee/finances",
-      icon: <RequestQuoteIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "CLIENT VIEW",
-      path: "/employee/client-view",
-      icon: <PeopleOutlineIcon sx={{ color: GREEN }} />,
-    },
-    {
-      label: "ACCOUNT",
-      path: "/employee/account",
-      icon: <AccountCircleIcon sx={{ color: GREEN }} />,
-    },
-  ],
-};
+const clientMenu = [
+  {
+    label: "DASHBOARD",
+    path: "/home",
+    icon: <DashboardIcon sx={{ color: GREEN }} />,
+  },
+  {
+    label: "SERVICES",
+    path: "/services",
+    icon: <WaterDropIcon sx={{ color: GREEN }} />,
+  },
+  {
+    label: "BOOKING",
+    path: "/booking",
+    icon: <CalendarMonthIcon sx={{ color: GREEN }} />,
+  },
+  {
+    label: "SETTINGS",
+    path: "/settings",
+    icon: <SettingsIcon sx={{ color: GREEN }} />,
+  },
+];
 
+const employeeBaseMenu = [
+  {
+    label: "MY SCHEDULE",
+    path: "/employee/my-schedule",
+    icon: <CalendarMonthIcon sx={{ color: GREEN }} />,
+  },
+  {
+    label: "BOOKING REQUESTS",
+    path: "/employee/booking-requests",
+    icon: <AssignmentTurnedInIcon sx={{ color: GREEN }} />,
+  },
+  {
+    label: "SERVICE SCHEDULE",
+    path: "/employee/service-schedule",
+    icon: <WaterDropIcon sx={{ color: GREEN }} />,
+  },
+  {
+    label: "CLIENT VIEW",
+    path: "/employee/client-view",
+    icon: <PeopleOutlineIcon sx={{ color: GREEN }} />,
+  },
+  {
+    label: "ACCOUNT",
+    path: "/employee/account",
+    icon: <AccountCircleIcon sx={{ color: GREEN }} />,
+  },
+];
+
+const employeeAdminMenu = [
+  {
+    label: "DASHBOARD",
+    path: "/employee/dashboard",
+    icon: <DashboardIcon sx={{ color: GREEN }} />,
+  },
+  {
+    label: "EMPLOYEE MANAGEMENT",
+    path: "/employee/employee-management",
+    icon: <PeopleOutlineIcon sx={{ color: GREEN }} />,
+  },
+  {
+    label: "FINANCES BOARD",
+    path: "/employee/finances",
+    icon: <RequestQuoteIcon sx={{ color: GREEN }} />,
+  },
+];
 
 export default function Navbar({ content }) {
   const location = useLocation();
@@ -152,25 +169,36 @@ export default function Navbar({ content }) {
   const path = location.pathname;
   const muiTheme = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [bottomNavValue, setBottomNavValue] = useState(0);
-  const [userData, setUserData] = useState({ firstName: "User", role: "client" });
+  const [userData, setUserData] = useState({
+    firstName: "User",
+    role: "client",
+    group: "",
+  });
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const fetchUserData = async () => {
     setIsLoading(true);
+    const profileReady = localStorage.getItem("profile_ready") === "true";
 
     try {
-      const role = localStorage.getItem("role"); // customer | employee | superadmin
+      const role = localStorage.getItem("role");
       const group = localStorage.getItem("group");
-      //CUSTOMER
-      if (role === "customer" && !group) {
-        
-  if (!profileReady) {
-        //customer EXISTS logically but profile is incomplete
-        setUserData({
+
+      if (!role) {
+        setIsLoading(false);
+        return;
+      }
+
+      // CLIENT
+      if (role === "client") {
+        if (!profileReady) {
+          setUserData({
             firstName: "User",
             role: "client",
+            group: "",
           });
           setIsLoading(false);
           return;
@@ -180,28 +208,32 @@ export default function Navbar({ content }) {
         setUserData({
           firstName: res.data.firstname || "User",
           role: "client",
+          group: "",
         });
         return;
       }
 
-      //EMPLOYEE
-      if (role === "employee" && group.toLowerCase() !== "superadmin") {
+      // SUPERADMIN
+      if ((group || "").toLowerCase() === "superadmin") {
+        setUserData({
+          firstName: localStorage.getItem("first_name") || "Super Admin",
+          role: "employee",
+          group: "SuperAdmin",
+        });
+        return;
+      }
+
+      // EMPLOYEE
+      if (role === "employee") {
         const res = await AxiosInstance.get("core/employees/me/");
         setUserData({
           firstName:
             res.data.firstname ||
-            res.data.user?.email?.split("@")[0] ||
+            localStorage.getItem("first_name") ||
+            localStorage.getItem("email")?.split("@")[0] ||
             "Employee",
           role: "employee",
-        });
-        return;
-      }
-
-      //SUPERADMIN (NO PROFILE)
-      if (group.toLowerCase() === "superadmin") {
-        setUserData({
-          firstName: localStorage.getItem("first_name") || "Super Admin",
-          role: "employee", // UI role
+          group: group || "Staff",
         });
         return;
       }
@@ -212,31 +244,41 @@ export default function Navbar({ content }) {
           err.response.status,
           err.response.data
         );
-      } } finally {
-        setIsLoading(false);
-          }
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
-
 
   useEffect(() => {
     fetchUserData();
   }, []);
 
-  useEffect(() => {
-    fetchUserData();
-  }, [location.pathname]);
+  const isAdminLike =
+    userData.role === "employee" &&
+    ["admin", "superadmin"].includes((userData.group || "").toLowerCase());
 
-  const menuItems = menuConfig[userData.role] || menuConfig.client;
+  const menuItems = useMemo(() => {
+    if (userData.role === "client") return clientMenu;
+    if (userData.role === "employee") {
+      return isAdminLike
+        ? [...employeeAdminMenu, ...employeeBaseMenu]
+        : employeeBaseMenu;
+    }
+    return clientMenu;
+  }, [userData.role, isAdminLike]);
 
-  // Create bottom nav items: first 4 menu items + logout button
   const bottomNavItems = [
     ...menuItems.slice(0, 4),
-    { label: "LOGOUT", path: "logout", icon: <LogoutIcon sx={{ color: "#9e2c2c" }} /> }
+    {
+      label: "LOGOUT",
+      path: "logout",
+      icon: <LogoutIcon sx={{ color: "#9e2c2c" }} />,
+    },
   ];
 
-  // Find current index for bottom navigation
   useEffect(() => {
-    const currentIndex = bottomNavItems.findIndex(item => item.path === path);
+    const currentIndex = bottomNavItems.findIndex((item) => item.path === path);
     if (currentIndex !== -1) {
       setBottomNavValue(currentIndex);
     }
@@ -268,7 +310,9 @@ export default function Navbar({ content }) {
     try {
       await AxiosInstance.post("logout/");
     } catch (error) {
-      console.log("Logout API error:", error);
+      if (error.response?.status !== 401) {
+        console.warn("Unexpected logout error:", error);
+      }
     }
 
     [
@@ -295,7 +339,7 @@ export default function Navbar({ content }) {
     ].forEach((key) => localStorage.removeItem(key));
 
     sessionStorage.clear();
-    setUserData({ firstName: "User", role: "client" });
+    setUserData({ firstName: "User", role: "client", group: "" });
 
     navigate("/", { replace: true });
   };
@@ -338,11 +382,19 @@ export default function Navbar({ content }) {
       <Toolbar />
 
       <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-        <img src={Logo} alt="Logo" style={{ width: isMobile ? "150px" : "200px" }} />
+        <img
+          src={Logo}
+          alt="Logo"
+          style={{ width: isMobile ? "150px" : "200px" }}
+        />
       </Box>
 
       <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-        <Link to={profileLink} onClick={handleDrawerClose} style={{ textDecoration: "none" }}>
+        <Link
+          to={profileLink}
+          onClick={handleDrawerClose}
+          style={{ textDecoration: "none" }}
+        >
           <img
             src={profileImage}
             alt="Profile"
@@ -434,7 +486,7 @@ export default function Navbar({ content }) {
 
   const handleBottomNavChange = (event, newValue) => {
     const selectedItem = bottomNavItems[newValue];
-    
+
     if (selectedItem.label === "LOGOUT") {
       handleLogout();
     } else {
@@ -446,7 +498,6 @@ export default function Navbar({ content }) {
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ display: "flex", pb: { xs: "56px", md: 0 } }}>
-        {/* Mobile AppBar */}
         <AppBar
           position="fixed"
           sx={{
@@ -489,7 +540,6 @@ export default function Navbar({ content }) {
           </Toolbar>
         </AppBar>
 
-        {/* Mobile Drawer */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -509,7 +559,6 @@ export default function Navbar({ content }) {
           {drawer}
         </Drawer>
 
-        {/* Desktop Drawer */}
         <Drawer
           variant="permanent"
           sx={{
@@ -526,7 +575,6 @@ export default function Navbar({ content }) {
           {drawer}
         </Drawer>
 
-        {/* Main Content */}
         <Box
           component="main"
           sx={{
@@ -541,7 +589,6 @@ export default function Navbar({ content }) {
           {content}
         </Box>
 
-        {/* Bottom Navigation Bar for Mobile - 5 items including logout */}
         <Paper
           sx={{
             position: "fixed",
@@ -574,11 +621,11 @@ export default function Navbar({ content }) {
               <BottomNavigationAction
                 key={index}
                 label={item.label}
-                icon={React.cloneElement(item.icon, { 
-                  sx: { 
+                icon={React.cloneElement(item.icon, {
+                  sx: {
                     color: item.label === "LOGOUT" ? "#9e2c2c" : "inherit",
-                    fontSize: "24px"
-                  } 
+                    fontSize: "24px",
+                  },
                 })}
                 sx={{
                   "& .MuiBottomNavigationAction-label": {
