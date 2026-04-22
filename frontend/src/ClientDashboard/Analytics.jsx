@@ -46,34 +46,40 @@ function Analytics() {
   }, []);
   
   const fetchData = async () => {
-  if (USE_MOCK_DASHBOARD) {
-    const totalBudget = mockBudget.amount;
-    const expensesData = mockExpenses;
+    if (USE_MOCK_DASHBOARD) {
+      const totalBudget = Number(mockBudget.amount);
+      const expensesData = mockExpenses;
 
-    let runningTotal = totalBudget;
+      const monthOrder = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const monthly = {};
 
-    const monthly = {};
+      expensesData.forEach(({ amount, date }) => {
+        const month = new Date(date).toLocaleString("default", { month: "short" });
+        monthly[month] = (monthly[month] || 0) + Number(amount);
+      });
 
-    expensesData.forEach(({ amount, date }) => {
-      const month = new Date(date).toLocaleString("default", { month: "short" });
-      monthly[month] = (monthly[month] || 0) + Number(amount);
-    });
+      let runningTotal = totalBudget;
 
-    const chartData = Object.keys(monthly).map((month) => {
-      const expense = monthly[month];
-      runningTotal -= expense;
+      const chartData = Object.keys(monthly)
+        .sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b))
+        .map((month) => {
+          const expense = monthly[month];
+          const budgetBeforeExpense = runningTotal;
 
-      return {
-        name: month,
-        budget: runningTotal,   // 👈 decreasing
-        expenses: expense,
-      };
-    });
+          runningTotal -= expense;
 
-    setData(chartData);
-    setExpenses(expensesData);
-    return;
-  }
+          return {
+            name: month,
+            budget: budgetBeforeExpense,
+            expenses: expense,
+            remaining: runningTotal,
+          };
+        });
+
+      setData(chartData);
+      setExpenses(expensesData);
+      return;
+    }
     try {
       const [budgetRes, expensesRes] = await Promise.all([
         AxiosInstance.get('core/budgets/'),
