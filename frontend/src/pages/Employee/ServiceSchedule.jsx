@@ -16,7 +16,7 @@ import {
   Button,
 } from "@mui/material";
 import AxiosInstance from "../../components/AxiosInstance";
-import { mockServiceSchedules } from "../mock/employeeMockData";
+import { mockServiceSchedules } from "../../mock/employeeMockData";
 
 const GREEN = "#1c3d37";
 const USE_MOCK_SERVICE_SCHEDULE = true;

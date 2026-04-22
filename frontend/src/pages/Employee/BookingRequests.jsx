@@ -17,7 +17,7 @@ import {
   MenuItem,
 } from "@mui/material";
 import AxiosInstance from "../../components/AxiosInstance";
-import { mockBookingRequests } from "../mock/employeeMockData";
+import { mockServiceSchedules } from "../../mock/employeeMockData";
 
 const GREEN = "#1c3d37";
 const USE_MOCK_BOOKINGS = true;
