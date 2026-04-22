@@ -5,10 +5,14 @@ export const mockBudget = {
 };
 
 export const mockExpenses = [
-  { id: 1, name: "Irrigation", amount: 350, date: "2026-01-12T10:00:00" },
-  { id: 2, name: "Seasonal", amount: 220, date: "2026-02-08T13:30:00" },
-  { id: 3, name: "Winterize", amount: 410, date: "2026-03-03T09:15:00" },
-  { id: 4, name: "Lighting", amount: 575, date: "2026-04-10T14:00:00" },
+  { id: 1, name: "Irrigation", amount: 2650, date: "2025-09-12T10:00:00" },
+  { id: 2, name: "Seasonal Cleanup", amount: 3120, date: "2025-10-08T13:30:00" },
+  { id: 3, name: "Winterize", amount: 2840, date: "2025-11-03T09:15:00" },
+  { id: 4, name: "Lighting", amount: 3580, date: "2025-12-10T14:00:00" },
+  { id: 5, name: "Irrigation Repair", amount: 3310, date: "2026-01-14T11:00:00" },
+  { id: 6, name: "Drainage Service", amount: 3745, date: "2026-02-06T15:00:00" },
+  { id: 7, name: "Spring Startup", amount: 4025, date: "2026-03-09T09:45:00" },
+  { id: 8, name: "Landscape Lighting", amount: 4210, date: "2026-04-10T14:00:00" },
 ];
 
 export const mockBookings = [
@@ -83,8 +87,12 @@ export const mockLocationServices = {
 };
 
 export const mockAnalyticsData = [
-  { name: "Jan", budget: 5000, expenses: 350 },
-  { name: "Feb", budget: 5000, expenses: 220 },
-  { name: "Mar", budget: 5000, expenses: 410 },
-  { name: "Apr", budget: 5000, expenses: 575 },
+  { name: "Sep", budget: 4200, expenses: 2650 },
+  { name: "Oct", budget: 4500, expenses: 3120 },
+  { name: "Nov", budget: 4300, expenses: 2840 },
+  { name: "Dec", budget: 4700, expenses: 3580 },
+  { name: "Jan", budget: 4600, expenses: 3310 },
+  { name: "Feb", budget: 4800, expenses: 3745 },
+  { name: "Mar", budget: 5000, expenses: 4025 },
+  { name: "Apr", budget: 5200, expenses: 4210 },
 ];

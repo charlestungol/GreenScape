@@ -1402,3 +1402,598 @@ html.dashboardContainer {
     font-size: 16px;
   }
 }
+
+/* ============================================
+   MODAL / OVERLAY FIXES
+   ============================================ */
+
+.overlay,
+.bookings-modal-overlay,
+.overlayMap,
+.budgetOverlay,
+.expenseOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 9999;
+}
+
+/* Generic white popup shell */
+.service-locations-overlay-content,
+.bookings-modal-content,
+.analyticsOverlayContent,
+.overlayMapContent {
+  background: #fff;
+  width: min(900px, 95vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  border-radius: 18px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.2);
+  padding: 24px;
+  animation: slideUp 0.25s ease;
+}
+
+/* Smaller booking detail modal */
+.bookings-modal-content-small {
+  width: min(680px, 92vw);
+}
+
+/* ============================================
+   BOOKINGS MODAL
+   ============================================ */
+
+.bookings-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e8ece9;
+}
+
+.bookings-modal-header h2 {
+  margin: 0;
+  color: #1c3d37;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.bookings-close-btn {
+  border: none;
+  background: #f4f6f5;
+  color: #1c3d37;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.bookings-close-btn:hover {
+  background: #e9efec;
+}
+
+.bookings-modal-body {
+  padding: 4px 0;
+}
+
+.bookings-modal-body-scrollable {
+  max-height: 55vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.bookings-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.booking-list-item {
+  border: 1px solid #dce5df;
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.booking-list-item:hover,
+.booking-list-item-selected {
+  border-color: #1c3d37;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.booking-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.booking-list-title {
+  margin: 0 0 6px 0;
+  font-size: 22px;
+  color: #1c3d37;
+  font-weight: 700;
+}
+
+.booking-list-datetime {
+  color: #5e716b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.booking-list-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.booking-list-price {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1c3d37;
+}
+
+.bookings-status-badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.bookings-status-confirmed {
+  background: #e7f6ec;
+  color: #1c7c45;
+}
+
+.bookings-status-pending {
+  background: #fff4df;
+  color: #a56a00;
+}
+
+.bookings-status-large {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.bookings-status-large-confirmed {
+  background: #e7f6ec;
+  color: #1c7c45;
+}
+
+.bookings-status-large-pending {
+  background: #fff4df;
+  color: #a56a00;
+}
+
+.bookings-pending-notice {
+  background: #fff8ea;
+  border: 1px solid #f1ddaf;
+  color: #7b5a00;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+}
+
+.bookings-detail-section {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #e7ece9;
+  border-radius: 14px;
+  background: #fafcfb;
+}
+
+.bookings-detail-section h3 {
+  margin: 0 0 12px 0;
+  color: #1c3d37;
+  font-size: 18px;
+}
+
+.bookings-detail-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.bookings-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 15px;
+  color: #33443f;
+}
+
+.bookings-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e8ece9;
+}
+
+.bookings-modal-footer-end {
+  justify-content: flex-end;
+}
+
+.bookings-new-booking-btn,
+.bookings-cancel-modal-btn,
+.bookings-close-modal-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bookings-new-booking-btn {
+  background: #1c3d37;
+  color: white;
+}
+
+.bookings-new-booking-btn:hover {
+  background: #14302b;
+}
+
+.bookings-cancel-modal-btn,
+.bookings-close-modal-btn {
+  background: #f2f4f3;
+  color: #34443f;
+}
+
+.bookings-cancel-modal-btn:hover,
+.bookings-close-modal-btn:hover {
+  background: #e7ece9;
+}
+
+/* ============================================
+   SERVICE LOCATIONS MODAL
+   ============================================ */
+
+.service-locations-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e8ece9;
+}
+
+.service-locations-header h2 {
+  margin: 0;
+  font-size: 30px;
+  color: #1c3d37;
+}
+
+.close-overlay-button {
+  border: none;
+  background: #f4f6f5;
+  color: #1c3d37;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.close-overlay-button:hover {
+  background: #e9efec;
+}
+
+.service-locations-content {
+  margin-top: 8px;
+}
+
+.locations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.location-item-wrapper {
+  border: 1px solid #dce5df;
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+}
+
+.location-main-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.location-details {
+  flex: 1;
+}
+
+.location-street {
+  margin: 0 0 6px 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1c3d37;
+}
+
+.location-city-province,
+.location-postal-code {
+  margin: 0 0 4px 0;
+  color: #546862;
+  font-size: 15px;
+}
+
+.location-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.view-services-btn,
+.delete-location-btn,
+.retry-button {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.view-services-btn {
+  background: #1c3d37;
+  color: white;
+}
+
+.view-services-btn:hover {
+  background: #14302b;
+}
+
+.delete-location-btn {
+  background: #fff1f1;
+  color: #c23d3d;
+}
+
+.delete-location-btn:hover {
+  background: #ffe1e1;
+}
+
+.empty-locations,
+.error-container,
+.loading-container {
+  text-align: center;
+  padding: 28px 16px;
+}
+
+.empty-subtext {
+  color: #6b7d77;
+  margin-top: 8px;
+}
+
+/* ============================================
+   MAP MODAL
+   ============================================ */
+
+.overlayMapContent {
+  width: min(1000px, 95vw);
+}
+
+.map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e8ece9;
+}
+
+.map-title {
+  margin: 0;
+  color: #1c3d37;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.close-button {
+  border: none;
+  background: #f4f6f5;
+  color: #1c3d37;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.close-button:hover {
+  background: #e9efec;
+}
+
+.search-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 240px;
+  border: 1px solid #cfd8d3;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 15px;
+}
+
+.search-button,
+.confirm-button,
+.reset-button,
+.close-link {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.search-button,
+.confirm-button {
+  background: #1c3d37;
+  color: white;
+}
+
+.search-button:hover,
+.confirm-button:hover {
+  background: #14302b;
+}
+
+.reset-button {
+  background: #eef2f0;
+  color: #30403b;
+}
+
+.reset-button:hover {
+  background: #e2e9e5;
+}
+
+.close-link {
+  background: transparent;
+  color: #1c3d37;
+  text-decoration: underline;
+  padding-left: 0;
+}
+
+.map-container {
+  width: 100%;
+  height: 420px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #dbe4de;
+  margin-bottom: 16px;
+}
+
+.location-display {
+  background: #f7faf8;
+  border: 1px solid #dbe4de;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.location-text {
+  margin: 0;
+  color: #2d403a;
+  line-height: 1.5;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.close-link-container {
+  margin-top: 16px;
+}
+
+.success-message {
+  background: #e9f7ef;
+  color: #1f7a44;
+  border: 1px solid #cce9d5;
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.error-message {
+  background: #fff1f1;
+  color: #b53b3b;
+  border: 1px solid #f3caca;
+  padding: 12px 14px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+/* ============================================
+   MOBILE
+   ============================================ */
+
+@media (max-width: 768px) {
+  .bookings-modal-content,
+  .bookings-modal-content-small,
+  .service-locations-overlay-content,
+  .overlayMapContent,
+  .analyticsOverlayContent {
+    width: 100%;
+    max-height: 92vh;
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .booking-list-header,
+  .location-main-info,
+  .bookings-detail-row,
+  .search-container,
+  .action-buttons,
+  .bookings-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .booking-list-footer {
+    justify-content: flex-start;
+  }
+
+  .bookings-modal-header h2,
+  .service-locations-header h2,
+  .map-title {
+    font-size: 22px;
+  }
+
+  .map-container {
+    height: 320px;
+  }
+}
+
+.custom-tooltip {
+  background: #ffffff;
+  border: 1px solid #dfe7e2;
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.tooltip-label {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1c3d37;
+}
+
+.tooltip-value {
+  margin: 4px 0;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tooltip-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}

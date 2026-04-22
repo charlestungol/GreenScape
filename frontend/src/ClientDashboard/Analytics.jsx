@@ -190,7 +190,7 @@ function Analytics() {
           <BarChart data={data} barCategoryGap="30%">
             <CartesianGrid strokeDasharray="3 3" stroke="#e0e8e5" vertical={false} />
             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#8a9e98' }} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#8a9e98' }} width={30} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#8a9e98' }} width={40} domain={[0, 'dataMax + 500']}/>
             <Tooltip content={<CustomTooltip />} cursor={false} />
             <Legend wrapperStyle={{ fontSize: '11px', color: '#62ad97', marginTop: '5px' }} iconType="circle" iconSize={8} />
             <Bar dataKey="budget" fill="#6a9c6a" barSize={22} radius={[6, 6, 0, 0]} name="Budget" />
