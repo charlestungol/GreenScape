@@ -16,8 +16,10 @@ import {
   Button,
 } from "@mui/material";
 import AxiosInstance from "../../components/AxiosInstance";
+import { mockServiceSchedules } from "../mock/employeeMockData";
 
 const GREEN = "#1c3d37";
+const USE_MOCK_SERVICE_SCHEDULE = true;
 
 const toKey = (d) => {
   const dt = new Date(d);
@@ -79,6 +81,12 @@ export default function ServiceSchedule() {
   useEffect(() => {
     const loadSchedules = async () => {
       try {
+        if (USE_MOCK_SERVICE_SCHEDULE) {
+          setRows(mockServiceSchedules);
+          setLoading(false);
+          return;
+        }
+
         const res = await AxiosInstance.get("core/schedules/");
         setRows(res.data?.results || res.data || []);
       } catch (error) {

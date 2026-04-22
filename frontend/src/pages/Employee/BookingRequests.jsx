@@ -17,8 +17,10 @@ import {
   MenuItem,
 } from "@mui/material";
 import AxiosInstance from "../../components/AxiosInstance";
+import { mockBookingRequests } from "../mock/employeeMockData";
 
 const GREEN = "#1c3d37";
+const USE_MOCK_BOOKINGS = true;
 
 export default function BookingRequests() {
   const [loading, setLoading] = useState(true);
@@ -29,6 +31,23 @@ export default function BookingRequests() {
   const fetchRequests = async () => {
     try {
       setLoading(true);
+
+      if (USE_MOCK_BOOKINGS) {
+        // 👇 transform mock data to match your table
+        const formatted = mockBookingRequests.map((item) => ({
+          bookingid: item.id,
+          client_name: item.client,
+          client_email: item.email,
+          service_name: item.service,
+          booking_date: item.date,
+          booking_time: item.time,
+          status: item.status,
+        }));
+
+        setBookingRequests(formatted);
+        return;
+      }
+
       const res = await AxiosInstance.get("/core/bookings/");
 
       const data =

@@ -8,8 +8,10 @@ import {
 } from "@mui/material";
 import MonthCalendar from "../../components/MonthCalendar";
 import AxiosInstance from "../../components/AxiosInstance";
+import { mockEmployeeAvailability } from "../mock/employeeMockData";
 
 const GREEN = "#1c3d37";
+const USE_MOCK_SCHEDULE = true;
 
 /* -------------------- Date Helpers -------------------- */
 
@@ -67,6 +69,11 @@ export default function MySchedule() {
   useEffect(() => {
     const loadSchedules = async () => {
       try {
+        if (USE_MOCK_SCHEDULE) {
+          setSchedules(mockEmployeeAvailability);
+          return;
+        }
+
         const res = await AxiosInstance.get(
           "core/employee-availability/"
         );
