@@ -110,6 +110,7 @@ def stream_ai_response(user_message: str, conversation_history=None):
 
     try:
         stream = client.chat.completions.create(
+            model=DEPLOYMENT_NAME,
             messages=build_messages(trimmed_message, conversation_history),
             max_completion_tokens=7000,
             stream=True,
