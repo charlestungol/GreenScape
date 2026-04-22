@@ -47,10 +47,27 @@ function Analytics() {
   
   const fetchData = async () => {
     if (USE_MOCK_DASHBOARD) {
-      localStorage.setItem("userBudget", mockBudget.amount);
-      localStorage.setItem("userExpenses", JSON.stringify(mockExpenses));
-      setData(mockAnalyticsData);
-      setExpenses(mockExpenses);
+      const budget = Number(mockBudget.amount);
+      const expensesData = mockExpenses;
+
+      localStorage.setItem("userBudget", budget);
+      localStorage.setItem("userExpenses", JSON.stringify(expensesData));
+
+      const monthly = {};
+
+      expensesData.forEach(({ amount, date }) => {
+        const month = new Date(date).toLocaleString("default", { month: "short" });
+        monthly[month] = (monthly[month] || 0) + Number(amount);
+      });
+
+      const chartData = Object.keys(monthly).map((month) => ({
+        name: month,
+        budget,
+        expenses: monthly[month],
+      }));
+
+      setData(chartData);
+      setExpenses(expensesData);
       return;
     }
     try {
