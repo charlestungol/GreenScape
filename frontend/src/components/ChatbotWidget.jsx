@@ -127,11 +127,7 @@ function ChatbotWidget() {
     const userMessage = { role: "user", content: trimmed };
     const nextMessages = [...messages, userMessage];
 
-    setMessages((prev) => [
-      ...prev,
-      userMessage,
-      { role: "assistant", content: "" },
-    ]);
+    setMessages(nextMessages);
     setInput("");
     setIsLoading(true);
 
@@ -147,93 +143,17 @@ function ChatbotWidget() {
         }),
       });
 
+      const data = await parseResponseSafely(response);
+
       if (!response.ok) {
-        const data = await parseResponseSafely(response);
         throw new Error(data?.error || "Request failed");
       }
 
-      if (!response.body) {
-        throw new Error("No response stream available.");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let finished = false;
-
-      while (!finished) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        const chunks = buffer.split("\n\n");
-        buffer = chunks.pop() || "";
-
-        for (const chunk of chunks) {
-          const line = chunk
-            .split("\n")
-            .find((l) => l.startsWith("data: "));
-
-          if (!line) continue;
-
-          let payload;
-          try {
-            payload = JSON.parse(line.slice(6));
-          } catch {
-            continue;
-          }
-
-          if (payload.type === "delta") {
-            setMessages((prev) => {
-              const updated = [...prev];
-              const lastIndex = updated.length - 1;
-
-              if (lastIndex >= 0 && updated[lastIndex].role === "assistant") {
-                updated[lastIndex] = {
-                  ...updated[lastIndex],
-                  content: updated[lastIndex].content + payload.text,
-                };
-              }
-
-              return updated;
-            });
-          }
-
-          if (payload.type === "done") {
-            finished = true;
-            break;
-          }
-        }
-      }
-
-      setMessages((prev) => {
-        const updated = [...prev];
-        const lastIndex = updated.length - 1;
-
-        if (lastIndex >= 0 && updated[lastIndex].role === "assistant") {
-          updated[lastIndex] = {
-            ...updated[lastIndex],
-            content: normalizeAssistantText(updated[lastIndex].content),
-          };
-        }
-
-        return updated;
-      });
+      appendAssistantMessage(
+        data?.response || "Sorry, I couldn’t generate a response right now."
+      );
     } catch (error) {
-      setMessages((prev) => {
-        const updated = [...prev];
-        const lastIndex = updated.length - 1;
-
-        if (lastIndex >= 0 && updated[lastIndex].role === "assistant") {
-          updated[lastIndex] = {
-            ...updated[lastIndex],
-            content: getFriendlyFallbackMessage(error?.message),
-          };
-        }
-
-        return updated;
-      });
+      appendAssistantMessage(getFriendlyFallbackMessage(error?.message));
     } finally {
       setIsLoading(false);
       setTimeout(() => textareaRef.current?.focus(), 50);
