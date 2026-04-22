@@ -68,12 +68,7 @@ jobs:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_46A6AF557C444724BFA76D48DCCC143F }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C648573668084F4BB22A08134C3DBC2A }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_4208C4BFD7904AF2B61C72219886B16F }}
-            - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_46A6AF557C444724BFA76D48DCCC143F }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_C648573668084F4BB22A08134C3DBC2A }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_4208C4BFD7904AF2B61C72219886B16F }}
+
 
       - name: Ensure Azure SQL firewall rule exists
         run: |
