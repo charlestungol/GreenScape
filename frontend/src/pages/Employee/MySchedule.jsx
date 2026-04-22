@@ -8,7 +8,7 @@ import {
 } from "@mui/material";
 import MonthCalendar from "../../components/MonthCalendar";
 import AxiosInstance from "../../components/AxiosInstance";
-import { mockServiceSchedules } from "../../mock/employeeMockData";
+import { mockEmployeeAvailability  } from "../../mock/employeeMockData";
 
 const GREEN = "#1c3d37";
 const USE_MOCK_SCHEDULE = true;
