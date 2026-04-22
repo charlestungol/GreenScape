@@ -26,8 +26,6 @@ const Home = () => {
               <Time />
               <Maps />
             </div>
-
-            <Bookings />
           </div>
 
           <div className="rightColumn">
@@ -37,6 +35,8 @@ const Home = () => {
               <ServiceLocations />
               <Appointment />
             </div>
+
+            <Bookings />
           </div>
         </div>
 
