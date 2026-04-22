@@ -1,7 +1,7 @@
 export const USE_MOCK_DASHBOARD = true;
 
 export const mockBudget = {
-  amount: 5000,
+  amount: 30000,
 };
 
 export const mockExpenses = [
