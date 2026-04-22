@@ -125,10 +125,13 @@ function ChatbotWidget() {
     if (!trimmed || isLoading) return;
 
     const userMessage = { role: "user", content: trimmed };
-    const assistantPlaceholder = { role: "assistant", content: "" };
     const nextMessages = [...messages, userMessage];
 
-    setMessages((prev) => [...prev, userMessage, assistantPlaceholder]);
+    setMessages((prev) => [
+      ...prev,
+      userMessage,
+      { role: "assistant", content: "" },
+    ]);
     setInput("");
     setIsLoading(true);
 
@@ -156,21 +159,30 @@ function ChatbotWidget() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let finished = false;
 
-      while (true) {
+      while (!finished) {
         const { value, done } = await reader.read();
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
 
-        const blocks = buffer.split("\n\n");
-        buffer = blocks.pop() || "";
+        const chunks = buffer.split("\n\n");
+        buffer = chunks.pop() || "";
 
-        for (const block of blocks) {
-          const line = block.split("\n").find((l) => l.startsWith("data: "));
+        for (const chunk of chunks) {
+          const line = chunk
+            .split("\n")
+            .find((l) => l.startsWith("data: "));
+
           if (!line) continue;
 
-          const payload = JSON.parse(line.slice(6));
+          let payload;
+          try {
+            payload = JSON.parse(line.slice(6));
+          } catch {
+            continue;
+          }
 
           if (payload.type === "delta") {
             setMessages((prev) => {
@@ -180,9 +192,7 @@ function ChatbotWidget() {
               if (lastIndex >= 0 && updated[lastIndex].role === "assistant") {
                 updated[lastIndex] = {
                   ...updated[lastIndex],
-                  content: normalizeAssistantText(
-                    updated[lastIndex].content + payload.text
-                  ),
+                  content: updated[lastIndex].content + payload.text,
                 };
               }
 
@@ -191,10 +201,25 @@ function ChatbotWidget() {
           }
 
           if (payload.type === "done") {
+            finished = true;
             break;
           }
         }
       }
+
+      setMessages((prev) => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+
+        if (lastIndex >= 0 && updated[lastIndex].role === "assistant") {
+          updated[lastIndex] = {
+            ...updated[lastIndex],
+            content: normalizeAssistantText(updated[lastIndex].content),
+          };
+        }
+
+        return updated;
+      });
     } catch (error) {
       setMessages((prev) => {
         const updated = [...prev];
