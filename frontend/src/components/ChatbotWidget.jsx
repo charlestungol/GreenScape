@@ -125,9 +125,10 @@ function ChatbotWidget() {
     if (!trimmed || isLoading) return;
 
     const userMessage = { role: "user", content: trimmed };
+    const assistantPlaceholder = { role: "assistant", content: "" };
     const nextMessages = [...messages, userMessage];
 
-    setMessages(nextMessages);
+    setMessages((prev) => [...prev, userMessage, assistantPlaceholder]);
     setInput("");
     setIsLoading(true);
 
@@ -143,17 +144,71 @@ function ChatbotWidget() {
         }),
       });
 
-      const data = await parseResponseSafely(response);
-
       if (!response.ok) {
+        const data = await parseResponseSafely(response);
         throw new Error(data?.error || "Request failed");
       }
 
-      appendAssistantMessage(
-        data?.response || "Sorry, I couldn’t generate a response right now."
-      );
+      if (!response.body) {
+        throw new Error("No response stream available.");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const blocks = buffer.split("\n\n");
+        buffer = blocks.pop() || "";
+
+        for (const block of blocks) {
+          const line = block.split("\n").find((l) => l.startsWith("data: "));
+          if (!line) continue;
+
+          const payload = JSON.parse(line.slice(6));
+
+          if (payload.type === "delta") {
+            setMessages((prev) => {
+              const updated = [...prev];
+              const lastIndex = updated.length - 1;
+
+              if (lastIndex >= 0 && updated[lastIndex].role === "assistant") {
+                updated[lastIndex] = {
+                  ...updated[lastIndex],
+                  content: normalizeAssistantText(
+                    updated[lastIndex].content + payload.text
+                  ),
+                };
+              }
+
+              return updated;
+            });
+          }
+
+          if (payload.type === "done") {
+            break;
+          }
+        }
+      }
     } catch (error) {
-      appendAssistantMessage(getFriendlyFallbackMessage(error?.message));
+      setMessages((prev) => {
+        const updated = [...prev];
+        const lastIndex = updated.length - 1;
+
+        if (lastIndex >= 0 && updated[lastIndex].role === "assistant") {
+          updated[lastIndex] = {
+            ...updated[lastIndex],
+            content: getFriendlyFallbackMessage(error?.message),
+          };
+        }
+
+        return updated;
+      });
     } finally {
       setIsLoading(false);
       setTimeout(() => textareaRef.current?.focus(), 50);

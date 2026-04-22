@@ -1,5 +1,5 @@
 import json
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
 
@@ -12,7 +12,7 @@ def chat(request):
         )
 
     try:
-        from .ai_service import get_ai_response
+        from .ai_service import stream_ai_response
 
         data = json.loads(request.body or "{}")
         user_message = str(data.get("message", "")).strip()
@@ -40,8 +40,18 @@ def chat(request):
                     }
                 )
 
-        ai_reply = get_ai_response(user_message, cleaned_history)
-        return JsonResponse({"response": ai_reply}, status=200)
+        def event_stream():
+            for chunk in stream_ai_response(user_message, cleaned_history):
+                yield f"data: {json.dumps({'type': 'delta', 'text': chunk})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+        response = StreamingHttpResponse(
+            event_stream(),
+            content_type="text/event-stream",
+        )
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
+        return response
 
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON body."}, status=400)
