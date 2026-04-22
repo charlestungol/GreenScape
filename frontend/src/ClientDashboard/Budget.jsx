@@ -18,26 +18,27 @@ function Budget() {
   
   // Fetch budget from backend on mount
   const fetchBudget = async () => {
-      if (USE_MOCK_DASHBOARD) {
-        setBudget(Number(mockBudget.amount));
-        localStorage.setItem("userBudget", mockBudget.amount);
-        return;
+    if (USE_MOCK_DASHBOARD) {
+      setBudget(Number(mockBudget.amount));
+      localStorage.setItem("userBudget", mockBudget.amount);
+      return;
+    }
+
+    try {
+      const response = await AxiosInstance.get('core/budgets/');
+      const data = Array.isArray(response.data)
+        ? response.data
+        : response.data.results || [];
+
+      if (data.length > 0) {
+        setBudget(Number(data[0].amount));
+        localStorage.setItem("userBudget", data[0].amount);
       }
-      try {
-        const response = await AxiosInstance.get('core/budgets/');
-        // Handle both array and paginated responses
-        const data = Array.isArray(response.data)
-          ? response.data
-          : response.data.results || [];
-        if (data.length > 0) {
-          setBudget(Number(data[0].amount));
-          localStorage.setItem("userBudget", data[0].amount);
-        }
-      } catch {
-        const savedBudget = localStorage.getItem("userBudget");
-        if (savedBudget) setBudget(Number(savedBudget) || 0);
-      }
-    };
+    } catch {
+      const savedBudget = localStorage.getItem("userBudget");
+      if (savedBudget) setBudget(Number(savedBudget) || 0);
+    }
+  };
   useEffect(() => {
     fetchBudget();
   }, []);

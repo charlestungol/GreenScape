@@ -129,7 +129,7 @@ function Analytics() {
     });
   };
 
-  const totalBudget = data.reduce((sum, month) => sum + month.budget, 0);
+  const totalBudget = Number(localStorage.getItem("userBudget")) || data[0]?.budget || 0;
   const totalExpensesAmount = data.reduce((sum, month) => sum + month.expenses, 0);
   const recentExpenses = [...expenses]
     .sort((a, b) => new Date(b.date || b.created_at) - new Date(a.date || a.created_at))
